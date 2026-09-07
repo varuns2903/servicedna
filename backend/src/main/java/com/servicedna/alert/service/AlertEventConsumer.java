@@ -67,23 +67,35 @@ public class AlertEventConsumer {
     }
 
     private void triggerWebhook(AlertRule rule, ServiceStatusChangedEvent event) {
-        log.info("Triggering webhook for rule ID: {} to URL: {}", rule.getId(), rule.getWebhookUrl());
+        log.info("Triggering {} webhook for rule ID: {} to URL: {}", rule.getIntegrationType(), rule.getId(), rule.getWebhookUrl());
         
         try {
-            // Simulated payload wrapper
-            WebhookPayload webhookPayload = new WebhookPayload(
-                    "Service status changed to " + event.newStatus(),
-                    event
-            );
+            Object payload;
+            String message = String.format("Service '%s' (ID: %s) changed status to %s", 
+                event.serviceId(), event.serviceId(), event.newStatus());
+
+            switch (rule.getIntegrationType()) {
+                case SLACK:
+                    payload = new SlackPayload(message);
+                    break;
+                case DISCORD:
+                    payload = new DiscordPayload(message);
+                    break;
+                case GENERIC:
+                default:
+                    payload = new WebhookPayload(message, event);
+                    break;
+            }
             
             // We use restTemplate to fire-and-forget the webhook
-            restTemplate.postForEntity(rule.getWebhookUrl(), webhookPayload, String.class);
+            restTemplate.postForEntity(rule.getWebhookUrl(), payload, String.class);
             log.info("Webhook delivered successfully to {}", rule.getWebhookUrl());
         } catch (RestClientException e) {
             log.warn("Webhook delivery failed to {}: {}", rule.getWebhookUrl(), e.getMessage());
-            // In a real production system, implement a retry mechanism or dead-letter queue.
         }
     }
 
     private record WebhookPayload(String message, ServiceStatusChangedEvent event) {}
+    private record SlackPayload(String text) {}
+    private record DiscordPayload(String content) {}
 }

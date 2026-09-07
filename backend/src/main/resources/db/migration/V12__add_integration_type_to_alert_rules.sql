@@ -1,0 +1,1 @@
+ALTER TABLE alert_rules ADD COLUMN integration_type VARCHAR(50) DEFAULT 'GENERIC' NOT NULL;

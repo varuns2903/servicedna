@@ -69,9 +69,7 @@ class AlertRuleControllerTest {
     @Test
     void shouldCreateAndListAlertRules() throws Exception {
         CreateAlertRuleRequest req = new CreateAlertRuleRequest(
-                AlertCondition.STATUS_DOWN,
-                "https://webhook.site/my-hook"
-        );
+                AlertCondition.STATUS_DOWN, "https://webhook.site/my-hook", com.servicedna.alert.domain.IntegrationType.SLACK);
 
         String ruleRes = mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
                 .header("Authorization", "Bearer " + userToken)

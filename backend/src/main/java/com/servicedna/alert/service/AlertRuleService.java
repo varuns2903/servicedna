@@ -52,7 +52,8 @@ public class AlertRuleService {
                 organization,
                 service,
                 request.condition(),
-                request.webhookUrl()
+                request.webhookUrl(),
+                request.integrationType()
         );
 
         rule = alertRuleRepository.save(rule);
@@ -82,6 +83,7 @@ public class AlertRuleService {
                 rule.getService().getId(),
                 rule.getCondition(),
                 rule.getWebhookUrl(),
+                rule.getIntegrationType(),
                 rule.getCreatedAt(),
                 rule.getUpdatedAt()
         );

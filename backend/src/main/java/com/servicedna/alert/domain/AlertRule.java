@@ -39,6 +39,10 @@ public class AlertRule {
     @Column(name = "webhook_url", nullable = false)
     private String webhookUrl;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "integration_type", nullable = false)
+    private IntegrationType integrationType = IntegrationType.GENERIC;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -49,12 +53,13 @@ public class AlertRule {
 
     public AlertRule() {}
 
-    public AlertRule(UUID id, Organization organization, Service service, AlertCondition condition, String webhookUrl) {
+    public AlertRule(UUID id, Organization organization, Service service, AlertCondition condition, String webhookUrl, IntegrationType integrationType) {
         this.id = id;
         this.organization = organization;
         this.service = service;
         this.condition = condition;
         this.webhookUrl = webhookUrl;
+        this.integrationType = integrationType != null ? integrationType : IntegrationType.GENERIC;
     }
 
     public UUID getId() { return id; }
@@ -71,6 +76,9 @@ public class AlertRule {
 
     public String getWebhookUrl() { return webhookUrl; }
     public void setWebhookUrl(String webhookUrl) { this.webhookUrl = webhookUrl; }
+
+    public IntegrationType getIntegrationType() { return integrationType; }
+    public void setIntegrationType(IntegrationType integrationType) { this.integrationType = integrationType; }
 
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
