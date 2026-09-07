@@ -12,6 +12,8 @@ import com.servicedna.organization.repository.OrganizationMemberRepository;
 import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
+import com.servicedna.billing.domain.Subscription;
+import com.servicedna.billing.repository.SubscriptionRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,15 +28,18 @@ public class OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final UserRepository userRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     public OrganizationService(
             OrganizationRepository organizationRepository,
             OrganizationMemberRepository organizationMemberRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            SubscriptionRepository subscriptionRepository
     ) {
         this.organizationRepository = organizationRepository;
         this.organizationMemberRepository = organizationMemberRepository;
         this.userRepository = userRepository;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @Transactional
@@ -52,6 +57,9 @@ public class OrganizationService {
                 OrganizationRole.OWNER
         );
         organizationMemberRepository.save(member);
+
+        Subscription subscription = new Subscription(UUID.randomUUID(), organization);
+        subscriptionRepository.save(subscription);
 
         return mapToDto(organization);
     }
