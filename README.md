@@ -21,12 +21,12 @@ It allows teams to register backend services and monitor their health, availabil
 
 ## Getting Started
 To run the local infrastructure (Postgres, Redis, Kafka):
-\`\`\`bash
+```bash
 docker-compose up -d
-\`\`\`
+```
 
 To start the backend:
-\`\`\`bash
+```bash
 cd backend
 ./mvnw spring-boot:run
-\`\`\`
+```
