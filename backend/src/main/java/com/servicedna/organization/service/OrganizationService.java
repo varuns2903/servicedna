@@ -1,0 +1,110 @@
+package com.servicedna.organization.service;
+
+import com.servicedna.common.exception.ApiException;
+import com.servicedna.organization.domain.Organization;
+import com.servicedna.organization.domain.OrganizationMember;
+import com.servicedna.organization.domain.OrganizationRole;
+import com.servicedna.organization.dto.AddMemberRequest;
+import com.servicedna.organization.dto.CreateOrganizationRequest;
+import com.servicedna.organization.dto.OrganizationDto;
+import com.servicedna.organization.dto.OrganizationMemberDto;
+import com.servicedna.organization.repository.OrganizationMemberRepository;
+import com.servicedna.organization.repository.OrganizationRepository;
+import com.servicedna.user.domain.User;
+import com.servicedna.user.repository.UserRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+public class OrganizationService {
+
+    private final OrganizationRepository organizationRepository;
+    private final OrganizationMemberRepository organizationMemberRepository;
+    private final UserRepository userRepository;
+
+    public OrganizationService(
+            OrganizationRepository organizationRepository,
+            OrganizationMemberRepository organizationMemberRepository,
+            UserRepository userRepository
+    ) {
+        this.organizationRepository = organizationRepository;
+        this.organizationMemberRepository = organizationMemberRepository;
+        this.userRepository = userRepository;
+    }
+
+    @Transactional
+    public OrganizationDto createOrganization(CreateOrganizationRequest request, UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found"));
+
+        Organization organization = new Organization(UUID.randomUUID(), request.name());
+        organizationRepository.save(organization);
+
+        OrganizationMember member = new OrganizationMember(
+                UUID.randomUUID(),
+                organization,
+                user,
+                OrganizationRole.OWNER
+        );
+        organizationMemberRepository.save(member);
+
+        return mapToDto(organization);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrganizationDto> getUserOrganizations(UUID userId) {
+        return organizationMemberRepository.findByUserId(userId).stream()
+                .map(member -> mapToDto(member.getOrganization()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public OrganizationMemberDto addMember(UUID organizationId, AddMemberRequest request, UUID requesterId) {
+        OrganizationMember requester = organizationMemberRepository.findByOrganizationIdAndUserId(organizationId, requesterId)
+                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "You are not a member of this organization"));
+
+        if (requester.getRole() != OrganizationRole.OWNER && requester.getRole() != OrganizationRole.ADMIN) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "Only owners and admins can add members");
+        }
+
+        User userToAdd = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User with email " + request.email() + " not found"));
+
+        if (organizationMemberRepository.existsByOrganizationIdAndUserId(organizationId, userToAdd.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "USER_ALREADY_MEMBER", "User is already a member of this organization");
+        }
+
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ORG_NOT_FOUND", "Organization not found"));
+
+        OrganizationMember newMember = new OrganizationMember(
+                UUID.randomUUID(),
+                organization,
+                userToAdd,
+                request.role()
+        );
+        
+        organizationMemberRepository.save(newMember);
+
+        return new OrganizationMemberDto(newMember.getId(), userToAdd.getId(), userToAdd.getEmail(), newMember.getRole());
+    }
+
+    public void validateUserAccess(UUID organizationId, UUID userId) {
+        if (!organizationMemberRepository.existsByOrganizationIdAndUserId(organizationId, userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "You do not have access to this organization");
+        }
+    }
+
+    private OrganizationDto mapToDto(Organization organization) {
+        return new OrganizationDto(
+                organization.getId(),
+                organization.getName(),
+                organization.getCreatedAt()
+        );
+    }
+}
