@@ -1,0 +1,9 @@
+CREATE TABLE incident_post_mortems (
+    id UUID PRIMARY KEY,
+    incident_id UUID NOT NULL UNIQUE REFERENCES incidents(id) ON DELETE CASCADE,
+    root_cause TEXT NOT NULL,
+    timeline TEXT NOT NULL,
+    action_items TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

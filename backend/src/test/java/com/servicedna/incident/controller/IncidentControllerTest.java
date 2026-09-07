@@ -6,6 +6,8 @@ import com.servicedna.incident.domain.IncidentSeverity;
 import com.servicedna.incident.domain.IncidentStatus;
 import com.servicedna.incident.dto.CreateIncidentRequest;
 import com.servicedna.incident.dto.UpdateIncidentStatusRequest;
+import com.servicedna.incident.dto.UpsertPostMortemRequest;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import com.servicedna.organization.dto.CreateOrganizationRequest;
 import com.servicedna.service.dto.CreateServiceRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -119,5 +121,52 @@ class IncidentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RESOLVED"))
                 .andExpect(jsonPath("$.resolvedAt").exists());
+    }
+    @Test
+    void shouldUpsertAndGetPostMortem() throws Exception {
+        // Create an incident
+        CreateIncidentRequest createReq = new CreateIncidentRequest(
+                "Database Migration Failed",
+                "Prod DB down",
+                IncidentSeverity.CRITICAL,
+                List.of(UUID.fromString(serviceId))
+        );
+
+        String createRes = mockMvc.perform(post("/api/v1/organizations/{orgId}/incidents", orgId)
+                .header("Authorization", "Bearer " + userToken)
+                .contentType("application/json")
+                .content(objectMapper.writeValueAsString(createReq)))
+                .andReturn().getResponse().getContentAsString();
+                
+        UUID incidentId = UUID.fromString(objectMapper.readTree(createRes).get("id").asText());
+        
+        // Resolve incident
+        UpdateIncidentStatusRequest updateReq = new UpdateIncidentStatusRequest(IncidentStatus.RESOLVED);
+        mockMvc.perform(patch("/api/v1/organizations/{orgId}/incidents/{incidentId}/status", orgId, incidentId)
+                .header("Authorization", "Bearer " + userToken)
+                .contentType("application/json")
+                .content(objectMapper.writeValueAsString(updateReq)))
+                .andExpect(status().isOk());
+
+        // Add post-mortem
+        UpsertPostMortemRequest pmReq = new UpsertPostMortemRequest(
+                "Bad SQL script",
+                "09:00 deployed, 09:05 rolled back",
+                "Add pre-flight checks"
+        );
+
+        mockMvc.perform(put("/api/v1/organizations/{orgId}/incidents/{incidentId}/post-mortem", orgId, incidentId)
+                .header("Authorization", "Bearer " + userToken)
+                .contentType("application/json")
+                .content(objectMapper.writeValueAsString(pmReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rootCause").value("Bad SQL script"))
+                .andExpect(jsonPath("$.actionItems").value("Add pre-flight checks"));
+                
+        // Get post-mortem
+        mockMvc.perform(get("/api/v1/organizations/{orgId}/incidents/{incidentId}/post-mortem", orgId, incidentId)
+                .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rootCause").value("Bad SQL script"));
     }
 }
