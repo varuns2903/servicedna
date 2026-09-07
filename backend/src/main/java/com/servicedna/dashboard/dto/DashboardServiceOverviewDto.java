@@ -9,4 +9,4 @@ public record DashboardServiceOverviewDto(
     String name,
     ServiceStatus status,
     Double averageLatencyMs
-) {}
+) implements java.io.Serializable {}

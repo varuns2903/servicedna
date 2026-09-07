@@ -61,7 +61,7 @@ class PingControllerTest {
         String srvRes = mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services")
                 .header("Authorization", "Bearer " + userToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("DB Server", null, null))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("DB Server", null, null, "us-east-1"))))
                 .andReturn().getResponse().getContentAsString();
         
         serviceId = objectMapper.readTree(srvRes).get("id").asText();

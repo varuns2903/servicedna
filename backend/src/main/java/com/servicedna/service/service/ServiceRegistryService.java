@@ -62,6 +62,7 @@ public class ServiceRegistryService {
                 request.name(),
                 request.description(),
                 request.repositoryUrl(),
+                request.region(),
                 generateApiKey()
         );
 
@@ -151,6 +152,7 @@ public class ServiceRegistryService {
                 service.getName(),
                 service.getDescription(),
                 service.getRepositoryUrl(),
+                service.getRegion(),
                 service.getStatus(),
                 service.getApiKey(),
                 dependencyIds,

@@ -19,4 +19,4 @@ public record IncidentDto(
     OffsetDateTime resolvedAt,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
-) {}
+) implements java.io.Serializable {}

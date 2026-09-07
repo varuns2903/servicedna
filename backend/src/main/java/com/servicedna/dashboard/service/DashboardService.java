@@ -38,6 +38,7 @@ public class DashboardService {
         this.organizationService = organizationService;
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "dashboardSummary", key = "#organizationId")
     @Transactional(readOnly = true)
     public DashboardSummaryDto getDashboardSummary(UUID organizationId, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);

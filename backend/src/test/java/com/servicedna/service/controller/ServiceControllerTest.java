@@ -66,7 +66,7 @@ class ServiceControllerTest {
 
     @Test
     void shouldCreateServiceAndGenerateApiKey() throws Exception {
-        CreateServiceRequest request = new CreateServiceRequest("PaymentService", "Handles payments", "https://github.com/acme/payment");
+        CreateServiceRequest request = new CreateServiceRequest("PaymentService", "Handles payments", "https://github.com/acme/payment", "us-east-1");
 
         mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
@@ -82,7 +82,7 @@ class ServiceControllerTest {
 
     @Test
     void user2CannotCreateServiceInOrg1() throws Exception {
-        CreateServiceRequest request = new CreateServiceRequest("BillingService", "Handles billing", null);
+        CreateServiceRequest request = new CreateServiceRequest("BillingService", "Handles billing", null, "us-east-1");
 
         mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user2Token)
@@ -98,7 +98,7 @@ class ServiceControllerTest {
         String resA = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("ServiceA", null, null))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("ServiceA", null, null, "us-east-1"))))
                 .andReturn().getResponse().getContentAsString();
         String serviceAId = objectMapper.readTree(resA).get("id").asText();
 
@@ -106,7 +106,7 @@ class ServiceControllerTest {
         String resB = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("ServiceB", null, null))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("ServiceB", null, null, "us-east-1"))))
                 .andReturn().getResponse().getContentAsString();
         String serviceBId = objectMapper.readTree(resB).get("id").asText();
 
@@ -132,7 +132,7 @@ class ServiceControllerTest {
         String resA = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("SelfRefService", null, null))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("SelfRefService", null, null, "us-east-1"))))
                 .andReturn().getResponse().getContentAsString();
         String serviceAId = objectMapper.readTree(resA).get("id").asText();
 

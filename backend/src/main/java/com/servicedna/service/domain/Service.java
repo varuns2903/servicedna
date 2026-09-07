@@ -40,6 +40,9 @@ public class Service {
     @Column(name = "repository_url")
     private String repositoryUrl;
 
+    @Column(nullable = false)
+    private String region = "global";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ServiceStatus status = ServiceStatus.UNKNOWN;
@@ -65,12 +68,13 @@ public class Service {
 
     public Service() {}
 
-    public Service(UUID id, Organization organization, String name, String description, String repositoryUrl, String apiKey) {
+    public Service(UUID id, Organization organization, String name, String description, String repositoryUrl, String region, String apiKey) {
         this.id = id;
         this.organization = organization;
         this.name = name;
         this.description = description;
         this.repositoryUrl = repositoryUrl;
+        this.region = region != null ? region : "global";
         this.apiKey = apiKey;
         this.status = ServiceStatus.UNKNOWN;
     }
@@ -89,6 +93,9 @@ public class Service {
 
     public String getRepositoryUrl() { return repositoryUrl; }
     public void setRepositoryUrl(String repositoryUrl) { this.repositoryUrl = repositoryUrl; }
+
+    public String getRegion() { return region; }
+    public void setRegion(String region) { this.region = region; }
 
     public ServiceStatus getStatus() { return status; }
     public void setStatus(ServiceStatus status) { this.status = status; }

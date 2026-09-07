@@ -12,6 +12,7 @@ public record ServiceDto(
     String name,
     String description,
     String repositoryUrl,
+    String region,
     ServiceStatus status,
     String apiKey,
     List<UUID> dependencyIds,

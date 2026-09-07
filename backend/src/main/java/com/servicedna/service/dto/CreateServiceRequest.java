@@ -10,5 +10,7 @@ public record CreateServiceRequest(
 
     String description,
 
-    String repositoryUrl
+    String repositoryUrl,
+    
+    String region
 ) {}
