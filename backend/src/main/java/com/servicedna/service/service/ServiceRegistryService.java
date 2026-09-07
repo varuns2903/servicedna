@@ -1,18 +1,24 @@
 package com.servicedna.service.service;
 
+import com.servicedna.alert.event.ServiceStatusChangedEvent;
+import com.servicedna.alert.service.AlertEventPublisher;
 import com.servicedna.common.exception.ApiException;
 import com.servicedna.organization.domain.Organization;
 import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.organization.service.OrganizationService;
 import com.servicedna.service.domain.Service;
+import com.servicedna.service.domain.ServiceStatus;
 import com.servicedna.service.dto.AddDependencyRequest;
 import com.servicedna.service.dto.CreateServiceRequest;
 import com.servicedna.service.dto.ServiceDto;
+import com.servicedna.service.dto.UpdateServiceStatusRequest;
 import com.servicedna.service.repository.ServiceRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -24,16 +30,19 @@ public class ServiceRegistryService {
     private final ServiceRepository serviceRepository;
     private final OrganizationRepository organizationRepository;
     private final OrganizationService organizationService;
+    private final AlertEventPublisher alertEventPublisher;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public ServiceRegistryService(
             ServiceRepository serviceRepository,
             OrganizationRepository organizationRepository,
-            OrganizationService organizationService
+            OrganizationService organizationService,
+            @Lazy AlertEventPublisher alertEventPublisher
     ) {
         this.serviceRepository = serviceRepository;
         this.organizationRepository = organizationRepository;
         this.organizationService = organizationService;
+        this.alertEventPublisher = alertEventPublisher;
     }
 
     @Transactional
@@ -75,6 +84,32 @@ public class ServiceRegistryService {
 
         Service service = serviceRepository.findByOrganizationIdAndId(organizationId, serviceId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
+
+        return mapToDto(service);
+    }
+
+    @Transactional
+    public ServiceDto updateServiceStatus(UUID organizationId, UUID serviceId, UpdateServiceStatusRequest request, UUID userId) {
+        organizationService.validateUserAccess(organizationId, userId);
+
+        Service service = serviceRepository.findByOrganizationIdAndId(organizationId, serviceId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
+
+        ServiceStatus oldStatus = service.getStatus();
+        ServiceStatus newStatus = request.status();
+        
+        service.setStatus(newStatus);
+        service = serviceRepository.save(service);
+
+        if (oldStatus != newStatus && alertEventPublisher != null) {
+            alertEventPublisher.publishStatusChangedEvent(new ServiceStatusChangedEvent(
+                    service.getId(),
+                    service.getOrganization().getId(),
+                    oldStatus,
+                    newStatus,
+                    OffsetDateTime.now()
+            ));
+        }
 
         return mapToDto(service);
     }
