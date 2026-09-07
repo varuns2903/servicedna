@@ -18,6 +18,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Component
 public class AlertEventConsumer {
@@ -28,12 +29,14 @@ public class AlertEventConsumer {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
     private final ApplicationEventPublisher eventPublisher;
+    private final MeterRegistry meterRegistry;
 
-    public AlertEventConsumer(AlertRuleRepository alertRuleRepository, ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher) {
+    public AlertEventConsumer(AlertRuleRepository alertRuleRepository, ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher, MeterRegistry meterRegistry) {
         this.alertRuleRepository = alertRuleRepository;
         this.objectMapper = objectMapper;
         this.restTemplate = new RestTemplate();
         this.eventPublisher = eventPublisher;
+        this.meterRegistry = meterRegistry;
     }
 
     @KafkaListener(topics = KafkaTopicConfig.SERVICE_EVENTS_TOPIC, groupId = "sdna-alerts-group")
@@ -90,8 +93,10 @@ public class AlertEventConsumer {
             // We use restTemplate to fire-and-forget the webhook
             restTemplate.postForEntity(rule.getWebhookUrl(), payload, String.class);
             log.info("Webhook delivered successfully to {}", rule.getWebhookUrl());
+            meterRegistry.counter("sdna.alerts.delivered.count", "integration", rule.getIntegrationType().name()).increment();
         } catch (RestClientException e) {
             log.warn("Webhook delivery failed to {}: {}", rule.getWebhookUrl(), e.getMessage());
+            meterRegistry.counter("sdna.alerts.failed.count", "integration", rule.getIntegrationType().name()).increment();
         }
     }
 

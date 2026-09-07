@@ -20,6 +20,7 @@ import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.context.ApplicationEventPublisher;
 import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 
@@ -41,6 +42,7 @@ public class IncidentService {
     private final UserRepository userRepository;
     private final OrganizationService organizationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final MeterRegistry meterRegistry;
 
     public IncidentService(
             IncidentRepository incidentRepository,
@@ -49,7 +51,8 @@ public class IncidentService {
             OrganizationRepository organizationRepository,
             UserRepository userRepository,
             OrganizationService organizationService,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            MeterRegistry meterRegistry
     ) {
         this.incidentRepository = incidentRepository;
         this.postMortemRepository = postMortemRepository;
@@ -58,6 +61,7 @@ public class IncidentService {
         this.userRepository = userRepository;
         this.organizationService = organizationService;
         this.eventPublisher = eventPublisher;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional
