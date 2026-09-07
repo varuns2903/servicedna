@@ -94,10 +94,9 @@ public class OrganizationService {
         return new OrganizationMemberDto(newMember.getId(), userToAdd.getId(), userToAdd.getEmail(), newMember.getRole());
     }
 
-    public void validateUserAccess(UUID organizationId, UUID userId) {
-        if (!organizationMemberRepository.existsByOrganizationIdAndUserId(organizationId, userId)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "You do not have access to this organization");
-        }
+    public OrganizationMember validateUserAccess(UUID organizationId, UUID userId) {
+        return organizationMemberRepository.findByOrganizationIdAndUserId(organizationId, userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "You do not have access to this organization"));
     }
 
     private OrganizationDto mapToDto(Organization organization) {
