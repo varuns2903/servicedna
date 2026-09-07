@@ -16,6 +16,8 @@ import com.servicedna.service.repository.ServiceRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
@@ -31,18 +33,21 @@ public class ServiceRegistryService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationService organizationService;
     private final AlertEventPublisher alertEventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public ServiceRegistryService(
             ServiceRepository serviceRepository,
             OrganizationRepository organizationRepository,
             OrganizationService organizationService,
-            @Lazy AlertEventPublisher alertEventPublisher
+            @Lazy AlertEventPublisher alertEventPublisher,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.serviceRepository = serviceRepository;
         this.organizationRepository = organizationRepository;
         this.organizationService = organizationService;
         this.alertEventPublisher = alertEventPublisher;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -67,6 +72,7 @@ public class ServiceRegistryService {
         );
 
         service = serviceRepository.save(service);
+        eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
         return mapToDto(service);
     }
 
@@ -86,6 +92,7 @@ public class ServiceRegistryService {
         Service service = serviceRepository.findByOrganizationIdAndId(organizationId, serviceId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
 
+        eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
         return mapToDto(service);
     }
 
@@ -112,6 +119,7 @@ public class ServiceRegistryService {
             ));
         }
 
+        eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
         return mapToDto(service);
     }
 
@@ -132,6 +140,7 @@ public class ServiceRegistryService {
         service.getDependencies().add(dependency);
         service = serviceRepository.save(service);
 
+        eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
         return mapToDto(service);
     }
 

@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.context.ApplicationEventPublisher;
+import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -25,11 +27,13 @@ public class AlertEventConsumer {
     private final AlertRuleRepository alertRuleRepository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public AlertEventConsumer(AlertRuleRepository alertRuleRepository, ObjectMapper objectMapper) {
+    public AlertEventConsumer(AlertRuleRepository alertRuleRepository, ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher) {
         this.alertRuleRepository = alertRuleRepository;
         this.objectMapper = objectMapper;
         this.restTemplate = new RestTemplate();
+        this.eventPublisher = eventPublisher;
     }
 
     @KafkaListener(topics = KafkaTopicConfig.SERVICE_EVENTS_TOPIC, groupId = "sdna-alerts-group")
@@ -38,6 +42,8 @@ public class AlertEventConsumer {
         try {
             ServiceStatusChangedEvent event = objectMapper.readValue(payload, ServiceStatusChangedEvent.class);
             
+            eventPublisher.publishEvent(new DashboardInvalidationEvent(this, event.organizationId()));
+
             AlertCondition triggeredCondition = determineCondition(event.newStatus());
             if (triggeredCondition != null) {
                 List<AlertRule> rules = alertRuleRepository.findByServiceIdAndCondition(event.serviceId(), triggeredCondition);

@@ -16,6 +16,8 @@ import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -32,19 +34,22 @@ public class IncidentService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final OrganizationService organizationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public IncidentService(
             IncidentRepository incidentRepository,
             ServiceRepository serviceRepository,
             OrganizationRepository organizationRepository,
             UserRepository userRepository,
-            OrganizationService organizationService
+            OrganizationService organizationService,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.incidentRepository = incidentRepository;
         this.serviceRepository = serviceRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.organizationService = organizationService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -77,6 +82,7 @@ public class IncidentService {
         }
 
         incident = incidentRepository.save(incident);
+        eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
         return mapToDto(incident);
     }
 
@@ -95,6 +101,7 @@ public class IncidentService {
         Incident incident = incidentRepository.findByOrganizationIdAndId(organizationId, incidentId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "INCIDENT_NOT_FOUND", "Incident not found"));
 
+        eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
         return mapToDto(incident);
     }
 
@@ -113,6 +120,7 @@ public class IncidentService {
         }
 
         incident = incidentRepository.save(incident);
+        eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
         return mapToDto(incident);
     }
 

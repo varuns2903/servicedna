@@ -42,6 +42,15 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public DashboardSummaryDto getDashboardSummary(UUID organizationId, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);
+        return getDashboardSummaryInternal(organizationId);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "dashboardSummary", key = "#organizationId")
+    public void invalidateDashboardCache(UUID organizationId) {
+    }
+
+    @Transactional(readOnly = true)
+    public DashboardSummaryDto getDashboardSummaryInternal(UUID organizationId) {
 
         List<Service> services = serviceRepository.findByOrganizationId(organizationId);
         int totalServices = services.size();
