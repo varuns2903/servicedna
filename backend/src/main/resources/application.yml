@@ -64,16 +64,18 @@ management:
   zipkin:
     tracing:
       endpoint: ${MANAGEMENT_ZIPKIN_TRACING_ENDPOINT:http://localhost:9411/api/v2/spans}
-  metrics:
-    export:
-      datadog:
+  datadog:
+    metrics:
+      export:
         enabled: ${DATADOG_ENABLED:false}
-        api-key: ${DATADOG_API_KEY:}
+        api-key: ${DATADOG_API_KEY:dummy}
         step: 1m
-      newrelic:
+  newrelic:
+    metrics:
+      export:
         enabled: ${NEW_RELIC_ENABLED:false}
-        api-key: ${NEW_RELIC_API_KEY:}
-        account-id: ${NEW_RELIC_ACCOUNT_ID:}
+        api-key: ${NEW_RELIC_API_KEY:dummy}
+        account-id: ${NEW_RELIC_ACCOUNT_ID:dummy}
         step: 1m
 
 jwt:
