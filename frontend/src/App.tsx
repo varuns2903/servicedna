@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { AppShell } from '@/components/layout/AppShell';
 import { Dashboard } from '@/features/dashboard/Dashboard';
 import { ServiceList } from '@/features/services/ServiceList';
+import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { DependencyGraph } from '@/features/map/DependencyGraph';
 import { IncidentList } from '@/features/incidents/IncidentList';
 import { IncidentDetails } from '@/features/incidents/IncidentDetails';
@@ -53,6 +54,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <WebSocketProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -121,6 +123,7 @@ function App() {
           <Route path="*" element={<div className="flex h-screen w-screen items-center justify-center bg-charcoal-900 text-gray-100">Not Found</div>} />
         </Routes>
       </BrowserRouter>
+      </WebSocketProvider>
     </QueryClientProvider>
   );
 }

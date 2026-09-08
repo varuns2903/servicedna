@@ -1,10 +1,10 @@
-
-import { Search, LogOut } from 'lucide-react';
+import { Search, LogOut, Wifi, WifiOff } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@/hooks/useUser';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
+import { useWebSocket } from '@/providers/WebSocketProvider';
 
 export function TopBar() {
   const { logout } = useAuthStore();
@@ -12,6 +12,7 @@ export function TopBar() {
   const { data: user } = useUser();
   const { data: organizations } = useOrganizations();
   const { selectedOrganizationId, setSelectedOrganizationId } = useOrganizationStore();
+  const { connected } = useWebSocket();
 
   const handleLogout = () => {
     logout();
@@ -43,6 +44,18 @@ export function TopBar() {
           <Search className="h-4 w-4" />
           <span>Search resources... (Ctrl+K)</span>
         </button>
+
+        {/* Real-time Status */}
+        <div className="flex items-center space-x-2 border-l border-charcoal-700 pl-4" title={connected ? "Real-time updates active" : "Disconnected from real-time updates"}>
+          {connected ? (
+            <Wifi className="h-4 w-4 text-emerald-400" />
+          ) : (
+            <WifiOff className="h-4 w-4 text-gray-500" />
+          )}
+          <span className={`text-xs ${connected ? 'text-emerald-400' : 'text-gray-500'}`}>
+            {connected ? 'Live' : 'Offline'}
+          </span>
+        </div>
 
         {/* User Menu */}
         <div className="flex items-center space-x-3 border-l border-charcoal-700 pl-4">
