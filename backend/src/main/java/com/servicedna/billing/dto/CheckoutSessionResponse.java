@@ -1,5 +1,3 @@
 package com.servicedna.billing.dto;
 
-public record CheckoutSessionResponse(
-    String url
-) {}
+public record CheckoutSessionResponse(String url) {}

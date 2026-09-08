@@ -8,5 +8,4 @@ public record ErrorResponse(
     String errorCode,
     String message,
     String path,
-    String requestId
-) {}
+    String requestId) {}

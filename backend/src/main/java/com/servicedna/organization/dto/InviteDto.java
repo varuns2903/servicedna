@@ -2,7 +2,6 @@ package com.servicedna.organization.dto;
 
 import com.servicedna.organization.domain.InviteStatus;
 import com.servicedna.organization.domain.OrganizationRole;
-
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -13,5 +12,4 @@ public record InviteDto(
     OrganizationRole role,
     InviteStatus status,
     OffsetDateTime expiresAt,
-    OffsetDateTime createdAt
-) {}
+    OffsetDateTime createdAt) {}

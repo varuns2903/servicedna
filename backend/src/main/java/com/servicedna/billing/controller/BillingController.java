@@ -6,6 +6,7 @@ import com.servicedna.billing.dto.CheckoutSessionResponse;
 import com.servicedna.billing.dto.SubscriptionDto;
 import com.servicedna.billing.service.BillingService;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,32 +16,29 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/v1/organizations/{orgId}/billing")
 public class BillingController {
 
-    private final BillingService billingService;
+  private final BillingService billingService;
 
-    public BillingController(BillingService billingService) {
-        this.billingService = billingService;
-    }
+  public BillingController(BillingService billingService) {
+    this.billingService = billingService;
+  }
 
-    @GetMapping("/subscription")
-    public ResponseEntity<SubscriptionDto> getSubscription(
-            @PathVariable UUID orgId,
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        return ResponseEntity.ok(billingService.getSubscription(orgId, userDetails.getUser().getId()));
-    }
+  @GetMapping("/subscription")
+  public ResponseEntity<SubscriptionDto> getSubscription(
+      @PathVariable UUID orgId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(billingService.getSubscription(orgId, userDetails.getUser().getId()));
+  }
 
-    @PostMapping("/checkout-session")
-    public ResponseEntity<CheckoutSessionResponse> createCheckoutSession(
-            @PathVariable UUID orgId,
-            @Valid @RequestBody CheckoutSessionRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        return ResponseEntity.ok(billingService.createCheckoutSession(orgId, request.planType(), userDetails.getUser().getId()));
-    }
+  @PostMapping("/checkout-session")
+  public ResponseEntity<CheckoutSessionResponse> createCheckoutSession(
+      @PathVariable UUID orgId,
+      @Valid @RequestBody CheckoutSessionRequest request,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(
+        billingService.createCheckoutSession(
+            orgId, request.planType(), userDetails.getUser().getId()));
+  }
 }

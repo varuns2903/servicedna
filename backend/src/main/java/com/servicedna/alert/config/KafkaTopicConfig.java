@@ -8,13 +8,10 @@ import org.springframework.kafka.config.TopicBuilder;
 @Configuration
 public class KafkaTopicConfig {
 
-    public static final String SERVICE_EVENTS_TOPIC = "sdna.service.events";
+  public static final String SERVICE_EVENTS_TOPIC = "sdna.service.events";
 
-    @Bean
-    public NewTopic serviceEventsTopic() {
-        return TopicBuilder.name(SERVICE_EVENTS_TOPIC)
-                .partitions(3)
-                .replicas(1)
-                .build();
-    }
+  @Bean
+  public NewTopic serviceEventsTopic() {
+    return TopicBuilder.name(SERVICE_EVENTS_TOPIC).partitions(3).replicas(1).build();
+  }
 }

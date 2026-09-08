@@ -8,8 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class ServiceDnaApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(ServiceDnaApplication.class, args);
-	}
-
+  public static void main(String[] args) {
+    SpringApplication.run(ServiceDnaApplication.class, args);
+  }
 }

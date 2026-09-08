@@ -7,111 +7,133 @@ import com.servicedna.alert.domain.AlertCondition;
 import com.servicedna.alert.domain.AlertRule;
 import com.servicedna.alert.event.ServiceStatusChangedEvent;
 import com.servicedna.alert.repository.AlertRuleRepository;
-import com.servicedna.service.repository.MaintenanceWindowRepository;
-import java.time.OffsetDateTime;
+import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 import com.servicedna.service.domain.ServiceStatus;
+import com.servicedna.service.repository.MaintenanceWindowRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.time.OffsetDateTime;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-import org.springframework.context.ApplicationEventPublisher;
-import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.List;
-import io.micrometer.core.instrument.MeterRegistry;
 
 @Component
 public class AlertEventConsumer {
 
-    private static final Logger log = LoggerFactory.getLogger(AlertEventConsumer.class);
-    
-    private final AlertRuleRepository alertRuleRepository;
-    private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate;
-    private final ApplicationEventPublisher eventPublisher;
-    private final MeterRegistry meterRegistry;
-    private final MaintenanceWindowRepository maintenanceWindowRepository;
+  private static final Logger log = LoggerFactory.getLogger(AlertEventConsumer.class);
 
-    public AlertEventConsumer(AlertRuleRepository alertRuleRepository, ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher, MeterRegistry meterRegistry, MaintenanceWindowRepository maintenanceWindowRepository) {
-        this.alertRuleRepository = alertRuleRepository;
-        this.objectMapper = objectMapper;
-        this.restTemplate = new RestTemplate();
-        this.eventPublisher = eventPublisher;
-        this.meterRegistry = meterRegistry;
-        this.maintenanceWindowRepository = maintenanceWindowRepository;
-    }
+  private final AlertRuleRepository alertRuleRepository;
+  private final ObjectMapper objectMapper;
+  private final RestTemplate restTemplate;
+  private final ApplicationEventPublisher eventPublisher;
+  private final MeterRegistry meterRegistry;
+  private final MaintenanceWindowRepository maintenanceWindowRepository;
 
-    @KafkaListener(topics = KafkaTopicConfig.SERVICE_EVENTS_TOPIC, groupId = "sdna-alerts-group")
-    public void consumeStatusChangedEvent(String payload) {
-        log.info("Received event: {}", payload);
-        try {
-            ServiceStatusChangedEvent event = objectMapper.readValue(payload, ServiceStatusChangedEvent.class);
-            
-            eventPublisher.publishEvent(new DashboardInvalidationEvent(this, event.organizationId()));
+  public AlertEventConsumer(
+      AlertRuleRepository alertRuleRepository,
+      ObjectMapper objectMapper,
+      ApplicationEventPublisher eventPublisher,
+      MeterRegistry meterRegistry,
+      MaintenanceWindowRepository maintenanceWindowRepository) {
+    this.alertRuleRepository = alertRuleRepository;
+    this.objectMapper = objectMapper;
+    this.restTemplate = new RestTemplate();
+    this.eventPublisher = eventPublisher;
+    this.meterRegistry = meterRegistry;
+    this.maintenanceWindowRepository = maintenanceWindowRepository;
+  }
 
-            AlertCondition triggeredCondition = determineCondition(event.newStatus());
-            if (triggeredCondition != null) {
-                // Check if the service is in active maintenance
-                boolean inMaintenance = maintenanceWindowRepository.isServiceInActiveMaintenance(event.serviceId(), OffsetDateTime.now());
-                if (inMaintenance) {
-                    log.info("Alert suppressed for service {} due to active maintenance window", event.serviceId());
-                    return;
-                }
+  @KafkaListener(topics = KafkaTopicConfig.SERVICE_EVENTS_TOPIC, groupId = "sdna-alerts-group")
+  public void consumeStatusChangedEvent(String payload) {
+    log.info("Received event: {}", payload);
+    try {
+      ServiceStatusChangedEvent event =
+          objectMapper.readValue(payload, ServiceStatusChangedEvent.class);
 
-                List<AlertRule> rules = alertRuleRepository.findByServiceIdAndCondition(event.serviceId(), triggeredCondition);
-                for (AlertRule rule : rules) {
-                    triggerWebhook(rule, event);
-                }
-            }
+      eventPublisher.publishEvent(new DashboardInvalidationEvent(this, event.organizationId()));
 
-        } catch (JsonProcessingException e) {
-            log.error("Failed to deserialize event payload", e);
+      AlertCondition triggeredCondition = determineCondition(event.newStatus());
+      if (triggeredCondition != null) {
+        // Check if the service is in active maintenance
+        boolean inMaintenance =
+            maintenanceWindowRepository.isServiceInActiveMaintenance(
+                event.serviceId(), OffsetDateTime.now());
+        if (inMaintenance) {
+          log.info(
+              "Alert suppressed for service {} due to active maintenance window",
+              event.serviceId());
+          return;
         }
-    }
 
-    private AlertCondition determineCondition(ServiceStatus newStatus) {
-        return switch (newStatus) {
-            case DOWN -> AlertCondition.STATUS_DOWN;
-            case DEGRADED -> AlertCondition.STATUS_DEGRADED;
-            case HEALTHY -> AlertCondition.STATUS_RECOVERED;
-            case UNKNOWN -> null;
-        };
-    }
-
-    private void triggerWebhook(AlertRule rule, ServiceStatusChangedEvent event) {
-        log.info("Triggering {} webhook for rule ID: {} to URL: {}", rule.getIntegrationType(), rule.getId(), rule.getWebhookUrl());
-        
-        try {
-            Object payload;
-            String message = String.format("Service '%s' (ID: %s) changed status to %s", 
-                event.serviceId(), event.serviceId(), event.newStatus());
-
-            switch (rule.getIntegrationType()) {
-                case SLACK:
-                    payload = new SlackPayload(message);
-                    break;
-                case DISCORD:
-                    payload = new DiscordPayload(message);
-                    break;
-                case GENERIC:
-                default:
-                    payload = new WebhookPayload(message, event);
-                    break;
-            }
-            
-            // We use restTemplate to fire-and-forget the webhook
-            restTemplate.postForEntity(rule.getWebhookUrl(), payload, String.class);
-            log.info("Webhook delivered successfully to {}", rule.getWebhookUrl());
-            meterRegistry.counter("sdna.alerts.delivered.count", "integration", rule.getIntegrationType().name()).increment();
-        } catch (RestClientException e) {
-            log.warn("Webhook delivery failed to {}: {}", rule.getWebhookUrl(), e.getMessage());
-            meterRegistry.counter("sdna.alerts.failed.count", "integration", rule.getIntegrationType().name()).increment();
+        List<AlertRule> rules =
+            alertRuleRepository.findByServiceIdAndCondition(event.serviceId(), triggeredCondition);
+        for (AlertRule rule : rules) {
+          triggerWebhook(rule, event);
         }
-    }
+      }
 
-    private record WebhookPayload(String message, ServiceStatusChangedEvent event) {}
-    private record SlackPayload(String text) {}
-    private record DiscordPayload(String content) {}
+    } catch (JsonProcessingException e) {
+      log.error("Failed to deserialize event payload", e);
+    }
+  }
+
+  private AlertCondition determineCondition(ServiceStatus newStatus) {
+    return switch (newStatus) {
+      case DOWN -> AlertCondition.STATUS_DOWN;
+      case DEGRADED -> AlertCondition.STATUS_DEGRADED;
+      case HEALTHY -> AlertCondition.STATUS_RECOVERED;
+      case UNKNOWN -> null;
+    };
+  }
+
+  private void triggerWebhook(AlertRule rule, ServiceStatusChangedEvent event) {
+    log.info(
+        "Triggering {} webhook for rule ID: {} to URL: {}",
+        rule.getIntegrationType(),
+        rule.getId(),
+        rule.getWebhookUrl());
+
+    try {
+      Object payload;
+      String message =
+          String.format(
+              "Service '%s' (ID: %s) changed status to %s",
+              event.serviceId(), event.serviceId(), event.newStatus());
+
+      switch (rule.getIntegrationType()) {
+        case SLACK:
+          payload = new SlackPayload(message);
+          break;
+        case DISCORD:
+          payload = new DiscordPayload(message);
+          break;
+        case GENERIC:
+        default:
+          payload = new WebhookPayload(message, event);
+          break;
+      }
+
+      // We use restTemplate to fire-and-forget the webhook
+      restTemplate.postForEntity(rule.getWebhookUrl(), payload, String.class);
+      log.info("Webhook delivered successfully to {}", rule.getWebhookUrl());
+      meterRegistry
+          .counter("sdna.alerts.delivered.count", "integration", rule.getIntegrationType().name())
+          .increment();
+    } catch (RestClientException e) {
+      log.warn("Webhook delivery failed to {}: {}", rule.getWebhookUrl(), e.getMessage());
+      meterRegistry
+          .counter("sdna.alerts.failed.count", "integration", rule.getIntegrationType().name())
+          .increment();
+    }
+  }
+
+  private record WebhookPayload(String message, ServiceStatusChangedEvent event) {}
+
+  private record SlackPayload(String text) {}
+
+  private record DiscordPayload(String content) {}
 }

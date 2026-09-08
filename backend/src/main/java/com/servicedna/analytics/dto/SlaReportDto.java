@@ -4,7 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-public record SlaReportDto( 
+public record SlaReportDto(
     UUID organizationId,
     OffsetDateTime periodStart,
     OffsetDateTime periodEnd,
@@ -12,5 +12,5 @@ public record SlaReportDto(
     int totalIncidents,
     double mttrMinutes,
     double mtbfHours,
-    List<ServiceSlaDto> serviceSlas
-) implements java.io.Serializable {}
+    List<ServiceSlaDto> serviceSlas)
+    implements java.io.Serializable {}

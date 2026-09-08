@@ -12,103 +12,162 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "services")
 public class Service {
 
-    @Id
-    private UUID id;
+  @Id private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id", nullable = false)
-    private Organization organization;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "organization_id", nullable = false)
+  private Organization organization;
 
-    @Column(nullable = false)
-    private String name;
+  @Column(nullable = false)
+  private String name;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+  @Column(columnDefinition = "TEXT")
+  private String description;
 
-    @Column(name = "repository_url")
-    private String repositoryUrl;
+  @Column(name = "repository_url")
+  private String repositoryUrl;
 
-    @Column(nullable = false)
-    private String region = "global";
+  @Column(nullable = false)
+  private String region = "global";
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ServiceStatus status = ServiceStatus.UNKNOWN;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private ServiceStatus status = ServiceStatus.UNKNOWN;
 
-    @Column(name = "api_key", nullable = false, unique = true)
-    private String apiKey;
+  @Column(name = "api_key", nullable = false, unique = true)
+  private String apiKey;
 
-    @ManyToMany
-    @JoinTable(
-        name = "service_dependencies",
-        joinColumns = @JoinColumn(name = "service_id"),
-        inverseJoinColumns = @JoinColumn(name = "depends_on_service_id")
-    )
-    private Set<Service> dependencies = new HashSet<>();
+  @ManyToMany
+  @JoinTable(
+      name = "service_dependencies",
+      joinColumns = @JoinColumn(name = "service_id"),
+      inverseJoinColumns = @JoinColumn(name = "depends_on_service_id"))
+  private Set<Service> dependencies = new HashSet<>();
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private OffsetDateTime createdAt;
+  @CreationTimestamp
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private OffsetDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt;
+  @UpdateTimestamp
+  @Column(name = "updated_at", nullable = false)
+  private OffsetDateTime updatedAt;
 
-    public Service() {}
+  public Service() {}
 
-    public Service(UUID id, Organization organization, String name, String description, String repositoryUrl, String region, String apiKey) {
-        this.id = id;
-        this.organization = organization;
-        this.name = name;
-        this.description = description;
-        this.repositoryUrl = repositoryUrl;
-        this.region = region != null ? region : "global";
-        this.apiKey = apiKey;
-        this.status = ServiceStatus.UNKNOWN;
-    }
+  public Service(
+      UUID id,
+      Organization organization,
+      String name,
+      String description,
+      String repositoryUrl,
+      String region,
+      String apiKey) {
+    this.id = id;
+    this.organization = organization;
+    this.name = name;
+    this.description = description;
+    this.repositoryUrl = repositoryUrl;
+    this.region = region != null ? region : "global";
+    this.apiKey = apiKey;
+    this.status = ServiceStatus.UNKNOWN;
+  }
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
+  public UUID getId() {
+    return id;
+  }
 
-    public Organization getOrganization() { return organization; }
-    public void setOrganization(Organization organization) { this.organization = organization; }
+  public void setId(UUID id) {
+    this.id = id;
+  }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+  public Organization getOrganization() {
+    return organization;
+  }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+  public void setOrganization(Organization organization) {
+    this.organization = organization;
+  }
 
-    public String getRepositoryUrl() { return repositoryUrl; }
-    public void setRepositoryUrl(String repositoryUrl) { this.repositoryUrl = repositoryUrl; }
+  public String getName() {
+    return name;
+  }
 
-    public String getRegion() { return region; }
-    public void setRegion(String region) { this.region = region; }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-    public ServiceStatus getStatus() { return status; }
-    public void setStatus(ServiceStatus status) { this.status = status; }
+  public String getDescription() {
+    return description;
+  }
 
-    public String getApiKey() { return apiKey; }
-    public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+  public void setDescription(String description) {
+    this.description = description;
+  }
 
-    public Set<Service> getDependencies() { return dependencies; }
-    public void setDependencies(Set<Service> dependencies) { this.dependencies = dependencies; }
+  public String getRepositoryUrl() {
+    return repositoryUrl;
+  }
 
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+  public void setRepositoryUrl(String repositoryUrl) {
+    this.repositoryUrl = repositoryUrl;
+  }
 
-    public OffsetDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
+  public String getRegion() {
+    return region;
+  }
+
+  public void setRegion(String region) {
+    this.region = region;
+  }
+
+  public ServiceStatus getStatus() {
+    return status;
+  }
+
+  public void setStatus(ServiceStatus status) {
+    this.status = status;
+  }
+
+  public String getApiKey() {
+    return apiKey;
+  }
+
+  public void setApiKey(String apiKey) {
+    this.apiKey = apiKey;
+  }
+
+  public Set<Service> getDependencies() {
+    return dependencies;
+  }
+
+  public void setDependencies(Set<Service> dependencies) {
+    this.dependencies = dependencies;
+  }
+
+  public OffsetDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(OffsetDateTime createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  public OffsetDateTime getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public void setUpdatedAt(OffsetDateTime updatedAt) {
+    this.updatedAt = updatedAt;
+  }
 }

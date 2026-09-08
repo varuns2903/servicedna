@@ -8,23 +8,22 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuditLogEventListener {
 
-    private final AuditLogService auditLogService;
+  private final AuditLogService auditLogService;
 
-    public AuditLogEventListener(AuditLogService auditLogService) {
-        this.auditLogService = auditLogService;
-    }
+  public AuditLogEventListener(AuditLogService auditLogService) {
+    this.auditLogService = auditLogService;
+  }
 
-    @Async
-    @EventListener
-    public void handleAuditLogEvent(AuditLogEvent event) {
-        auditLogService.logAction(
-                event.organizationId(),
-                event.userId(),
-                event.action(),
-                event.entityType(),
-                event.entityId(),
-                event.details(),
-                event.ipAddress()
-        );
-    }
+  @Async
+  @EventListener
+  public void handleAuditLogEvent(AuditLogEvent event) {
+    auditLogService.logAction(
+        event.organizationId(),
+        event.userId(),
+        event.action(),
+        event.entityType(),
+        event.entityId(),
+        event.details(),
+        event.ipAddress());
+  }
 }
