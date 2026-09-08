@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-charcoal-900: #0f1115;
+  --color-charcoal-800: #16181d;
+  --color-charcoal-700: #1e2128;
+  --color-charcoal-600: #2a2e37;
+  
+  --color-status-healthy: var(--color-emerald-400);
+  --color-status-degraded: var(--color-amber-400);
+  --color-status-down: var(--color-rose-500);
+  --color-status-recovering: var(--color-blue-400);
+  --color-status-unknown: var(--color-gray-500);
+
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  
+  body {
+    @apply bg-charcoal-900 text-gray-100 antialiased;
+  }
+}
