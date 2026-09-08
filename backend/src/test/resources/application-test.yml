@@ -20,3 +20,6 @@ stripe:
   price-id:
     pro: price_mock_pro
     enterprise: price_mock_ent
+
+rate-limit:
+  max-requests: 10000
