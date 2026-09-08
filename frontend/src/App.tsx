@@ -14,6 +14,7 @@ import { DependencyGraph } from '@/features/map/DependencyGraph';
 import { IncidentList } from '@/features/incidents/IncidentList';
 import { IncidentDetails } from '@/features/incidents/IncidentDetails';
 import { AlertsList } from '@/features/alerts/AlertsList';
+import { SettingsView } from "@/features/settings/SettingsView";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,6 +121,17 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <SettingsView />
+                </AppShell>
+              </ProtectedRoute>
+            } 
+          />
+
           <Route path="*" element={<div className="flex h-screen w-screen items-center justify-center bg-charcoal-900 text-gray-100">Not Found</div>} />
         </Routes>
       </BrowserRouter>

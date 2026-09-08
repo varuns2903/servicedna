@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { OrganizationsApi } from '@/api/organizations.api';
+import type { OrganizationRole } from '@/api/organizations.api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { useEffect } from 'react';
@@ -25,4 +26,42 @@ export function useOrganizations() {
   }, [query.isSuccess, query.data, selectedOrganizationId, setSelectedOrganizationId]);
 
   return query;
+}
+
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, name }: { orgId: string; name: string }) => 
+      OrganizationsApi.updateOrganization(orgId, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    }
+  });
+}
+
+export function useOrganizationMembers(orgId?: string) {
+  return useQuery({
+    queryKey: ['organizations', orgId, 'members'],
+    queryFn: () => OrganizationsApi.getMembers(orgId!),
+    enabled: !!orgId,
+  });
+}
+
+export function useOrganizationInvites(orgId?: string) {
+  return useQuery({
+    queryKey: ['organizations', orgId, 'invites'],
+    queryFn: () => OrganizationsApi.getInvites(orgId!),
+    enabled: !!orgId,
+  });
+}
+
+export function useCreateInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, email, role }: { orgId: string; email: string; role: OrganizationRole }) =>
+      OrganizationsApi.createInvite(orgId, email, role),
+    onSuccess: (_, { orgId }) => {
+      queryClient.invalidateQueries({ queryKey: ['organizations', orgId, 'invites'] });
+    }
+  });
 }

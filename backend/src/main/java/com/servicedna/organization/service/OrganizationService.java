@@ -15,6 +15,7 @@ import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
 import java.util.List;
+import com.servicedna.organization.dto.UpdateOrganizationRequest;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
@@ -136,5 +137,18 @@ public class OrganizationService {
   private OrganizationDto mapToDto(Organization organization) {
     return new OrganizationDto(
         organization.getId(), organization.getName(), organization.getCreatedAt());
+  }
+  public OrganizationDto updateOrganization(UUID orgId, UpdateOrganizationRequest request, UUID userId) {
+    validateUserAccess(orgId, userId);
+    Organization org = organizationRepository.findById(orgId).orElseThrow();
+    org.setName(request.name());
+    return mapToDto(organizationRepository.save(org));
+  }
+
+  public List<OrganizationMemberDto> getMembers(UUID orgId, UUID userId) {
+    validateUserAccess(orgId, userId);
+    return organizationMemberRepository.findByOrganizationId(orgId).stream()
+        .map(m -> new OrganizationMemberDto(m.getId(), m.getOrganization().getId(), m.getUser().getEmail(), m.getRole()))
+        .collect(java.util.stream.Collectors.toList());
   }
 }

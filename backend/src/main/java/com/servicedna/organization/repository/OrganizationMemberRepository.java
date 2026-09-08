@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface OrganizationMemberRepository extends JpaRepository<OrganizationMember, UUID> {
+  List<OrganizationMember> findByOrganizationId(UUID organizationId);
   List<OrganizationMember> findByUserId(UUID userId);
 
   Optional<OrganizationMember> findByOrganizationIdAndUserId(UUID organizationId, UUID userId);

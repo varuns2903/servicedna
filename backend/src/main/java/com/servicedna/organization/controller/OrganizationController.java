@@ -8,6 +8,8 @@ import com.servicedna.organization.dto.OrganizationMemberDto;
 import com.servicedna.organization.service.OrganizationService;
 import jakarta.validation.Valid;
 import java.util.List;
+import com.servicedna.organization.dto.UpdateOrganizationRequest;
+import org.springframework.web.bind.annotation.PutMapping;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -53,5 +55,18 @@ public class OrganizationController {
     return new ResponseEntity<>(
         organizationService.addMember(orgId, request, userDetails.getUser().getId()),
         HttpStatus.CREATED);
+  }
+  @PutMapping("/{orgId}")
+  public ResponseEntity<OrganizationDto> updateOrganization(
+      @PathVariable UUID orgId,
+      @Valid @RequestBody UpdateOrganizationRequest request,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(organizationService.updateOrganization(orgId, request, userDetails.getUser().getId()));
+  }
+
+  @GetMapping("/{orgId}/members")
+  public ResponseEntity<List<OrganizationMemberDto>> getMembers(
+      @PathVariable UUID orgId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(organizationService.getMembers(orgId, userDetails.getUser().getId()));
   }
 }
