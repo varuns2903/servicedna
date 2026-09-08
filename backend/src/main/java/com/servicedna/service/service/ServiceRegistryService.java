@@ -52,6 +52,7 @@ public class ServiceRegistryService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"services", "publicStatus"}, allEntries = true)
     public ServiceDto createService(UUID organizationId, CreateServiceRequest request, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);
 
@@ -82,6 +83,7 @@ public class ServiceRegistryService {
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(value = "services", key = "#organizationId.toString() + '_list'")
     public List<ServiceDto> getServices(UUID organizationId, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);
         
@@ -91,6 +93,7 @@ public class ServiceRegistryService {
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(value = "services", key = "#serviceId.toString()")
     public ServiceDto getService(UUID organizationId, UUID serviceId, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);
 
@@ -102,6 +105,7 @@ public class ServiceRegistryService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"services", "publicStatus"}, allEntries = true)
     public ServiceDto updateServiceStatus(UUID organizationId, UUID serviceId, UpdateServiceStatusRequest request, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);
 
@@ -133,6 +137,7 @@ public class ServiceRegistryService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "services", allEntries = true)
     public ServiceDto addDependency(UUID organizationId, UUID serviceId, AddDependencyRequest request, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);
 

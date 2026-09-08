@@ -45,8 +45,11 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
+        log.error("Unexpected error occurred while processing request: " + request.getRequestURI(), ex);
         ErrorResponse errorResponse = new ErrorResponse(
                 OffsetDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),

@@ -31,6 +31,7 @@ public class PublicStatusService {
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(value = "publicStatus", key = "#organizationId.toString()")
     public PublicStatusPageDto getPublicStatusPage(UUID organizationId) {
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ORG_NOT_FOUND", "Organization not found"));

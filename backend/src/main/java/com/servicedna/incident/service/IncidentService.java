@@ -65,6 +65,7 @@ public class IncidentService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "publicStatus", key = "#organizationId.toString()")
     public IncidentDto createIncident(UUID organizationId, CreateIncidentRequest request, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);
 
@@ -117,6 +118,7 @@ public class IncidentService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "publicStatus", key = "#organizationId.toString()")
     public IncidentDto updateIncidentStatus(UUID organizationId, UUID incidentId, UpdateIncidentStatusRequest request, UUID userId) {
         organizationService.validateUserAccess(organizationId, userId);
 
