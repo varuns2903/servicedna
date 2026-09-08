@@ -7,6 +7,8 @@ import com.servicedna.alert.domain.AlertCondition;
 import com.servicedna.alert.domain.AlertRule;
 import com.servicedna.alert.event.ServiceStatusChangedEvent;
 import com.servicedna.alert.repository.AlertRuleRepository;
+import com.servicedna.service.repository.MaintenanceWindowRepository;
+import java.time.OffsetDateTime;
 import com.servicedna.service.domain.ServiceStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,13 +32,15 @@ public class AlertEventConsumer {
     private final RestTemplate restTemplate;
     private final ApplicationEventPublisher eventPublisher;
     private final MeterRegistry meterRegistry;
+    private final MaintenanceWindowRepository maintenanceWindowRepository;
 
-    public AlertEventConsumer(AlertRuleRepository alertRuleRepository, ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher, MeterRegistry meterRegistry) {
+    public AlertEventConsumer(AlertRuleRepository alertRuleRepository, ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher, MeterRegistry meterRegistry, MaintenanceWindowRepository maintenanceWindowRepository) {
         this.alertRuleRepository = alertRuleRepository;
         this.objectMapper = objectMapper;
         this.restTemplate = new RestTemplate();
         this.eventPublisher = eventPublisher;
         this.meterRegistry = meterRegistry;
+        this.maintenanceWindowRepository = maintenanceWindowRepository;
     }
 
     @KafkaListener(topics = KafkaTopicConfig.SERVICE_EVENTS_TOPIC, groupId = "sdna-alerts-group")
@@ -49,6 +53,13 @@ public class AlertEventConsumer {
 
             AlertCondition triggeredCondition = determineCondition(event.newStatus());
             if (triggeredCondition != null) {
+                // Check if the service is in active maintenance
+                boolean inMaintenance = maintenanceWindowRepository.isServiceInActiveMaintenance(event.serviceId(), OffsetDateTime.now());
+                if (inMaintenance) {
+                    log.info("Alert suppressed for service {} due to active maintenance window", event.serviceId());
+                    return;
+                }
+
                 List<AlertRule> rules = alertRuleRepository.findByServiceIdAndCondition(event.serviceId(), triggeredCondition);
                 for (AlertRule rule : rules) {
                     triggerWebhook(rule, event);

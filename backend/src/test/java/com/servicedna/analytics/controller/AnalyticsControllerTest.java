@@ -14,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.UUID;
 
@@ -41,15 +42,21 @@ public class AnalyticsControllerTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private User testUser;
     private Organization testOrg;
     private String authToken;
 
     @BeforeEach
     void setUp() {
-        organizationMemberRepository.deleteAll();
-        organizationRepository.deleteAll();
-        userRepository.deleteAll();
+        jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
+        jdbcTemplate.execute("TRUNCATE TABLE subscriptions");
+        jdbcTemplate.execute("TRUNCATE TABLE organizations");
+        jdbcTemplate.execute("TRUNCATE TABLE users");
+        jdbcTemplate.execute("TRUNCATE TABLE organization_members");
+        jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
 
         testUser = userRepository.save(new User(
                 UUID.randomUUID(),
