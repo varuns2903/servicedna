@@ -145,4 +145,38 @@ class ServiceControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_DEPENDENCY"));
     }
+
+    @Test
+    void shouldGetServiceMap() throws Exception {
+        String resA = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("MapServiceA", null, null, "us-east-1"))))
+                .andReturn().getResponse().getContentAsString();
+        String serviceAId = objectMapper.readTree(resA).get("id").asText();
+
+        String resB = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("MapServiceB", null, null, "us-east-1"))))
+                .andReturn().getResponse().getContentAsString();
+        String serviceBId = objectMapper.readTree(resB).get("id").asText();
+
+        // A depends on B
+        AddDependencyRequest depReq = new AddDependencyRequest(UUID.fromString(serviceBId));
+        mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services/" + serviceAId + "/dependencies")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(depReq)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services/map")
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes").isArray())
+                .andExpect(jsonPath("$.nodes[0].id").exists())
+                .andExpect(jsonPath("$.edges").isArray())
+                .andExpect(jsonPath("$.edges[0].sourceId").value(serviceAId))
+                .andExpect(jsonPath("$.edges[0].targetId").value(serviceBId));
+    }
 }

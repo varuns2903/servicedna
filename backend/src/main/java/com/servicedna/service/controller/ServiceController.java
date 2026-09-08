@@ -59,6 +59,14 @@ public class ServiceController {
     ) {
         return ResponseEntity.ok(serviceRegistryService.getService(orgId, serviceId, userDetails.getUser().getId()));
     }
+
+    @GetMapping("/map")
+    public ResponseEntity<com.servicedna.service.dto.ServiceMapDto> getServiceMap(
+            @PathVariable UUID orgId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(serviceRegistryService.getServiceMap(orgId, userDetails.getUser().getId()));
+    }
     
     @PatchMapping("/{serviceId}/status")
     public ResponseEntity<ServiceDto> updateServiceStatus(

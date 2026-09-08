@@ -144,6 +144,24 @@ public class ServiceRegistryService {
         return mapToDto(service);
     }
 
+    @Transactional(readOnly = true)
+    public com.servicedna.service.dto.ServiceMapDto getServiceMap(UUID organizationId, UUID userId) {
+        organizationService.validateUserAccess(organizationId, userId);
+        List<Service> services = serviceRepository.findByOrganizationId(organizationId);
+
+        List<com.servicedna.service.dto.ServiceMapDto.ServiceNodeDto> nodes = services.stream()
+                .map(s -> new com.servicedna.service.dto.ServiceMapDto.ServiceNodeDto(
+                        s.getId(), s.getName(), s.getRegion(), s.getStatus()))
+                .collect(Collectors.toList());
+
+        List<com.servicedna.service.dto.ServiceMapDto.ServiceEdgeDto> edges = services.stream()
+                .flatMap(s -> s.getDependencies().stream()
+                        .map(d -> new com.servicedna.service.dto.ServiceMapDto.ServiceEdgeDto(s.getId(), d.getId())))
+                .collect(Collectors.toList());
+
+        return new com.servicedna.service.dto.ServiceMapDto(nodes, edges);
+    }
+
     private String generateApiKey() {
         byte[] randomBytes = new byte[32];
         secureRandom.nextBytes(randomBytes);
