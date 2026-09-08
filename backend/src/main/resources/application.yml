@@ -55,6 +55,17 @@ management:
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
+  metrics:
+    export:
+      datadog:
+        enabled: ${DATADOG_ENABLED:false}
+        api-key: ${DATADOG_API_KEY:}
+        step: 1m
+      newrelic:
+        enabled: ${NEW_RELIC_ENABLED:false}
+        api-key: ${NEW_RELIC_API_KEY:}
+        account-id: ${NEW_RELIC_ACCOUNT_ID:}
+        step: 1m
 
 jwt:
   secret: a-very-long-secret-key-that-is-at-least-256-bits-long-for-hmac-sha-256-algorithm
