@@ -12,9 +12,9 @@ spring:
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/servicedna
-    username: postgres
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/servicedna}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   
   jpa:
@@ -32,11 +32,11 @@ spring:
     
   data:
     redis:
-      port: 6380
-      host: localhost
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6380}
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: servicedna-group
       auto-offset-reset: earliest
@@ -47,7 +47,7 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 
 management:
@@ -63,7 +63,7 @@ management:
       probability: 1.0
   zipkin:
     tracing:
-      endpoint: http://localhost:9411/api/v2/spans
+      endpoint: ${MANAGEMENT_ZIPKIN_TRACING_ENDPOINT:http://localhost:9411/api/v2/spans}
   metrics:
     export:
       datadog:
@@ -77,8 +77,8 @@ management:
         step: 1m
 
 jwt:
-  secret: a-very-long-secret-key-that-is-at-least-256-bits-long-for-hmac-sha-256-algorithm
-  expirationMs: 86400000
+  secret: ${JWT_SECRET:a-very-long-secret-key-that-is-at-least-256-bits-long-for-hmac-sha-256-algorithm}
+  expirationMs: ${JWT_EXPIRATION_MS:86400000}
 
 stripe:
   api-key: ${STRIPE_API_KEY:sk_test_123}

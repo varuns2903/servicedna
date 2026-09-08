@@ -3,7 +3,7 @@ import { Activity } from 'lucide-react';
 export function Login() {
   const handleLogin = () => {
     // Redirect to backend OAuth2 endpoint
-    window.location.href = 'http://localhost:8080/oauth2/authorization/github';
+    window.location.href = import.meta.env.VITE_AUTH_LOGIN_URL || 'http://localhost:8080/oauth2/authorization/github';
   };
 
   return (
