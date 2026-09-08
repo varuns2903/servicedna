@@ -4,6 +4,7 @@ import com.servicedna.alert.event.ServiceStatusChangedEvent;
 import com.servicedna.alert.service.AlertEventPublisher;
 import com.servicedna.common.exception.ApiException;
 import com.servicedna.organization.domain.Organization;
+import com.servicedna.organization.event.AuditLogEvent;
 import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.organization.service.OrganizationService;
 import com.servicedna.service.domain.Service;
@@ -73,6 +74,10 @@ public class ServiceRegistryService {
 
         service = serviceRepository.save(service);
         eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+        eventPublisher.publishEvent(new AuditLogEvent(
+                organizationId, userId, "CREATE_SERVICE", "Service", service.getId().toString(),
+                "Created service " + service.getName(), null
+        ));
         return mapToDto(service);
     }
 
@@ -120,6 +125,10 @@ public class ServiceRegistryService {
         }
 
         eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+        eventPublisher.publishEvent(new AuditLogEvent(
+                organizationId, userId, "UPDATE_SERVICE_STATUS", "Service", service.getId().toString(),
+                "Updated status from " + oldStatus + " to " + newStatus, null
+        ));
         return mapToDto(service);
     }
 
