@@ -10,6 +10,9 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Dashboard } from '@/features/dashboard/Dashboard';
 import { ServiceList } from '@/features/services/ServiceList';
 import { DependencyGraph } from '@/features/map/DependencyGraph';
+import { IncidentList } from '@/features/incidents/IncidentList';
+import { IncidentDetails } from '@/features/incidents/IncidentDetails';
+import { AlertsList } from '@/features/alerts/AlertsList';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +23,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token);
@@ -82,6 +84,36 @@ function App() {
               <ProtectedRoute>
                 <AppShell>
                   <DependencyGraph />
+                </AppShell>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/incidents" 
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <IncidentList />
+                </AppShell>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/incidents/:id" 
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <IncidentDetails />
+                </AppShell>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/alerts" 
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <AlertsList />
                 </AppShell>
               </ProtectedRoute>
             } 
