@@ -65,8 +65,8 @@ public class BillingService {
         String priceId = planType == PlanType.PRO ? proPriceId : enterprisePriceId;
 
         // Note: For a production app, the success and cancel URLs should point to the frontend domain.
-        String successUrl = "http://localhost:3000/dashboard?session_id={CHECKOUT_SESSION_ID}";
-        String cancelUrl = "http://localhost:3000/dashboard";
+        String successUrl = "http://localhost:5173/dashboard?session_id={CHECKOUT_SESSION_ID}";
+        String cancelUrl = "http://localhost:5173/dashboard";
 
         try {
             SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
