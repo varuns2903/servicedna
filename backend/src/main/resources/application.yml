@@ -1,7 +1,16 @@
 spring:
   application:
     name: ServiceDNA
-  
+    
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${GITHUB_CLIENT_ID:dummy-id}
+            client-secret: ${GITHUB_CLIENT_SECRET:dummy-secret}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
   datasource:
     url: jdbc:postgresql://localhost:5433/servicedna
     username: postgres
