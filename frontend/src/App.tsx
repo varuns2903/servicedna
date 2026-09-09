@@ -15,6 +15,7 @@ import { IncidentList } from '@/features/incidents/IncidentList';
 import { IncidentDetails } from '@/features/incidents/IncidentDetails';
 import { AlertsList } from '@/features/alerts/AlertsList';
 import { SettingsView } from "@/features/settings/SettingsView";
+import { PublicStatusPage } from "@/features/status/PublicStatusPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -131,6 +132,8 @@ function App() {
               </ProtectedRoute>
             } 
           />
+
+          <Route path="/status/:orgId" element={<PublicStatusPage />} />
 
           <Route path="*" element={<div className="flex h-screen w-screen items-center justify-center bg-charcoal-900 text-gray-100">Not Found</div>} />
         </Routes>
