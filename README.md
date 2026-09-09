@@ -73,25 +73,25 @@ Built-in subscription management with Free, Pro, and Enterprise tiers. Checkout 
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    FRONTEND (React SPA)                  │
+│                    FRONTEND (React SPA)                 │
 │  Vite · TypeScript · Tailwind · TanStack Query · Zustand│
 │  React Flow · cmdk · STOMP/SockJS · Playwright          │
 └────────────────────────┬────────────────────────────────┘
                          │ REST + WebSocket
 ┌────────────────────────▼────────────────────────────────┐
-│                 BACKEND (Spring Boot 3.x)                │
-│                                                          │
-│  ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌───────────┐ │
-│  │   Auth   │ │ Service  │ │ Incident  │ │  Billing  │ │
-│  │ (OAuth2) │ │ Registry │ │  Manager  │ │ (Stripe)  │ │
-│  └──────────┘ └──────────┘ └───────────┘ └───────────┘ │
-│  ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌───────────┐ │
-│  │  Alert   │ │Dashboard │ │ Telemetry │ │   Org &   │ │
-│  │  Engine  │ │  & WS    │ │  Ingest   │ │  Members  │ │
-│  └──────────┘ └──────────┘ └───────────┘ └───────────┘ │
+│                 BACKEND (Spring Boot 3.x)               │
+│                                                         │
+│  ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌───────────┐  │
+│  │   Auth   │ │ Service  │ │ Incident  │ │  Billing  │  │
+│  │ (OAuth2) │ │ Registry │ │  Manager  │ │ (Stripe)  │  │
+│  └──────────┘ └──────────┘ └───────────┘ └───────────┘  │
+│  ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌───────────┐  │
+│  │  Alert   │ │Dashboard │ │ Telemetry │ │   Org &   │  │
+│  │  Engine  │ │  & WS    │ │  Ingest   │ │  Members  │  │
+│  └──────────┘ └──────────┘ └───────────┘ └───────────┘  │
 └───┬──────────────┬──────────────┬───────────────┬───────┘
     │              │              │               │
-┌───▼───┐   ┌─────▼─────┐  ┌────▼────┐   ┌──────▼──────┐
+┌───▼────┐   ┌─────▼─────┐  ┌────▼────┐   ┌──────▼──────┐
 │Postgres│   │   Redis   │  │  Kafka  │   │   Zipkin    │
 │  (DB)  │   │  (Cache)  │  │ (Events)│   │ (Tracing)   │
 └────────┘   └───────────┘  └─────────┘   └─────────────┘
