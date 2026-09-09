@@ -62,10 +62,12 @@ public class RateLimitInterceptor implements HandlerInterceptor {
       return "user:" + userDetails.getUser().getId().toString();
     }
 
-    String xfHeader = request.getHeader("X-Forwarded-For");
-    if (xfHeader == null) {
-      return "ip:" + request.getRemoteAddr();
-    }
-    return "ip:" + xfHeader.split(",")[0];
+    // getRemoteAddr() is the real client IP unless this instance sits behind a proxy — in which
+    // case `server.forward-headers-strategy: native` (see application.yml) makes Tomcat's
+    // RemoteIpValve resolve it from X-Forwarded-For, but only for connections it accepts as
+    // coming from a trusted proxy. Reading the header directly here would let any caller set an
+    // arbitrary value and rotate it per request to get a fresh rate-limit bucket every time,
+    // defeating the limiter entirely — most importantly on /auth/login and /auth/register.
+    return "ip:" + request.getRemoteAddr();
   }
 }
