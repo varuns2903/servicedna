@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -19,10 +20,15 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
   private final JwtService jwtService;
   private final UserRepository userRepository;
+  private final String frontendUrl;
 
-  public OAuth2SuccessHandler(JwtService jwtService, UserRepository userRepository) {
+  public OAuth2SuccessHandler(
+      JwtService jwtService,
+      UserRepository userRepository,
+      @Value("${frontend.url}") String frontendUrl) {
     this.jwtService = jwtService;
     this.userRepository = userRepository;
+    this.frontendUrl = frontendUrl;
   }
 
   @Override
@@ -63,7 +69,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     // Redirect to frontend with token
     String targetUrl =
-        UriComponentsBuilder.fromUriString("http://localhost:5173/oauth2/redirect")
+        UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/redirect")
             .queryParam("token", token)
             .build()
             .toUriString();

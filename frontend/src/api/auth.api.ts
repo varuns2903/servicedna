@@ -26,4 +26,16 @@ export const AuthApi = {
     const { data } = await apiClient.post<AuthResponse>('/auth/register', { email, password });
     return data;
   },
+
+  verifyEmail: async (token: string): Promise<void> => {
+    await apiClient.get('/auth/verify-email', { params: { token } });
+  },
+
+  forgotPassword: async (email: string): Promise<void> => {
+    await apiClient.post('/auth/forgot-password', { email });
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<void> => {
+    await apiClient.post('/auth/reset-password', { token, newPassword });
+  },
 };

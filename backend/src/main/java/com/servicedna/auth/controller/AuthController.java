@@ -1,8 +1,10 @@
 package com.servicedna.auth.controller;
 
 import com.servicedna.auth.dto.AuthResponse;
+import com.servicedna.auth.dto.ForgotPasswordRequest;
 import com.servicedna.auth.dto.LoginRequest;
 import com.servicedna.auth.dto.RegisterRequest;
+import com.servicedna.auth.dto.ResetPasswordRequest;
 import com.servicedna.auth.security.CustomUserDetails;
 import com.servicedna.auth.service.AuthService;
 import com.servicedna.user.domain.User;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -34,6 +37,24 @@ public class AuthController {
   @PostMapping("/login")
   public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
     return ResponseEntity.ok(authService.login(request));
+  }
+
+  @GetMapping("/verify-email")
+  public ResponseEntity<Void> verifyEmail(@RequestParam String token) {
+    authService.verifyEmail(token);
+    return ResponseEntity.ok().build();
+  }
+
+  @PostMapping("/forgot-password")
+  public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    authService.forgotPassword(request);
+    return ResponseEntity.ok().build();
+  }
+
+  @PostMapping("/reset-password")
+  public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    authService.resetPassword(request.token(), request.newPassword());
+    return ResponseEntity.ok().build();
   }
 
   @GetMapping("/me")

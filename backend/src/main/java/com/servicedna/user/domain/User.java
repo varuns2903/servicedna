@@ -27,6 +27,9 @@ public class User {
   @Column(nullable = false)
   private Role role;
 
+  @Column(name = "email_verified", nullable = false)
+  private boolean emailVerified = true;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -74,6 +77,14 @@ public class User {
 
   public void setRole(Role role) {
     this.role = role;
+  }
+
+  public boolean isEmailVerified() {
+    return emailVerified;
+  }
+
+  public void setEmailVerified(boolean emailVerified) {
+    this.emailVerified = emailVerified;
   }
 
   public OffsetDateTime getCreatedAt() {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -61,7 +61,14 @@ export function Login() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm text-gray-400">Password</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm text-gray-400">Password</label>
+              {mode === 'login' && (
+                <Link to="/forgot-password" className="text-xs text-gray-500 hover:text-gray-300">
+                  Forgot password?
+                </Link>
+              )}
+            </div>
             <Input
               type="password"
               value={password}

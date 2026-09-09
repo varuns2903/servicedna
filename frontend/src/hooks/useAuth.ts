@@ -25,3 +25,22 @@ export function useRegister() {
     },
   });
 }
+
+export function useVerifyEmail() {
+  return useMutation({
+    mutationFn: (token: string) => AuthApi.verifyEmail(token),
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (email: string) => AuthApi.forgotPassword(email),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: ({ token, newPassword }: { token: string; newPassword: string }) =>
+      AuthApi.resetPassword(token, newPassword),
+  });
+}

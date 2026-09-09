@@ -5,6 +5,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Login } from '@/features/auth/Login';
 import { OAuth2RedirectHandler } from '@/features/auth/OAuth2RedirectHandler';
+import { VerifyEmail } from '@/features/auth/VerifyEmail';
+import { ForgotPassword } from '@/features/auth/ForgotPassword';
+import { ResetPassword } from '@/features/auth/ResetPassword';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { AppShell } from '@/components/layout/AppShell';
 import { Dashboard } from '@/features/dashboard/Dashboard';
@@ -67,6 +70,9 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route 
             path="/dashboard" 
             element={
