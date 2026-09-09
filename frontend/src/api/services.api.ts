@@ -9,7 +9,9 @@ export interface ServiceDto {
   repositoryUrl: string;
   region: string;
   status: ServiceStatus;
-  apiKey: string;
+  // Only populated in the response to createService — redacted (null) on every list/get call
+  // so the credential isn't re-exposed to every org member on every read.
+  apiKey: string | null;
   dependencyIds: string[];
   createdAt: string;
   updatedAt: string;
@@ -33,8 +35,14 @@ export const ServicesApi = {
     return data;
   },
 
-  createService: async (orgId: string, request: CreateServiceRequest): Promise<ServiceDto> => {
-    const { data } = await apiClient.post<ServiceDto>(`/organizations/${orgId}/services`, request);
+  createService: async (
+    orgId: string,
+    request: CreateServiceRequest
+  ): Promise<ServiceDto & { apiKey: string }> => {
+    const { data } = await apiClient.post<ServiceDto & { apiKey: string }>(
+      `/organizations/${orgId}/services`,
+      request
+    );
     return data;
   },
 

@@ -92,7 +92,7 @@ public class ServiceRegistryService {
             service.getId().toString(),
             "Created service " + service.getName(),
             null));
-    return mapToDto(service);
+    return mapToDtoWithApiKey(service);
   }
 
   @Transactional(readOnly = true)
@@ -238,7 +238,30 @@ public class ServiceRegistryService {
     return "sdna_" + Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
   }
 
+  /**
+   * Redacts the API key. Used everywhere except immediately after creation — the key is a
+   * bearer credential for the service's telemetry endpoint and must not be re-exposed to every
+   * org member on every list/get call.
+   */
   private ServiceDto mapToDto(Service service) {
+    List<UUID> dependencyIds =
+        service.getDependencies().stream().map(Service::getId).collect(Collectors.toList());
+
+    return new ServiceDto(
+        service.getId(),
+        service.getOrganization().getId(),
+        service.getName(),
+        service.getDescription(),
+        service.getRepositoryUrl(),
+        service.getRegion(),
+        service.getStatus(),
+        null,
+        dependencyIds,
+        service.getCreatedAt(),
+        service.getUpdatedAt());
+  }
+
+  private ServiceDto mapToDtoWithApiKey(Service service) {
     List<UUID> dependencyIds =
         service.getDependencies().stream().map(Service::getId).collect(Collectors.toList());
 

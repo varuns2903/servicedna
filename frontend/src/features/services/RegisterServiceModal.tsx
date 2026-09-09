@@ -17,7 +17,7 @@ export function RegisterServiceModal({ open, onClose }: RegisterServiceModalProp
   const [description, setDescription] = useState('');
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [region, setRegion] = useState('');
-  const [createdService, setCreatedService] = useState<ServiceDto | null>(null);
+  const [createdService, setCreatedService] = useState<(ServiceDto & { apiKey: string }) | null>(null);
   const [copied, setCopied] = useState(false);
   const createService = useCreateService();
 
