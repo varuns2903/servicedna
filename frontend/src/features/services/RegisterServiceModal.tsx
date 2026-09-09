@@ -17,6 +17,7 @@ export function RegisterServiceModal({ open, onClose }: RegisterServiceModalProp
   const [description, setDescription] = useState('');
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [region, setRegion] = useState('');
+  const [healthCheckUrl, setHealthCheckUrl] = useState('');
   const [createdService, setCreatedService] = useState<(ServiceDto & { apiKey: string }) | null>(null);
   const [copied, setCopied] = useState(false);
   const createService = useCreateService();
@@ -26,6 +27,7 @@ export function RegisterServiceModal({ open, onClose }: RegisterServiceModalProp
     setDescription('');
     setRepositoryUrl('');
     setRegion('');
+    setHealthCheckUrl('');
     setCreatedService(null);
     setCopied(false);
     createService.reset();
@@ -46,6 +48,7 @@ export function RegisterServiceModal({ open, onClose }: RegisterServiceModalProp
         description: description.trim() || undefined,
         repositoryUrl: repositoryUrl.trim() || undefined,
         region: region.trim() || undefined,
+        healthCheckUrl: healthCheckUrl.trim() || undefined,
       },
       { onSuccess: (service) => setCreatedService(service) }
     );
@@ -123,6 +126,18 @@ export function RegisterServiceModal({ open, onClose }: RegisterServiceModalProp
             onChange={(e) => setRegion(e.target.value)}
             placeholder="us-east-1"
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm text-gray-400">Health Check URL</label>
+          <Input
+            type="url"
+            value={healthCheckUrl}
+            onChange={(e) => setHealthCheckUrl(e.target.value)}
+            placeholder="https://api.example.com/health"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Optional. If set, ServiceDNA polls this URL every 30s and updates status automatically.
+          </p>
         </div>
 
         {createService.isError && (

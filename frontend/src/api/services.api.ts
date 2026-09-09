@@ -8,6 +8,7 @@ export interface ServiceDto {
   description: string;
   repositoryUrl: string;
   region: string;
+  healthCheckUrl: string | null;
   status: ServiceStatus;
   // Only populated in the response to createService — redacted (null) on every list/get call
   // so the credential isn't re-exposed to every org member on every read.
@@ -22,6 +23,7 @@ export interface CreateServiceRequest {
   description?: string;
   repositoryUrl?: string;
   region?: string;
+  healthCheckUrl?: string;
 }
 
 export const ServicesApi = {

@@ -16,4 +16,6 @@ public interface ServiceRepository extends JpaRepository<Service, UUID> {
   boolean existsByOrganizationIdAndName(UUID organizationId, String name);
 
   Optional<Service> findByApiKey(String apiKey);
+
+  List<Service> findByHealthCheckUrlIsNotNull();
 }

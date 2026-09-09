@@ -79,7 +79,8 @@ public class ServiceRegistryService {
             request.description(),
             request.repositoryUrl(),
             request.region(),
-            generateApiKey());
+            generateApiKey(),
+            request.healthCheckUrl());
 
     service = serviceRepository.save(service);
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
@@ -254,6 +255,7 @@ public class ServiceRegistryService {
         service.getDescription(),
         service.getRepositoryUrl(),
         service.getRegion(),
+        service.getHealthCheckUrl(),
         service.getStatus(),
         null,
         dependencyIds,
@@ -272,6 +274,7 @@ public class ServiceRegistryService {
         service.getDescription(),
         service.getRepositoryUrl(),
         service.getRegion(),
+        service.getHealthCheckUrl(),
         service.getStatus(),
         service.getApiKey(),
         dependencyIds,

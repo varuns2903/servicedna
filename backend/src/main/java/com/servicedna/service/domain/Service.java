@@ -38,6 +38,9 @@ public class Service {
   @Column(name = "repository_url")
   private String repositoryUrl;
 
+  @Column(name = "health_check_url")
+  private String healthCheckUrl;
+
   @Column(nullable = false)
   private String region = "global";
 
@@ -73,6 +76,18 @@ public class Service {
       String repositoryUrl,
       String region,
       String apiKey) {
+    this(id, organization, name, description, repositoryUrl, region, apiKey, null);
+  }
+
+  public Service(
+      UUID id,
+      Organization organization,
+      String name,
+      String description,
+      String repositoryUrl,
+      String region,
+      String apiKey,
+      String healthCheckUrl) {
     this.id = id;
     this.organization = organization;
     this.name = name;
@@ -80,6 +95,7 @@ public class Service {
     this.repositoryUrl = repositoryUrl;
     this.region = region != null ? region : "global";
     this.apiKey = apiKey;
+    this.healthCheckUrl = healthCheckUrl;
     this.status = ServiceStatus.UNKNOWN;
   }
 
@@ -121,6 +137,14 @@ public class Service {
 
   public void setRepositoryUrl(String repositoryUrl) {
     this.repositoryUrl = repositoryUrl;
+  }
+
+  public String getHealthCheckUrl() {
+    return healthCheckUrl;
+  }
+
+  public void setHealthCheckUrl(String healthCheckUrl) {
+    this.healthCheckUrl = healthCheckUrl;
   }
 
   public String getRegion() {

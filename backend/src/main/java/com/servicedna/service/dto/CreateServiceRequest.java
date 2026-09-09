@@ -2,6 +2,7 @@ package com.servicedna.service.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.hibernate.validator.constraints.URL;
 
 public record CreateServiceRequest(
     @NotBlank(message = "Service name is required")
@@ -9,4 +10,5 @@ public record CreateServiceRequest(
         String name,
     String description,
     String repositoryUrl,
-    String region) {}
+    String region,
+    @URL(message = "Health check URL must be valid") String healthCheckUrl) {}
