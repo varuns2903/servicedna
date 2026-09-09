@@ -5,6 +5,7 @@ import { useUser } from '@/hooks/useUser';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { useWebSocket } from '@/providers/WebSocketProvider';
+import { useUIStore } from "@/stores/useUIStore";
 
 export function TopBar() {
   const { logout } = useAuthStore();
@@ -13,6 +14,7 @@ export function TopBar() {
   const { data: organizations } = useOrganizations();
   const { selectedOrganizationId, setSelectedOrganizationId } = useOrganizationStore();
   const { connected } = useWebSocket();
+  const { toggleCommandPalette } = useUIStore();
 
   const handleLogout = () => {
     logout();
@@ -40,7 +42,7 @@ export function TopBar() {
 
       <div className="flex items-center space-x-4">
         {/* Global Search Trigger */}
-        <button className="flex h-8 w-64 items-center space-x-2 rounded-md border border-charcoal-700 bg-charcoal-800 px-3 text-sm text-gray-400 transition-colors hover:border-charcoal-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
+        <button onClick={toggleCommandPalette} className="flex h-8 w-64 items-center space-x-2 rounded-md border border-charcoal-700 bg-charcoal-800 px-3 text-sm text-gray-400 transition-colors hover:border-charcoal-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
           <Search className="h-4 w-4" />
           <span>Search resources... (Ctrl+K)</span>
         </button>

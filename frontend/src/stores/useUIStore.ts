@@ -1,20 +1,17 @@
 import { create } from 'zustand';
 
 interface UIState {
+  isCommandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
+  toggleCommandPalette: () => void;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
-  setSidebarCollapsed: (collapsed: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  sidebarCollapsed: localStorage.getItem('sdna_sidebar') === 'true',
-  toggleSidebar: () => set((state) => {
-    const next = !state.sidebarCollapsed;
-    localStorage.setItem('sdna_sidebar', String(next));
-    return { sidebarCollapsed: next };
-  }),
-  setSidebarCollapsed: (collapsed) => {
-    localStorage.setItem('sdna_sidebar', String(collapsed));
-    set({ sidebarCollapsed: collapsed });
-  },
+  isCommandPaletteOpen: false,
+  setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
+  toggleCommandPalette: () => set((state) => ({ isCommandPaletteOpen: !state.isCommandPaletteOpen })),
+  sidebarCollapsed: false,
+  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 }));
