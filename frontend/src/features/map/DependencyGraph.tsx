@@ -68,8 +68,7 @@ export function DependencyGraph() {
         data: {
           label: node.name,
           status: node.status,
-          latencyMs: node.latencyMs,
-          environment: node.environment,
+          region: node.region,
           isDimmed: false,
         },
       }));

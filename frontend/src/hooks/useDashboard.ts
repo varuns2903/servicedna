@@ -6,7 +6,7 @@ export function useDashboard() {
   const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);
 
   return useQuery({
-    queryKey: ['organization', selectedOrganizationId, 'dashboard'],
+    queryKey: ['organizations', selectedOrganizationId, 'dashboard'],
     queryFn: () => DashboardApi.getSummary(selectedOrganizationId!),
     enabled: !!selectedOrganizationId,
   });

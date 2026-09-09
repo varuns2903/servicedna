@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import { useServices } from '@/hooks/useServices';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { StatusIndicator } from '@/components/status/StatusIndicator';
@@ -7,9 +8,11 @@ import { Badge } from '@/components/ui/Badge';
 import { Search, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { formatDistanceToNow } from 'date-fns';
+import { RegisterServiceModal } from './RegisterServiceModal';
 
 export function ServiceList() {
   const { data: services, isLoading, isError } = useServices();
+  const [isRegisterOpen, setRegisterOpen] = useState(false);
 
   if (isError) {
     return (
@@ -26,7 +29,7 @@ export function ServiceList() {
     <div className="flex h-full flex-col space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-white">Services</h1>
-        <Button size="sm">
+        <Button size="sm" onClick={() => setRegisterOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Register Service
         </Button>
@@ -52,7 +55,9 @@ export function ServiceList() {
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-charcoal-600 py-16 text-center">
           <div className="text-gray-400">No services registered</div>
           <p className="mt-1 text-sm text-gray-500">Register your first service to begin monitoring.</p>
-          <Button variant="outline" className="mt-4">Register Service</Button>
+          <Button variant="outline" className="mt-4" onClick={() => setRegisterOpen(true)}>
+            Register Service
+          </Button>
         </div>
       ) : (
         <Table>
@@ -60,7 +65,7 @@ export function ServiceList() {
             <TableRow>
               <TableHead>Service Name</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Environment</TableHead>
+              <TableHead>Region</TableHead>
               <TableHead>Last Updated</TableHead>
             </TableRow>
           </TableHeader>
@@ -78,17 +83,19 @@ export function ServiceList() {
                 </TableCell>
                 <TableCell>
                   <Badge variant="default" className="uppercase tracking-wider text-[10px]">
-                    {service.environment}
+                    {service.region || 'unassigned'}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-gray-400">
-                  {formatDistanceToNow(new Date(service.statusUpdatedAt || service.createdAt), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(service.updatedAt), { addSuffix: true })}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
+
+      <RegisterServiceModal open={isRegisterOpen} onClose={() => setRegisterOpen(false)} />
     </div>
   );
 }

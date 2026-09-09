@@ -1,4 +1,5 @@
-import { Search, LogOut, Wifi, WifiOff } from 'lucide-react';
+import { useState } from 'react';
+import { Search, LogOut, Wifi, WifiOff, Plus } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@/hooks/useUser';
@@ -6,6 +7,7 @@ import { useOrganizations } from '@/hooks/useOrganizations';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { useWebSocket } from '@/providers/WebSocketProvider';
 import { useUIStore } from "@/stores/useUIStore";
+import { CreateOrganizationModal } from '@/features/organizations/CreateOrganizationModal';
 
 export function TopBar() {
   const { logout } = useAuthStore();
@@ -15,6 +17,7 @@ export function TopBar() {
   const { selectedOrganizationId, setSelectedOrganizationId } = useOrganizationStore();
   const { connected } = useWebSocket();
   const { toggleCommandPalette } = useUIStore();
+  const [isCreateOrgOpen, setCreateOrgOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -38,6 +41,14 @@ export function TopBar() {
             ))}
           </select>
         )}
+        <button
+          onClick={() => setCreateOrgOpen(true)}
+          title="Create Organization"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-charcoal-700 bg-charcoal-800 text-gray-400 transition-colors hover:border-charcoal-600 hover:text-white"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <CreateOrganizationModal open={isCreateOrgOpen} onClose={() => setCreateOrgOpen(false)} />
       </div>
 
       <div className="flex items-center space-x-4">

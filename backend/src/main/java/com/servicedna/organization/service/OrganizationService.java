@@ -50,7 +50,7 @@ public class OrganizationService {
                 () -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found"));
 
     Organization organization = new Organization(UUID.randomUUID(), request.name());
-    organizationRepository.save(organization);
+    organization = organizationRepository.saveAndFlush(organization);
 
     OrganizationMember member =
         new OrganizationMember(UUID.randomUUID(), organization, user, OrganizationRole.OWNER);

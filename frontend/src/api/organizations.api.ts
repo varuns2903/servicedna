@@ -3,7 +3,6 @@ import { apiClient } from './client';
 export interface OrganizationDto {
   id: string;
   name: string;
-  ownerId: string;
   createdAt: string;
 }
 
@@ -28,6 +27,11 @@ export interface InviteDto {
 export const OrganizationsApi = {
   getOrganizations: async (): Promise<OrganizationDto[]> => {
     const { data } = await apiClient.get<OrganizationDto[]>('/organizations');
+    return data;
+  },
+
+  createOrganization: async (name: string): Promise<OrganizationDto> => {
+    const { data } = await apiClient.post<OrganizationDto>('/organizations', { name });
     return data;
   },
 

@@ -4,15 +4,13 @@ import type { ServiceStatus } from '@/components/status/StatusIndicator';
 export interface ServiceMapNodeDto {
   id: string;
   name: string;
+  region: string;
   status: ServiceStatus;
-  latencyMs: number | null;
-  environment: string;
 }
 
 export interface ServiceMapEdgeDto {
   sourceId: string;
   targetId: string;
-  type: string;
 }
 
 export interface ServiceMapDto {

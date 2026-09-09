@@ -16,6 +16,7 @@ import { IncidentDetails } from '@/features/incidents/IncidentDetails';
 import { AlertsList } from '@/features/alerts/AlertsList';
 import { SettingsView } from "@/features/settings/SettingsView";
 import { PublicStatusPage } from "@/features/status/PublicStatusPage";
+import { OnboardingView } from "@/features/organizations/OnboardingView";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,7 +33,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   // Queries
   const { isLoading: isUserLoading, isError: isUserError } = useUser();
-  const { isLoading: isOrgsLoading, isError: isOrgsError } = useOrganizations();
+  const { data: organizations, isLoading: isOrgsLoading, isError: isOrgsError } = useOrganizations();
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -48,6 +49,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isUserError || isOrgsError) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (organizations && organizations.length === 0) {
+    return <OnboardingView />;
   }
 
   return <>{children}</>;

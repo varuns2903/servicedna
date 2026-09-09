@@ -7,8 +7,7 @@ import { cn } from '@/utils/cn';
 export interface ServiceNodeData extends Record<string, unknown> {
   label: string;
   status: ServiceStatus;
-  latencyMs: number | null;
-  environment: string;
+  region: string;
   isDimmed?: boolean;
 }
 
@@ -41,7 +40,7 @@ export const ServiceNode = memo(({ data, selected }: { data: ServiceNodeData; se
           <div className="flex items-center justify-between">
             <StatusIndicator status={data.status} size="sm" showLabel={false} />
             <span className="text-xs font-mono text-gray-400">
-              {data.latencyMs ? `${data.latencyMs}ms` : '—'}
+              {data.region || '—'}
             </span>
           </div>
         </div>

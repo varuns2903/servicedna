@@ -6,7 +6,7 @@ export function useServiceMap() {
   const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);
 
   return useQuery({
-    queryKey: ['organization', selectedOrganizationId, 'map'],
+    queryKey: ['organizations', selectedOrganizationId, 'map'],
     queryFn: () => MapApi.getServiceMap(selectedOrganizationId!),
     enabled: !!selectedOrganizationId,
   });

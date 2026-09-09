@@ -28,6 +28,18 @@ export function useOrganizations() {
   return query;
 }
 
+export function useCreateOrganization() {
+  const queryClient = useQueryClient();
+  const { setSelectedOrganizationId } = useOrganizationStore();
+  return useMutation({
+    mutationFn: (name: string) => OrganizationsApi.createOrganization(name),
+    onSuccess: (org) => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      setSelectedOrganizationId(org.id);
+    }
+  });
+}
+
 export function useUpdateOrganization() {
   const queryClient = useQueryClient();
   return useMutation({
