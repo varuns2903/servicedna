@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
-import { 
-  useOrganizations, 
-  useUpdateOrganization, 
-  useOrganizationMembers, 
-  useOrganizationInvites, 
-  useCreateInvite 
+import {
+  useOrganizations,
+  useUpdateOrganization,
+  useOrganizationMembers,
+  useOrganizationInvites,
+  useCreateInvite,
+  useUpdateMemberRole,
+  useRemoveMember,
 } from '@/hooks/useOrganizations';
+import { useUser } from '@/hooks/useUser';
 import { useSubscription, useCreateCheckoutSession } from '@/hooks/useBilling';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Building2, Users, CreditCard, Send, Check } from 'lucide-react';
+import { Building2, Users, CreditCard, Send, Check, X } from 'lucide-react';
 import type { OrganizationRole } from '@/api/organizations.api';
 import type { PlanType } from '@/api/billing.api';
 
@@ -40,11 +44,45 @@ export function SettingsView() {
   };
 
   // Members Tab state
+  const { data: currentUser } = useUser();
   const { data: members, isLoading: loadingMembers } = useOrganizationMembers(currentOrgId || undefined);
   const { data: invites, isLoading: loadingInvites } = useOrganizationInvites(currentOrgId || undefined);
   const createInvite = useCreateInvite();
+  const updateMemberRole = useUpdateMemberRole();
+  const removeMember = useRemoveMember();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<OrganizationRole>('MEMBER');
+  const [memberActionError, setMemberActionError] = useState<string | null>(null);
+
+  const handleRoleChange = (memberId: string, role: OrganizationRole) => {
+    if (!currentOrgId) return;
+    setMemberActionError(null);
+    updateMemberRole.mutate(
+      { orgId: currentOrgId, memberId, role },
+      {
+        onError: (err) => {
+          setMemberActionError(
+            (axios.isAxiosError(err) && err.response?.data?.message) || 'Could not update role.'
+          );
+        },
+      }
+    );
+  };
+
+  const handleRemoveMember = (memberId: string) => {
+    if (!currentOrgId) return;
+    setMemberActionError(null);
+    removeMember.mutate(
+      { orgId: currentOrgId, memberId },
+      {
+        onError: (err) => {
+          setMemberActionError(
+            (axios.isAxiosError(err) && err.response?.data?.message) || 'Could not remove member.'
+          );
+        },
+      }
+    );
+  };
 
   const handleSendInvite = (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,7 +215,7 @@ export function SettingsView() {
                     >
                       <option value="ADMIN">Admin</option>
                       <option value="MEMBER">Member</option>
-                      <option value="READ_ONLY">Read Only</option>
+                      <option value="VIEWER">Viewer</option>
                     </select>
                   </div>
                   <Button type="submit" disabled={createInvite.isPending} className="flex items-center space-x-2">
@@ -194,16 +232,50 @@ export function SettingsView() {
                   <CardTitle>Active Members</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {memberActionError && (
+                    <div className="mb-3 rounded-md border border-rose-500/20 bg-rose-500/10 p-2 text-xs text-rose-400">
+                      {memberActionError}
+                    </div>
+                  )}
                   {loadingMembers ? (
                     <div className="text-sm text-gray-400">Loading members...</div>
                   ) : (
                     <div className="space-y-3">
-                      {members?.map(m => (
-                        <div key={m.id} className="flex items-center justify-between p-3 rounded-md border border-charcoal-700 bg-charcoal-900/50">
-                          <span className="text-sm text-white">{m.email}</span>
-                          <Badge variant={m.role === 'OWNER' ? 'success' : 'default'}>{m.role}</Badge>
-                        </div>
-                      ))}
+                      {members?.map(m => {
+                        const isSelf = m.email === currentUser?.email;
+                        return (
+                          <div key={m.id} className="flex items-center justify-between gap-2 p-3 rounded-md border border-charcoal-700 bg-charcoal-900/50">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm text-white truncate">{m.email}</span>
+                              {isSelf && <span className="text-xs text-gray-500">You</span>}
+                            </div>
+                            <div className="flex items-center space-x-2 shrink-0">
+                              {m.role === 'OWNER' ? (
+                                <Badge variant="success">OWNER</Badge>
+                              ) : (
+                                <select
+                                  value={m.role}
+                                  onChange={(e) => handleRoleChange(m.id, e.target.value as OrganizationRole)}
+                                  disabled={updateMemberRole.isPending}
+                                  className="bg-charcoal-900 border border-charcoal-700 rounded-md px-2 py-1 text-xs text-white"
+                                >
+                                  <option value="ADMIN">Admin</option>
+                                  <option value="MEMBER">Member</option>
+                                  <option value="VIEWER">Viewer</option>
+                                </select>
+                              )}
+                              <button
+                                onClick={() => handleRemoveMember(m.id)}
+                                disabled={removeMember.isPending}
+                                title={isSelf ? 'Leave organization' : 'Remove member'}
+                                className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -228,7 +300,7 @@ export function SettingsView() {
                           </div>
                           <div className="flex items-center justify-between text-xs text-gray-500">
                             <span>Role: {i.role}</span>
-                            <span>Token: {i.token.substring(0,8)}...</span>
+                            <span>Expires {new Date(i.expiresAt).toLocaleDateString()}</span>
                           </div>
                         </div>
                       ))}

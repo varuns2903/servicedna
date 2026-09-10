@@ -6,22 +6,23 @@ export interface OrganizationDto {
   createdAt: string;
 }
 
-export type OrganizationRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'READ_ONLY';
+export type OrganizationRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
 export interface OrganizationMemberDto {
   id: string;
-  organizationId: string;
-  email: string; // we mapped email instead of userId to make it readable in the UI
+  userId: string;
+  email: string;
   role: OrganizationRole;
 }
 
 export interface InviteDto {
   id: string;
+  organizationId: string;
   email: string;
   role: OrganizationRole;
-  token: string;
-  expiresAt: string;
   status: 'PENDING' | 'ACCEPTED' | 'EXPIRED';
+  expiresAt: string;
+  createdAt: string;
 }
 
 export const OrganizationsApi = {
@@ -43,6 +44,22 @@ export const OrganizationsApi = {
   getMembers: async (orgId: string): Promise<OrganizationMemberDto[]> => {
     const { data } = await apiClient.get<OrganizationMemberDto[]>(`/organizations/${orgId}/members`);
     return data;
+  },
+
+  updateMemberRole: async (
+    orgId: string,
+    memberId: string,
+    role: OrganizationRole
+  ): Promise<OrganizationMemberDto> => {
+    const { data } = await apiClient.patch<OrganizationMemberDto>(
+      `/organizations/${orgId}/members/${memberId}`,
+      { role }
+    );
+    return data;
+  },
+
+  removeMember: async (orgId: string, memberId: string): Promise<void> => {
+    await apiClient.delete(`/organizations/${orgId}/members/${memberId}`);
   },
 
   getInvites: async (orgId: string): Promise<InviteDto[]> => {

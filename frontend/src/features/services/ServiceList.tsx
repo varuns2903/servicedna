@@ -9,10 +9,13 @@ import { Search, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { formatDistanceToNow } from 'date-fns';
 import { RegisterServiceModal } from './RegisterServiceModal';
+import { EditServiceModal } from './EditServiceModal';
+import type { ServiceDto } from '@/api/services.api';
 
 export function ServiceList() {
   const { data: services, isLoading, isError } = useServices();
   const [isRegisterOpen, setRegisterOpen] = useState(false);
+  const [editingService, setEditingService] = useState<ServiceDto | null>(null);
 
   if (isError) {
     return (
@@ -71,7 +74,11 @@ export function ServiceList() {
           </TableHeader>
           <TableBody>
             {services?.map((service) => (
-              <TableRow key={service.id} className="cursor-pointer">
+              <TableRow
+                key={service.id}
+                className="cursor-pointer"
+                onClick={() => setEditingService(service)}
+              >
                 <TableCell className="font-medium text-gray-200">
                   <div className="flex flex-col">
                     <span>{service.name}</span>
@@ -96,6 +103,11 @@ export function ServiceList() {
       )}
 
       <RegisterServiceModal open={isRegisterOpen} onClose={() => setRegisterOpen(false)} />
+      <EditServiceModal
+        open={!!editingService}
+        service={editingService}
+        onClose={() => setEditingService(null)}
+      />
     </div>
   );
 }

@@ -26,6 +26,14 @@ export interface CreateServiceRequest {
   healthCheckUrl?: string;
 }
 
+export interface UpdateServiceRequest {
+  name: string;
+  description?: string;
+  repositoryUrl?: string;
+  region?: string;
+  healthCheckUrl?: string;
+}
+
 export const ServicesApi = {
   getServices: async (orgId: string): Promise<ServiceDto[]> => {
     const { data } = await apiClient.get<ServiceDto[]>(`/organizations/${orgId}/services`);
@@ -52,6 +60,32 @@ export const ServicesApi = {
     const { data } = await apiClient.post<ServiceDto>(
       `/organizations/${orgId}/services/${serviceId}/dependencies`,
       { dependsOnServiceId }
+    );
+    return data;
+  },
+
+  updateService: async (
+    orgId: string,
+    serviceId: string,
+    request: UpdateServiceRequest
+  ): Promise<ServiceDto> => {
+    const { data } = await apiClient.put<ServiceDto>(
+      `/organizations/${orgId}/services/${serviceId}`,
+      request
+    );
+    return data;
+  },
+
+  deleteService: async (orgId: string, serviceId: string): Promise<void> => {
+    await apiClient.delete(`/organizations/${orgId}/services/${serviceId}`);
+  },
+
+  regenerateApiKey: async (
+    orgId: string,
+    serviceId: string
+  ): Promise<ServiceDto & { apiKey: string }> => {
+    const { data } = await apiClient.post<ServiceDto & { apiKey: string }>(
+      `/organizations/${orgId}/services/${serviceId}/api-key/regenerate`
     );
     return data;
   },

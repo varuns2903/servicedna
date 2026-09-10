@@ -59,6 +59,28 @@ export function useOrganizationMembers(orgId?: string) {
   });
 }
 
+export function useUpdateMemberRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, memberId, role }: { orgId: string; memberId: string; role: OrganizationRole }) =>
+      OrganizationsApi.updateMemberRole(orgId, memberId, role),
+    onSuccess: (_, { orgId }) => {
+      queryClient.invalidateQueries({ queryKey: ['organizations', orgId, 'members'] });
+    }
+  });
+}
+
+export function useRemoveMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, memberId }: { orgId: string; memberId: string }) =>
+      OrganizationsApi.removeMember(orgId, memberId),
+    onSuccess: (_, { orgId }) => {
+      queryClient.invalidateQueries({ queryKey: ['organizations', orgId, 'members'] });
+    }
+  });
+}
+
 export function useOrganizationInvites(orgId?: string) {
   return useQuery({
     queryKey: ['organizations', orgId, 'invites'],

@@ -4,6 +4,7 @@ import com.servicedna.auth.security.CustomUserDetails;
 import com.servicedna.service.dto.AddDependencyRequest;
 import com.servicedna.service.dto.CreateServiceRequest;
 import com.servicedna.service.dto.ServiceDto;
+import com.servicedna.service.dto.UpdateServiceRequest;
 import com.servicedna.service.dto.UpdateServiceStatusRequest;
 import com.servicedna.service.service.ServiceRegistryService;
 import jakarta.validation.Valid;
@@ -12,10 +13,12 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -72,6 +75,35 @@ public class ServiceController {
     return ResponseEntity.ok(
         serviceRegistryService.updateServiceStatus(
             orgId, serviceId, request, userDetails.getUser().getId()));
+  }
+
+  @PutMapping("/{serviceId}")
+  public ResponseEntity<ServiceDto> updateService(
+      @PathVariable UUID orgId,
+      @PathVariable UUID serviceId,
+      @Valid @RequestBody UpdateServiceRequest request,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(
+        serviceRegistryService.updateService(
+            orgId, serviceId, request, userDetails.getUser().getId()));
+  }
+
+  @DeleteMapping("/{serviceId}")
+  public ResponseEntity<Void> deleteService(
+      @PathVariable UUID orgId,
+      @PathVariable UUID serviceId,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    serviceRegistryService.deleteService(orgId, serviceId, userDetails.getUser().getId());
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/{serviceId}/api-key/regenerate")
+  public ResponseEntity<ServiceDto> regenerateApiKey(
+      @PathVariable UUID orgId,
+      @PathVariable UUID serviceId,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(
+        serviceRegistryService.regenerateApiKey(orgId, serviceId, userDetails.getUser().getId()));
   }
 
   @PostMapping("/{serviceId}/dependencies")

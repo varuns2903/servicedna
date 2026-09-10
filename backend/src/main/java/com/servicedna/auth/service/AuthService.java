@@ -137,6 +137,21 @@ public class AuthService {
   }
 
   @Transactional
+  public void resendVerificationEmail(ForgotPasswordRequest request) {
+    // Same non-enumeration stance as forgotPassword, plus a silent no-op for already-verified
+    // accounts so this can't be used to spam an inbox.
+    userRepository
+        .findByEmail(request.email())
+        .filter(user -> !user.isEmailVerified())
+        .ifPresent(
+            user -> {
+              emailVerificationTokenRepository.findByUserId(user.getId())
+                  .ifPresent(emailVerificationTokenRepository::delete);
+              sendVerificationEmail(user);
+            });
+  }
+
+  @Transactional
   public void forgotPassword(ForgotPasswordRequest request) {
     // Intentionally silent on unknown emails: responding differently would let a caller enumerate
     // registered accounts.

@@ -38,6 +38,12 @@ export function useForgotPassword() {
   });
 }
 
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: (email: string) => AuthApi.resendVerification(email),
+  });
+}
+
 export function useResetPassword() {
   return useMutation({
     mutationFn: ({ token, newPassword }: { token: string; newPassword: string }) =>

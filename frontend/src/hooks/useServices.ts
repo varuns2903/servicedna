@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ServicesApi, type CreateServiceRequest } from '@/api/services.api';
+import { ServicesApi, type CreateServiceRequest, type UpdateServiceRequest } from '@/api/services.api';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 
 export function useServices() {
@@ -19,6 +19,44 @@ export function useCreateService() {
   return useMutation({
     mutationFn: (request: CreateServiceRequest) =>
       ServicesApi.createService(selectedOrganizationId!, request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations', selectedOrganizationId, 'services'] });
+    },
+  });
+}
+
+export function useUpdateService() {
+  const queryClient = useQueryClient();
+  const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);
+
+  return useMutation({
+    mutationFn: ({ serviceId, request }: { serviceId: string; request: UpdateServiceRequest }) =>
+      ServicesApi.updateService(selectedOrganizationId!, serviceId, request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations', selectedOrganizationId, 'services'] });
+    },
+  });
+}
+
+export function useDeleteService() {
+  const queryClient = useQueryClient();
+  const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);
+
+  return useMutation({
+    mutationFn: (serviceId: string) => ServicesApi.deleteService(selectedOrganizationId!, serviceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations', selectedOrganizationId, 'services'] });
+    },
+  });
+}
+
+export function useRegenerateApiKey() {
+  const queryClient = useQueryClient();
+  const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);
+
+  return useMutation({
+    mutationFn: (serviceId: string) =>
+      ServicesApi.regenerateApiKey(selectedOrganizationId!, serviceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organizations', selectedOrganizationId, 'services'] });
     },

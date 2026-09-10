@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { useLogin, useRegister } from '@/hooks/useAuth';
+import { useLogin, useRegister, useResendVerification } from '@/hooks/useAuth';
 
 export function Login() {
   const navigate = useNavigate();
@@ -14,7 +14,12 @@ export function Login() {
 
   const login = useLogin();
   const register = useRegister();
+  const resendVerification = useResendVerification();
   const mutation = mode === 'login' ? login : register;
+
+  const errorCode = axios.isAxiosError(mutation.error)
+    ? mutation.error.response?.data?.errorCode
+    : undefined;
 
   const handleGithubLogin = () => {
     // Redirect to backend OAuth2 endpoint
@@ -83,6 +88,20 @@ export function Login() {
             <div className="rounded-md border border-rose-500/20 bg-rose-500/10 p-2 text-xs text-rose-400">
               {(axios.isAxiosError(mutation.error) && mutation.error.response?.data?.message) ||
                 'Something went wrong. Please try again.'}
+              {errorCode === 'EMAIL_NOT_VERIFIED' && (
+                <button
+                  type="button"
+                  onClick={() => resendVerification.mutate(email)}
+                  disabled={resendVerification.isPending || resendVerification.isSuccess}
+                  className="mt-1.5 block font-medium text-rose-300 underline hover:text-rose-200 disabled:no-underline disabled:opacity-70"
+                >
+                  {resendVerification.isSuccess
+                    ? 'Verification email sent — check your inbox'
+                    : resendVerification.isPending
+                      ? 'Sending...'
+                      : 'Resend verification email'}
+                </button>
+              )}
             </div>
           )}
 

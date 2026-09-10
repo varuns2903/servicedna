@@ -10,9 +10,12 @@ import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.organization.service.OrganizationService;
 import com.servicedna.service.domain.Service;
 import com.servicedna.service.domain.ServiceStatus;
+import com.servicedna.organization.domain.OrganizationMember;
+import com.servicedna.organization.domain.OrganizationRole;
 import com.servicedna.service.dto.AddDependencyRequest;
 import com.servicedna.service.dto.CreateServiceRequest;
 import com.servicedna.service.dto.ServiceDto;
+import com.servicedna.service.dto.UpdateServiceRequest;
 import com.servicedna.service.dto.UpdateServiceStatusRequest;
 import com.servicedna.service.repository.ServiceRepository;
 import java.security.SecureRandom;
@@ -204,6 +207,120 @@ public class ServiceRegistryService {
 
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
     return mapToDto(service);
+  }
+
+  @Transactional
+  @org.springframework.cache.annotation.CacheEvict(
+      value = {"services", "publicStatus"},
+      allEntries = true)
+  public ServiceDto updateService(
+      UUID organizationId, UUID serviceId, UpdateServiceRequest request, UUID userId) {
+    organizationService.validateUserAccess(organizationId, userId);
+
+    Service service =
+        serviceRepository
+            .findByOrganizationIdAndId(organizationId, serviceId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
+
+    if (!service.getName().equals(request.name())
+        && serviceRepository.existsByOrganizationIdAndName(organizationId, request.name())) {
+      throw new ApiException(
+          HttpStatus.CONFLICT,
+          "SERVICE_EXISTS",
+          "Service with this name already exists in the organization");
+    }
+
+    service.setName(request.name());
+    service.setDescription(request.description());
+    service.setRepositoryUrl(request.repositoryUrl());
+    service.setRegion(request.region() != null ? request.region() : service.getRegion());
+    service.setHealthCheckUrl(request.healthCheckUrl());
+
+    service = serviceRepository.save(service);
+    eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+    eventPublisher.publishEvent(
+        new AuditLogEvent(
+            organizationId,
+            userId,
+            "UPDATE_SERVICE",
+            "Service",
+            service.getId().toString(),
+            "Updated service " + service.getName(),
+            null));
+    return mapToDto(service);
+  }
+
+  @Transactional
+  @org.springframework.cache.annotation.CacheEvict(
+      value = {"services", "publicStatus"},
+      allEntries = true)
+  public void deleteService(UUID organizationId, UUID serviceId, UUID userId) {
+    OrganizationMember requester = organizationService.validateUserAccess(organizationId, userId);
+    if (requester.getRole() != OrganizationRole.OWNER
+        && requester.getRole() != OrganizationRole.ADMIN) {
+      throw new ApiException(
+          HttpStatus.FORBIDDEN, "ACCESS_DENIED", "Only owners and admins can delete a service");
+    }
+
+    Service service =
+        serviceRepository
+            .findByOrganizationIdAndId(organizationId, serviceId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
+
+    serviceRepository.delete(service);
+    eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+    eventPublisher.publishEvent(
+        new AuditLogEvent(
+            organizationId,
+            userId,
+            "DELETE_SERVICE",
+            "Service",
+            serviceId.toString(),
+            "Deleted service " + service.getName(),
+            null));
+  }
+
+  @Transactional
+  @org.springframework.cache.annotation.CacheEvict(
+      value = {"services", "publicStatus"},
+      allEntries = true)
+  public ServiceDto regenerateApiKey(UUID organizationId, UUID serviceId, UUID userId) {
+    OrganizationMember requester = organizationService.validateUserAccess(organizationId, userId);
+    if (requester.getRole() != OrganizationRole.OWNER
+        && requester.getRole() != OrganizationRole.ADMIN) {
+      throw new ApiException(
+          HttpStatus.FORBIDDEN,
+          "ACCESS_DENIED",
+          "Only owners and admins can regenerate a service's API key");
+    }
+
+    Service service =
+        serviceRepository
+            .findByOrganizationIdAndId(organizationId, serviceId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
+
+    service.setApiKey(generateApiKey());
+    service = serviceRepository.save(service);
+
+    eventPublisher.publishEvent(
+        new AuditLogEvent(
+            organizationId,
+            userId,
+            "REGENERATE_SERVICE_API_KEY",
+            "Service",
+            service.getId().toString(),
+            "Regenerated API key for service " + service.getName(),
+            null));
+    return mapToDtoWithApiKey(service);
   }
 
   @Transactional(readOnly = true)
