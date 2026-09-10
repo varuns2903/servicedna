@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { Activity } from 'lucide-react';
+import { Activity, KeyRound } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { useLogin, useRegister, useResendVerification } from '@/hooks/useAuth';
+import { useLogin, useRegister, useResendVerification, useSsoConfig } from '@/hooks/useAuth';
 
 export function Login() {
   const navigate = useNavigate();
@@ -15,6 +15,7 @@ export function Login() {
   const login = useLogin();
   const register = useRegister();
   const resendVerification = useResendVerification();
+  const { data: ssoConfig } = useSsoConfig();
   const mutation = mode === 'login' ? login : register;
 
   const errorCode = axios.isAxiosError(mutation.error)
@@ -24,6 +25,10 @@ export function Login() {
   const handleGithubLogin = () => {
     // Redirect to backend OAuth2 endpoint
     window.location.href = import.meta.env.VITE_AUTH_LOGIN_URL || 'http://localhost:8080/oauth2/authorization/github';
+  };
+
+  const handleSsoLogin = () => {
+    window.location.href = import.meta.env.VITE_SSO_LOGIN_URL || 'http://localhost:8080/oauth2/authorization/oidc';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -138,6 +143,16 @@ export function Login() {
           </svg>
           <span>Continue with GitHub</span>
         </button>
+
+        {ssoConfig?.oidcEnabled && (
+          <button
+            onClick={handleSsoLogin}
+            className="mt-2 flex w-full items-center justify-center space-x-2 rounded-md border border-charcoal-600 px-4 py-2.5 text-sm font-medium text-gray-200 transition-colors hover:bg-charcoal-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-charcoal-900"
+          >
+            <KeyRound className="h-4 w-4" />
+            <span>Continue with SSO</span>
+          </button>
+        )}
       </div>
     </div>
   );

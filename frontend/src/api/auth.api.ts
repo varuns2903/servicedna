@@ -11,6 +11,10 @@ export interface AuthResponse {
   user: UserDto;
 }
 
+export interface SsoConfigDto {
+  oidcEnabled: boolean;
+}
+
 export const AuthApi = {
   getMe: async (): Promise<UserDto> => {
     const { data } = await apiClient.get<UserDto>('/auth/me');
@@ -53,5 +57,10 @@ export const AuthApi = {
 
   confirmEmailChange: async (token: string): Promise<void> => {
     await apiClient.get('/users/me/change-email/confirm', { params: { token } });
+  },
+
+  getSsoConfig: async (): Promise<SsoConfigDto> => {
+    const { data } = await apiClient.get<SsoConfigDto>('/auth/sso-config');
+    return data;
   },
 };

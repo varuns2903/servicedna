@@ -47,6 +47,7 @@ public class SecurityConfig {
                         "/api/v1/auth/forgot-password",
                         "/api/v1/auth/reset-password",
                         "/api/v1/users/me/change-email/confirm",
+                        "/api/v1/auth/sso-config",
                         "/api/v1/ping",
                         "/api/v1/webhooks/stripe",
                         "/ws/**",

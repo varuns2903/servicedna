@@ -1,6 +1,14 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AuthApi } from '@/api/auth.api';
 import { useAuthStore } from '@/stores/useAuthStore';
+
+export function useSsoConfig() {
+  return useQuery({
+    queryKey: ['auth', 'sso-config'],
+    queryFn: AuthApi.getSsoConfig,
+    staleTime: 10 * 60 * 1000,
+  });
+}
 
 export function useLogin() {
   const { setToken, setUser } = useAuthStore();

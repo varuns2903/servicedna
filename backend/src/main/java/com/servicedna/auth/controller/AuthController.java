@@ -5,10 +5,12 @@ import com.servicedna.auth.dto.ForgotPasswordRequest;
 import com.servicedna.auth.dto.LoginRequest;
 import com.servicedna.auth.dto.RegisterRequest;
 import com.servicedna.auth.dto.ResetPasswordRequest;
+import com.servicedna.auth.dto.SsoConfigDto;
 import com.servicedna.auth.security.CustomUserDetails;
 import com.servicedna.auth.service.AuthService;
 import com.servicedna.user.domain.User;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,9 +26,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private final AuthService authService;
+  private final boolean oidcEnabled;
 
-  public AuthController(AuthService authService) {
+  public AuthController(
+      AuthService authService, @Value("${OIDC_ISSUER_URI:}") String oidcIssuerUri) {
     this.authService = authService;
+    this.oidcEnabled = !oidcIssuerUri.isBlank();
+  }
+
+  @GetMapping("/sso-config")
+  public ResponseEntity<SsoConfigDto> getSsoConfig() {
+    return ResponseEntity.ok(new SsoConfigDto(oidcEnabled));
   }
 
   @PostMapping("/register")

@@ -2,14 +2,9 @@ spring:
   application:
     name: ServiceDNA
     
-  security:
-    oauth2:
-      client:
-        registration:
-          github:
-            client-id: ${GITHUB_CLIENT_ID:dummy-id}
-            client-secret: ${GITHUB_CLIENT_SECRET:dummy-secret}
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+  # OAuth2/OIDC client registrations (GitHub, and an optional generic OIDC provider for SSO)
+  # are built in code — see OAuth2ClientConfig — not via spring.security.oauth2.client.*
+  # properties, so an unset/misconfigured OIDC_ISSUER_URI can't break application startup.
 
   mail:
     host: ${SMTP_HOST:}
