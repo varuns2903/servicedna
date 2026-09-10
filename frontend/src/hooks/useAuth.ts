@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AuthApi } from '@/api/auth.api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
@@ -48,5 +48,29 @@ export function useResetPassword() {
   return useMutation({
     mutationFn: ({ token, newPassword }: { token: string; newPassword: string }) =>
       AuthApi.resetPassword(token, newPassword),
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      AuthApi.changePassword(currentPassword, newPassword),
+  });
+}
+
+export function useRequestEmailChange() {
+  return useMutation({
+    mutationFn: ({ password, newEmail }: { password: string; newEmail: string }) =>
+      AuthApi.requestEmailChange(password, newEmail),
+  });
+}
+
+export function useConfirmEmailChange() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => AuthApi.confirmEmailChange(token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+    },
   });
 }

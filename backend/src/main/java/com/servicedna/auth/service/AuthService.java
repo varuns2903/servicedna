@@ -1,5 +1,6 @@
 package com.servicedna.auth.service;
 
+import com.servicedna.auth.domain.EmailChangeToken;
 import com.servicedna.auth.domain.EmailVerificationToken;
 import com.servicedna.auth.domain.PasswordResetToken;
 import com.servicedna.auth.dto.AuthResponse;
@@ -7,6 +8,7 @@ import com.servicedna.auth.dto.ForgotPasswordRequest;
 import com.servicedna.auth.dto.LoginRequest;
 import com.servicedna.auth.dto.RegisterRequest;
 import com.servicedna.auth.dto.UserDto;
+import com.servicedna.auth.repository.EmailChangeTokenRepository;
 import com.servicedna.auth.repository.EmailVerificationTokenRepository;
 import com.servicedna.auth.repository.PasswordResetTokenRepository;
 import com.servicedna.auth.security.JwtService;
@@ -37,6 +39,7 @@ public class AuthService {
   private final AuthenticationManager authenticationManager;
   private final EmailVerificationTokenRepository emailVerificationTokenRepository;
   private final PasswordResetTokenRepository passwordResetTokenRepository;
+  private final EmailChangeTokenRepository emailChangeTokenRepository;
   private final MailService mailService;
   private final String frontendUrl;
   private final SecureRandom secureRandom = new SecureRandom();
@@ -48,6 +51,7 @@ public class AuthService {
       AuthenticationManager authenticationManager,
       EmailVerificationTokenRepository emailVerificationTokenRepository,
       PasswordResetTokenRepository passwordResetTokenRepository,
+      EmailChangeTokenRepository emailChangeTokenRepository,
       MailService mailService,
       @Value("${frontend.url}") String frontendUrl) {
     this.userRepository = userRepository;
@@ -56,6 +60,7 @@ public class AuthService {
     this.authenticationManager = authenticationManager;
     this.emailVerificationTokenRepository = emailVerificationTokenRepository;
     this.passwordResetTokenRepository = passwordResetTokenRepository;
+    this.emailChangeTokenRepository = emailChangeTokenRepository;
     this.mailService = mailService;
     this.frontendUrl = frontendUrl;
   }
@@ -198,6 +203,89 @@ public class AuthService {
 
     resetToken.setUsed(true);
     passwordResetTokenRepository.save(resetToken);
+  }
+
+  @Transactional
+  public void changePassword(UUID userId, String currentPassword, String newPassword) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(
+                () -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found."));
+
+    if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "INVALID_PASSWORD", "Current password is incorrect.");
+    }
+
+    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    userRepository.save(user);
+  }
+
+  @Transactional
+  public void requestEmailChange(UUID userId, String password, String newEmail) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(
+                () -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found."));
+
+    if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "INVALID_PASSWORD", "Password is incorrect.");
+    }
+
+    if (newEmail.equalsIgnoreCase(user.getEmail())) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "SAME_EMAIL", "This is already your current email.");
+    }
+
+    if (userRepository.existsByEmail(newEmail)) {
+      throw new ApiException(
+          HttpStatus.CONFLICT, "EMAIL_IN_USE", "This email is already in use.");
+    }
+
+    emailChangeTokenRepository.findByUserId(user.getId()).ifPresent(emailChangeTokenRepository::delete);
+
+    EmailChangeToken changeToken =
+        new EmailChangeToken(
+            UUID.randomUUID(), user, newEmail, generateToken(), Instant.now().plus(Duration.ofHours(1)));
+    emailChangeTokenRepository.save(changeToken);
+
+    String confirmLink = frontendUrl + "/confirm-email-change?token=" + changeToken.getToken();
+    mailService.send(
+        newEmail,
+        "Confirm your new ServiceDNA email",
+        "Confirm this email address is yours to finish changing your account email:\n\n"
+            + confirmLink
+            + "\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.");
+  }
+
+  @Transactional
+  public void confirmEmailChange(String token) {
+    EmailChangeToken changeToken =
+        emailChangeTokenRepository
+            .findByToken(token)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND, "INVALID_TOKEN", "Confirmation link is invalid."));
+
+    if (changeToken.getExpiresAt().isBefore(Instant.now())) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Confirmation link has expired.");
+    }
+
+    if (userRepository.existsByEmail(changeToken.getNewEmail())) {
+      emailChangeTokenRepository.delete(changeToken);
+      throw new ApiException(
+          HttpStatus.CONFLICT, "EMAIL_IN_USE", "This email is already in use.");
+    }
+
+    User user = changeToken.getUser();
+    user.setEmail(changeToken.getNewEmail());
+    userRepository.save(user);
+    emailChangeTokenRepository.delete(changeToken);
   }
 
   private void sendVerificationEmail(User user) {

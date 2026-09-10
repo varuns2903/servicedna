@@ -42,4 +42,16 @@ export const AuthApi = {
   resetPassword: async (token: string, newPassword: string): Promise<void> => {
     await apiClient.post('/auth/reset-password', { token, newPassword });
   },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiClient.post('/users/me/change-password', { currentPassword, newPassword });
+  },
+
+  requestEmailChange: async (password: string, newEmail: string): Promise<void> => {
+    await apiClient.post('/users/me/change-email/request', { password, newEmail });
+  },
+
+  confirmEmailChange: async (token: string): Promise<void> => {
+    await apiClient.get('/users/me/change-email/confirm', { params: { token } });
+  },
 };

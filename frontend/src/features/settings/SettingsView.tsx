@@ -12,10 +12,12 @@ import {
 } from '@/hooks/useOrganizations';
 import { useUser } from '@/hooks/useUser';
 import { useSubscription, useCreateCheckoutSession } from '@/hooks/useBilling';
+import { useChangePassword, useRequestEmailChange } from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Building2, Users, CreditCard, Send, Check, X } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
+import { Building2, Users, CreditCard, Send, Check, X, UserCog } from 'lucide-react';
 import type { OrganizationRole } from '@/api/organizations.api';
 import type { PlanType } from '@/api/billing.api';
 
@@ -24,7 +26,7 @@ export function SettingsView() {
   const { data: orgs } = useOrganizations();
   const currentOrg = orgs?.find((o) => o.id === currentOrgId);
 
-  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account'>('general');
 
   // General tab state
   const [orgName, setOrgName] = useState('');
@@ -99,6 +101,54 @@ export function SettingsView() {
     }
   };
 
+  // Account Tab state
+  const changePassword = useChangePassword();
+  const requestEmailChange = useRequestEmailChange();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [emailChangePassword, setEmailChangePassword] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    changePassword.mutate(
+      { currentPassword, newPassword },
+      {
+        onSuccess: () => {
+          setCurrentPassword('');
+          setNewPassword('');
+        },
+        onError: (err) => {
+          setPasswordError(
+            (axios.isAxiosError(err) && err.response?.data?.message) || 'Could not change password.'
+          );
+        },
+      }
+    );
+  };
+
+  const handleRequestEmailChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailChangeError(null);
+    requestEmailChange.mutate(
+      { password: emailChangePassword, newEmail },
+      {
+        onSuccess: () => {
+          setEmailChangePassword('');
+          setNewEmail('');
+        },
+        onError: (err) => {
+          setEmailChangeError(
+            (axios.isAxiosError(err) && err.response?.data?.message) || 'Could not request email change.'
+          );
+        },
+      }
+    );
+  };
+
   // Billing Tab state
   const { data: subscription, isLoading: loadingSubscription } = useSubscription(currentOrgId || undefined);
   const createCheckout = useCreateCheckoutSession();
@@ -156,6 +206,17 @@ export function SettingsView() {
           <div className="flex items-center space-x-2">
             <CreditCard className="h-4 w-4" />
             <span>Billing</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('account')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'account' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            <UserCog className="h-4 w-4" />
+            <span>Account</span>
           </div>
         </button>
       </div>
@@ -397,6 +458,100 @@ export function SettingsView() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'account' && (
+          <div className="space-y-6 max-w-2xl">
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Password</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Current Password</label>
+                    <Input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">New Password</label>
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      minLength={8}
+                      required
+                    />
+                  </div>
+                  {passwordError && (
+                    <div className="rounded-md border border-rose-500/20 bg-rose-500/10 p-2 text-xs text-rose-400">
+                      {passwordError}
+                    </div>
+                  )}
+                  {changePassword.isSuccess && !passwordError && (
+                    <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 p-2 text-xs text-emerald-400">
+                      Password updated.
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={changePassword.isPending || !currentPassword || newPassword.length < 8}>
+                      {changePassword.isPending ? 'Saving...' : 'Change Password'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Email</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-400 mb-4">
+                  Current email: <span className="text-gray-200">{currentUser?.email}</span>
+                </p>
+                <form onSubmit={handleRequestEmailChange} className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">New Email</label>
+                    <Input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Password</label>
+                    <Input
+                      type="password"
+                      value={emailChangePassword}
+                      onChange={(e) => setEmailChangePassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  {emailChangeError && (
+                    <div className="rounded-md border border-rose-500/20 bg-rose-500/10 p-2 text-xs text-rose-400">
+                      {emailChangeError}
+                    </div>
+                  )}
+                  {requestEmailChange.isSuccess && !emailChangeError && (
+                    <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 p-2 text-xs text-emerald-400">
+                      Check {newEmail || 'your new inbox'} for a confirmation link to finish the change.
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={requestEmailChange.isPending || !newEmail || !emailChangePassword}>
+                      {requestEmailChange.isPending ? 'Sending...' : 'Send Confirmation'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
