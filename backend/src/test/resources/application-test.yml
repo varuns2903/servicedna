@@ -10,6 +10,16 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+  kafka:
+    producer:
+      properties:
+        # There's no Testcontainers Kafka wired up for tests (this sandbox's Docker API is too
+        # old for Testcontainers to start any container at all), so spring.kafka.bootstrap-servers
+        # falls through to whatever's on localhost:9092 — often an unrelated project's broker on
+        # a shared dev machine, or nothing. Without this, KafkaProducer's default max.block.ms
+        # (60s) makes any status-change test hang for a full minute before failing instead of
+        # surfacing the real error quickly.
+        max.block.ms: 3000
 jwt:
   secret: a-very-long-secret-key-that-is-at-least-256-bits-long-for-hmac-sha-256-algorithm
   expirationMs: 86400000

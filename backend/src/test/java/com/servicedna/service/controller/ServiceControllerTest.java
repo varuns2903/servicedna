@@ -66,7 +66,7 @@ class ServiceControllerTest {
 
     @Test
     void shouldCreateServiceAndGenerateApiKey() throws Exception {
-        CreateServiceRequest request = new CreateServiceRequest("PaymentService", "Handles payments", "https://github.com/acme/payment", "us-east-1");
+        CreateServiceRequest request = new CreateServiceRequest("PaymentService", "Handles payments", "https://github.com/acme/payment", "us-east-1", null);
 
         mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
@@ -82,7 +82,7 @@ class ServiceControllerTest {
 
     @Test
     void user2CannotCreateServiceInOrg1() throws Exception {
-        CreateServiceRequest request = new CreateServiceRequest("BillingService", "Handles billing", null, "us-east-1");
+        CreateServiceRequest request = new CreateServiceRequest("BillingService", "Handles billing", null, "us-east-1", null);
 
         mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user2Token)
@@ -93,12 +93,67 @@ class ServiceControllerTest {
     }
 
     @Test
+    void user2CannotListOrGetServicesInOrg1() throws Exception {
+        mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                        new CreateServiceRequest("PrivateService", null, null, "us-east-1", null))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services")
+                .header("Authorization", "Bearer " + user2Token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+    }
+
+    @Test
+    void unauthenticatedRequestIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void apiKeyIsOnlyReturnedOnCreationNotOnSubsequentReads() throws Exception {
+        String createRes = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                        new CreateServiceRequest("KeyRedactionService", null, null, "us-east-1", null))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.apiKey").isString())
+                .andReturn().getResponse().getContentAsString();
+        String serviceId = objectMapper.readTree(createRes).get("id").asText();
+
+        // Any subsequent read — even by the same member who created it — must not re-expose the
+        // key, since it's a bearer credential for that service's telemetry endpoint.
+        mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services/" + serviceId)
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.apiKey").doesNotExist());
+
+        String listRes = mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services")
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        boolean found = false;
+        for (com.fasterxml.jackson.databind.JsonNode node : objectMapper.readTree(listRes)) {
+            if (node.get("id").asText().equals(serviceId)) {
+                found = true;
+                org.junit.jupiter.api.Assertions.assertTrue(node.get("apiKey").isNull());
+            }
+        }
+        org.junit.jupiter.api.Assertions.assertTrue(found, "expected the created service to be in the list");
+    }
+
+    @Test
     void shouldMapServiceDependencies() throws Exception {
         // Create Service A
         String resA = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("ServiceA", null, null, "us-east-1"))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("ServiceA", null, null, "us-east-1", null))))
                 .andReturn().getResponse().getContentAsString();
         String serviceAId = objectMapper.readTree(resA).get("id").asText();
 
@@ -106,7 +161,7 @@ class ServiceControllerTest {
         String resB = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("ServiceB", null, null, "us-east-1"))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("ServiceB", null, null, "us-east-1", null))))
                 .andReturn().getResponse().getContentAsString();
         String serviceBId = objectMapper.readTree(resB).get("id").asText();
 
@@ -132,7 +187,7 @@ class ServiceControllerTest {
         String resA = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("SelfRefService", null, null, "us-east-1"))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("SelfRefService", null, null, "us-east-1", null))))
                 .andReturn().getResponse().getContentAsString();
         String serviceAId = objectMapper.readTree(resA).get("id").asText();
 
@@ -151,14 +206,14 @@ class ServiceControllerTest {
         String resA = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("MapServiceA", null, null, "us-east-1"))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("MapServiceA", null, null, "us-east-1", null))))
                 .andReturn().getResponse().getContentAsString();
         String serviceAId = objectMapper.readTree(resA).get("id").asText();
 
         String resB = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("MapServiceB", null, null, "us-east-1"))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("MapServiceB", null, null, "us-east-1", null))))
                 .andReturn().getResponse().getContentAsString();
         String serviceBId = objectMapper.readTree(resB).get("id").asText();
 

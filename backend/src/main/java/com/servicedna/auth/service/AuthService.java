@@ -16,7 +16,8 @@ import com.servicedna.user.domain.Role;
 import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
 import java.security.SecureRandom;
-import java.time.OffsetDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -124,7 +125,7 @@ public class AuthService {
                     new ApiException(
                         HttpStatus.NOT_FOUND, "INVALID_TOKEN", "Verification link is invalid."));
 
-    if (verificationToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
+    if (verificationToken.getExpiresAt().isBefore(Instant.now())) {
       throw new ApiException(
           HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Verification link has expired.");
     }
@@ -145,7 +146,7 @@ public class AuthService {
             user -> {
               PasswordResetToken resetToken =
                   new PasswordResetToken(
-                      UUID.randomUUID(), user, generateToken(), OffsetDateTime.now().plusHours(1));
+                      UUID.randomUUID(), user, generateToken(), Instant.now().plus(Duration.ofHours(1)));
               passwordResetTokenRepository.save(resetToken);
 
               String resetLink = frontendUrl + "/reset-password?token=" + resetToken.getToken();
@@ -172,7 +173,7 @@ public class AuthService {
           HttpStatus.BAD_REQUEST, "TOKEN_USED", "This reset link has already been used.");
     }
 
-    if (resetToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
+    if (resetToken.getExpiresAt().isBefore(Instant.now())) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "TOKEN_EXPIRED", "Reset link has expired.");
     }
 
@@ -187,7 +188,7 @@ public class AuthService {
   private void sendVerificationEmail(User user) {
     EmailVerificationToken verificationToken =
         new EmailVerificationToken(
-            UUID.randomUUID(), user, generateToken(), OffsetDateTime.now().plusDays(1));
+            UUID.randomUUID(), user, generateToken(), Instant.now().plus(Duration.ofDays(1)));
     emailVerificationTokenRepository.save(verificationToken);
 
     String verifyLink = frontendUrl + "/verify-email?token=" + verificationToken.getToken();

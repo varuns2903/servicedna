@@ -188,6 +188,18 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Pin the test JVM to UTC. The H2 in-memory DB used for @SpringBootTest
+					     (application-test.yml) round-trips TIMESTAMP WITH TIME ZONE columns through
+					     the JVM's default zone; on a host set to a non-UTC zone this silently shifts
+					     stored Instant/OffsetDateTime values, which showed up as token-expiry tests
+					     failing under IST while the same code is correct against real Postgres. -->
+					<argLine>-Duser.timezone=UTC</argLine>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>

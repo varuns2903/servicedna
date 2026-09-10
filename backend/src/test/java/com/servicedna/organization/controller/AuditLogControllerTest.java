@@ -2,7 +2,6 @@ package com.servicedna.organization.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.servicedna.ServiceDnaApplication;
-import com.servicedna.auth.dto.LoginRequest;
 import com.servicedna.auth.dto.RegisterRequest;
 import com.servicedna.organization.dto.CreateOrganizationRequest;
 import com.servicedna.service.dto.CreateServiceRequest;
@@ -39,17 +38,15 @@ class AuditLogControllerTest {
     @BeforeEach
     void setUp() throws Exception {
         String uniqueEmail = "audit-" + UUID.randomUUID() + "@example.com";
-        mockMvc.perform(post("/api/v1/auth/register")
+        // Newly registered users are unverified and login is blocked until verification, but
+        // register() itself already returns a usable token, so tests that only need an
+        // authenticated user (not to exercise the login endpoint itself) use that directly.
+        String registerRes = mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new RegisterRequest(uniqueEmail, "password123"))))
-                .andExpect(status().isCreated());
-
-        String loginRes = mockMvc.perform(post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new LoginRequest(uniqueEmail, "password123"))))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        userToken = objectMapper.readTree(loginRes).get("token").asText();
+        userToken = objectMapper.readTree(registerRes).get("token").asText();
 
         String orgRes = mockMvc.perform(post("/api/v1/organizations")
                 .header("Authorization", "Bearer " + userToken)
@@ -66,7 +63,7 @@ class AuditLogControllerTest {
         mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services")
                 .header("Authorization", "Bearer " + userToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("AuditedService", "Desc", "http://repo", "us-east-1"))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("AuditedService", "Desc", "http://repo", "us-east-1", null))))
                 .andExpect(status().isCreated());
 
         // We use @Async for events, so we might need to sleep slightly in test, or it could be fast enough

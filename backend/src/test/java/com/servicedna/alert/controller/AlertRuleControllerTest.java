@@ -61,7 +61,7 @@ class AlertRuleControllerTest {
         String srvRes = mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services")
                 .header("Authorization", "Bearer " + userToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("Payment API", null, null, "us-east-1"))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("Payment API", null, null, "us-east-1", null))))
                 .andReturn().getResponse().getContentAsString();
         serviceId = objectMapper.readTree(srvRes).get("id").asText();
     }
@@ -96,5 +96,35 @@ class AlertRuleControllerTest {
                 .header("Authorization", "Bearer " + userToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void nonMemberCannotAccessOrCreateAlertRulesInAnotherOrg() throws Exception {
+        String outsiderEmail = "alert-outsider-" + UUID.randomUUID() + "@example.com";
+        String outsiderRes = mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new RegisterRequest(outsiderEmail, "password123"))))
+                .andReturn().getResponse().getContentAsString();
+        String outsiderToken = objectMapper.readTree(outsiderRes).get("token").asText();
+
+        mockMvc.perform(get("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
+                .header("Authorization", "Bearer " + outsiderToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+
+        CreateAlertRuleRequest req = new CreateAlertRuleRequest(
+                AlertCondition.STATUS_DOWN, "https://webhook.site/should-not-be-created", com.servicedna.alert.domain.IntegrationType.SLACK);
+        mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
+                .header("Authorization", "Bearer " + outsiderToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+    }
+
+    @Test
+    void unauthenticatedRequestIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules"))
+                .andExpect(status().isForbidden());
     }
 }

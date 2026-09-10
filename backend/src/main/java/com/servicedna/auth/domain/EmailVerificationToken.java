@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,8 +26,10 @@ public class EmailVerificationToken {
   @Column(nullable = false, unique = true)
   private String token;
 
+  // Instant (not OffsetDateTime): an absolute instant compared directly against Instant.now(),
+  // with no zone-offset round-trip through the DB to get wrong.
   @Column(name = "expires_at", nullable = false)
-  private OffsetDateTime expiresAt;
+  private Instant expiresAt;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -34,7 +37,7 @@ public class EmailVerificationToken {
 
   public EmailVerificationToken() {}
 
-  public EmailVerificationToken(UUID id, User user, String token, OffsetDateTime expiresAt) {
+  public EmailVerificationToken(UUID id, User user, String token, Instant expiresAt) {
     this.id = id;
     this.user = user;
     this.token = token;
@@ -53,7 +56,7 @@ public class EmailVerificationToken {
     return token;
   }
 
-  public OffsetDateTime getExpiresAt() {
+  public Instant getExpiresAt() {
     return expiresAt;
   }
 

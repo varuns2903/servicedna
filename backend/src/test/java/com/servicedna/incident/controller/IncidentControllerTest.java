@@ -66,9 +66,43 @@ class IncidentControllerTest {
         String srvRes = mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services")
                 .header("Authorization", "Bearer " + userToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CreateServiceRequest("Web Frontend", null, null, "us-east-1"))))
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("Web Frontend", null, null, "us-east-1", null))))
                 .andReturn().getResponse().getContentAsString();
         serviceId = objectMapper.readTree(srvRes).get("id").asText();
+    }
+
+    @Test
+    void nonMemberCannotListOrCreateIncidentsInAnotherOrg() throws Exception {
+        String outsiderEmail = "incident-outsider-" + UUID.randomUUID() + "@example.com";
+        String outsiderRes = mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new RegisterRequest(outsiderEmail, "password123"))))
+                .andReturn().getResponse().getContentAsString();
+        String outsiderToken = objectMapper.readTree(outsiderRes).get("token").asText();
+
+        mockMvc.perform(get("/api/v1/organizations/" + orgId + "/incidents")
+                .header("Authorization", "Bearer " + outsiderToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+
+        CreateIncidentRequest req = new CreateIncidentRequest(
+                "Should not be created",
+                "An outsider should not be able to create this",
+                IncidentSeverity.CRITICAL,
+                List.of(UUID.fromString(serviceId))
+        );
+        mockMvc.perform(post("/api/v1/organizations/" + orgId + "/incidents")
+                .header("Authorization", "Bearer " + outsiderToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+    }
+
+    @Test
+    void unauthenticatedRequestIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/organizations/" + orgId + "/incidents"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

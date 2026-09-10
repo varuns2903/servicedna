@@ -1,14 +1,19 @@
 package com.servicedna.auth.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.servicedna.auth.domain.EmailVerificationToken;
+import com.servicedna.auth.domain.PasswordResetToken;
 import com.servicedna.auth.dto.LoginRequest;
 import com.servicedna.auth.dto.RegisterRequest;
-import com.servicedna.config.TestcontainersConfig;
+import com.servicedna.auth.repository.EmailVerificationTokenRepository;
+import com.servicedna.auth.repository.PasswordResetTokenRepository;
+import com.servicedna.user.domain.User;
+import com.servicedna.user.repository.UserRepository;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,6 +33,22 @@ class AuthControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private EmailVerificationTokenRepository emailVerificationTokenRepository;
+
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    private String verificationTokenFor(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        EmailVerificationToken token =
+                emailVerificationTokenRepository.findByUserId(user.getId()).orElseThrow();
+        return token.getToken();
+    }
+
     @Test
     void shouldRegisterUserAndLogin() throws Exception {
         RegisterRequest registerRequest = new RegisterRequest("test@example.com", "password123");
@@ -39,6 +60,11 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.token").exists())
                 .andExpect(jsonPath("$.user.email").value("test@example.com"))
                 .andExpect(jsonPath("$.user.role").value("OWNER"));
+
+        // A freshly registered user must verify their email before they can log in again.
+        mockMvc.perform(get("/api/v1/auth/verify-email")
+                .param("token", verificationTokenFor("test@example.com")))
+                .andExpect(status().isOk());
 
         LoginRequest loginRequest = new LoginRequest("test@example.com", "password123");
 
@@ -56,6 +82,31 @@ class AuthControllerTest {
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("test@example.com"));
+    }
+
+    @Test
+    void shouldBlockLoginForUnverifiedEmail() throws Exception {
+        RegisterRequest registerRequest = new RegisterRequest("unverified@example.com", "password123");
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isCreated());
+
+        LoginRequest loginRequest = new LoginRequest("unverified@example.com", "password123");
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("EMAIL_NOT_VERIFIED"));
+    }
+
+    @Test
+    void shouldRejectInvalidVerificationToken() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", "not-a-real-token"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_TOKEN"));
     }
 
     @Test
@@ -96,5 +147,69 @@ class AuthControllerTest {
     void shouldRejectUnauthorizedAccess() throws Exception {
         mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isForbidden()); // Spring Security by default returns 403 when access is denied for an unauthenticated request without specific configuration mapping it to 401
+    }
+
+    @Test
+    void forgotPasswordShouldReturnOkRegardlessOfWhetherEmailExists() throws Exception {
+        RegisterRequest registerRequest = new RegisterRequest("forgot@example.com", "password123");
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isCreated());
+
+        // Same response whether the account exists or not, so a caller can't enumerate accounts.
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"forgot@example.com\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"no-such-account@example.com\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldResetPasswordAndRejectTokenReuse() throws Exception {
+        String email = "reset@example.com";
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new RegisterRequest(email, "password123"))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\"}"))
+                .andExpect(status().isOk());
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+        PasswordResetToken resetToken =
+                passwordResetTokenRepository.findByUserId(user.getId()).orElseThrow();
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + resetToken.getToken() + "\",\"newPassword\":\"newpassword456\"}"))
+                .andExpect(status().isOk());
+
+        // Old password no longer works.
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new LoginRequest(email, "password123"))))
+                .andExpect(status().isUnauthorized());
+
+        // New password works (need to verify email first, same as any account).
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", verificationTokenFor(email)))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new LoginRequest(email, "newpassword456"))))
+                .andExpect(status().isOk());
+
+        // The reset token cannot be used a second time.
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + resetToken.getToken() + "\",\"newPassword\":\"anotherpassword789\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("TOKEN_USED"));
     }
 }
