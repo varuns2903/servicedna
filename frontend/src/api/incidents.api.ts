@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 
 export type IncidentStatus = 'INVESTIGATING' | 'IDENTIFIED' | 'MONITORING' | 'RESOLVED';
-export type IncidentSeverity = 'SEV1' | 'SEV2' | 'SEV3';
+export type IncidentSeverity = 'CRITICAL' | 'MAJOR' | 'MINOR' | 'LOW';
 
 export interface IncidentDto {
   id: string;

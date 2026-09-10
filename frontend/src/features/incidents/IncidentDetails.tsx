@@ -48,7 +48,7 @@ export function IncidentDetails() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <h1 className="text-2xl font-semibold text-white">Incident: {incident.title}</h1>
-        <Badge variant={incident.severity === 'SEV1' ? 'danger' : incident.severity === 'SEV2' ? 'warning' : 'default'}>
+        <Badge variant={incident.severity === 'CRITICAL' ? 'danger' : incident.severity === 'MAJOR' ? 'warning' : 'default'}>
           {incident.severity}
         </Badge>
         <Badge variant={incident.status === 'RESOLVED' ? 'success' : 'warning'}>

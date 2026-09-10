@@ -1,8 +1,9 @@
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useServices } from '@/hooks/useServices';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { StatusIndicator } from '@/components/status/StatusIndicator';
+import type { ServiceStatus } from '@/components/status/StatusIndicator';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Search, Plus } from 'lucide-react';
@@ -16,6 +17,31 @@ export function ServiceList() {
   const { data: services, isLoading, isError } = useServices();
   const [isRegisterOpen, setRegisterOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceDto | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ServiceStatus | 'ALL'>('ALL');
+  const [regionFilter, setRegionFilter] = useState<string>('ALL');
+
+  const regions = useMemo(
+    () => [...new Set((services || []).map((s) => s.region).filter(Boolean))].sort(),
+    [services]
+  );
+
+  const filteredServices = useMemo(() => {
+    if (!services) return services;
+    const term = search.trim().toLowerCase();
+    return services.filter((service) => {
+      if (statusFilter !== 'ALL' && service.status !== statusFilter) return false;
+      if (regionFilter !== 'ALL' && service.region !== regionFilter) return false;
+      if (
+        term &&
+        !service.name.toLowerCase().includes(term) &&
+        !(service.description || '').toLowerCase().includes(term)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [services, search, statusFilter, regionFilter]);
 
   if (isError) {
     return (
@@ -39,12 +65,42 @@ export function ServiceList() {
       </div>
 
       <div className="flex items-center justify-between space-x-4">
-        <div className="relative w-72">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <Input placeholder="Search services..." className="pl-9" />
+        <div className="flex items-center space-x-3">
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <Input
+              placeholder="Search services..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as ServiceStatus | 'ALL')}
+            className="bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="ALL">All statuses</option>
+            <option value="HEALTHY">Healthy</option>
+            <option value="DEGRADED">Degraded</option>
+            <option value="DOWN">Down</option>
+            <option value="UNKNOWN">Unknown</option>
+          </select>
+          <select
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value)}
+            className="bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="ALL">All regions</option>
+            {regions.map((region) => (
+              <option key={region} value={region}>
+                {region}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-400">
-          <span>{services?.length || 0} services total</span>
+          <span>{filteredServices?.length || 0} of {services?.length || 0} services</span>
         </div>
       </div>
 
@@ -62,6 +118,10 @@ export function ServiceList() {
             Register Service
           </Button>
         </div>
+      ) : filteredServices?.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-charcoal-600 py-16 text-center">
+          <div className="text-gray-400">No services match your filters</div>
+        </div>
       ) : (
         <Table>
           <TableHeader>
@@ -73,7 +133,7 @@ export function ServiceList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {services?.map((service) => (
+            {filteredServices?.map((service) => (
               <TableRow
                 key={service.id}
                 className="cursor-pointer"
