@@ -55,6 +55,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/actuator/**")
                     .permitAll()
+                    .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                    .permitAll()
                     .anyRequest()
                     .authenticated())
         .oauth2Login(oauth2 -> oauth2.successHandler(oAuth2SuccessHandler))
