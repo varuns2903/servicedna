@@ -12,6 +12,8 @@ import com.servicedna.telemetry.repository.ServicePingRepository;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @org.springframework.stereotype.Service
 public class PingService {
+
+  private static final Logger log = LoggerFactory.getLogger(PingService.class);
 
   private final ServiceRepository serviceRepository;
   private final ServicePingRepository servicePingRepository;
@@ -73,14 +77,25 @@ public class PingService {
       service.setStatus(newStatus);
       serviceRepository.save(service);
 
-      if (alertEventPublisher != null) {
-        alertEventPublisher.publishStatusChangedEvent(
-            new ServiceStatusChangedEvent(
-                service.getId(),
-                service.getOrganization().getId(),
-                oldStatus,
-                newStatus,
-                OffsetDateTime.now()));
+      // The ping and status write above already committed to this transaction — a failure
+      // publishing the alert event (e.g. Kafka unreachable) must not roll back an otherwise
+      // successful ping and turn it into a 500 for the caller.
+      try {
+        if (alertEventPublisher != null) {
+          alertEventPublisher.publishStatusChangedEvent(
+              new ServiceStatusChangedEvent(
+                  service.getId(),
+                  service.getOrganization().getId(),
+                  oldStatus,
+                  newStatus,
+                  OffsetDateTime.now()));
+        }
+      } catch (Exception e) {
+        log.warn(
+            "Ping for service {} recorded and status updated to {}, but publishing the alert event failed: {}",
+            service.getId(),
+            newStatus,
+            e.getMessage());
       }
     }
   }

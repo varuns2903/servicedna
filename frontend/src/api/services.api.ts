@@ -34,6 +34,21 @@ export interface UpdateServiceRequest {
   healthCheckUrl?: string;
 }
 
+export type MetricsRange = '24h' | '7d' | '30d';
+
+export interface MetricPointDto {
+  timestamp: string;
+  status: ServiceStatus;
+  latencyMs: number | null;
+}
+
+export interface ServiceMetricsDto {
+  uptimePercentage: number;
+  avgLatencyMs: number | null;
+  pingCount: number;
+  dataPoints: MetricPointDto[];
+}
+
 export const ServicesApi = {
   getServices: async (orgId: string): Promise<ServiceDto[]> => {
     const { data } = await apiClient.get<ServiceDto[]>(`/organizations/${orgId}/services`);
@@ -86,6 +101,18 @@ export const ServicesApi = {
   ): Promise<ServiceDto & { apiKey: string }> => {
     const { data } = await apiClient.post<ServiceDto & { apiKey: string }>(
       `/organizations/${orgId}/services/${serviceId}/api-key/regenerate`
+    );
+    return data;
+  },
+
+  getServiceMetrics: async (
+    orgId: string,
+    serviceId: string,
+    range: MetricsRange
+  ): Promise<ServiceMetricsDto> => {
+    const { data } = await apiClient.get<ServiceMetricsDto>(
+      `/organizations/${orgId}/services/${serviceId}/metrics`,
+      { params: { range } }
     );
     return data;
   },

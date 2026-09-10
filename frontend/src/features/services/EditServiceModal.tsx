@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Copy, Check, AlertTriangle } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useUpdateService, useDeleteService, useRegenerateApiKey } from '@/hooks/useServices';
-import type { ServiceDto } from '@/api/services.api';
+import { Badge } from '@/components/ui/Badge';
+import {
+  useUpdateService,
+  useDeleteService,
+  useRegenerateApiKey,
+  useServiceMetrics,
+} from '@/hooks/useServices';
+import type { ServiceDto, MetricsRange } from '@/api/services.api';
 
 interface EditServiceModalProps {
   open: boolean;
@@ -22,10 +29,12 @@ export function EditServiceModal({ open, onClose, service }: EditServiceModalPro
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [metricsRange, setMetricsRange] = useState<MetricsRange>('24h');
 
   const updateService = useUpdateService();
   const deleteService = useDeleteService();
   const regenerateApiKey = useRegenerateApiKey();
+  const { data: metrics, isLoading: metricsLoading } = useServiceMetrics(service?.id, metricsRange);
 
   useEffect(() => {
     if (service) {
@@ -143,6 +152,92 @@ export function EditServiceModal({ open, onClose, service }: EditServiceModalPro
           </Button>
         </div>
       </form>
+
+      <div className="mt-6 space-y-3 border-t border-charcoal-700 pt-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-gray-300">Uptime &amp; latency</p>
+          <div className="flex space-x-1">
+            {(['24h', '7d', '30d'] as MetricsRange[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setMetricsRange(r)}
+                className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                  metricsRange === r
+                    ? 'bg-charcoal-700 text-white'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {metricsLoading ? (
+          <div className="h-32 animate-pulse rounded-md bg-charcoal-900" />
+        ) : !metrics || metrics.pingCount === 0 ? (
+          <p className="text-xs text-gray-500">No ping data yet for this window.</p>
+        ) : (
+          <>
+            <div className="flex items-center space-x-4">
+              <Badge
+                variant={
+                  metrics.uptimePercentage >= 99
+                    ? 'success'
+                    : metrics.uptimePercentage >= 95
+                      ? 'warning'
+                      : 'danger'
+                }
+              >
+                {metrics.uptimePercentage.toFixed(2)}% uptime
+              </Badge>
+              {metrics.avgLatencyMs != null && (
+                <span className="text-xs text-gray-400">
+                  avg latency {Math.round(metrics.avgLatencyMs)}ms
+                </span>
+              )}
+              <span className="text-xs text-gray-500">{metrics.pingCount} samples</span>
+            </div>
+
+            <div className="h-32 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={metrics.dataPoints.map((p) => ({
+                    time: new Date(p.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }),
+                    latencyMs: p.latencyMs,
+                  }))}
+                  margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid stroke="#2a2f3a" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="time" tick={{ fill: '#6b7280', fontSize: 10 }} minTickGap={30} />
+                  <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} width={36} />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#1a1d24',
+                      border: '1px solid #2a2f3a',
+                      borderRadius: 6,
+                      fontSize: 12,
+                    }}
+                    labelStyle={{ color: '#9ca3af' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="latencyMs"
+                    stroke="#34d399"
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="mt-6 space-y-3 border-t border-charcoal-700 pt-5">
         <div className="flex items-center justify-between gap-3">

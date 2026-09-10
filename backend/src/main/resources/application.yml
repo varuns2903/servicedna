@@ -57,6 +57,11 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Without this, a send() blocks for the default 60s when the broker is unreachable,
+      # turning any Kafka blip into a request-thread hang on every code path that publishes
+      # an event synchronously (e.g. the ping ingestion endpoint).
+      properties:
+        max.block.ms: 5000
 
 server:
   port: ${PORT:8080}

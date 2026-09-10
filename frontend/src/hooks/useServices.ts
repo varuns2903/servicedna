@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ServicesApi, type CreateServiceRequest, type UpdateServiceRequest } from '@/api/services.api';
+import {
+  ServicesApi,
+  type CreateServiceRequest,
+  type UpdateServiceRequest,
+  type MetricsRange,
+} from '@/api/services.api';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 
 export function useServices() {
@@ -47,6 +52,16 @@ export function useDeleteService() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organizations', selectedOrganizationId, 'services'] });
     },
+  });
+}
+
+export function useServiceMetrics(serviceId: string | undefined, range: MetricsRange) {
+  const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);
+
+  return useQuery({
+    queryKey: ['organizations', selectedOrganizationId, 'services', serviceId, 'metrics', range],
+    queryFn: () => ServicesApi.getServiceMetrics(selectedOrganizationId!, serviceId!, range),
+    enabled: !!selectedOrganizationId && !!serviceId,
   });
 }
 

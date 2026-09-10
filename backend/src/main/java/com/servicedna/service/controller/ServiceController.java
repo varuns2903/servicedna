@@ -7,6 +7,8 @@ import com.servicedna.service.dto.ServiceDto;
 import com.servicedna.service.dto.UpdateServiceRequest;
 import com.servicedna.service.dto.UpdateServiceStatusRequest;
 import com.servicedna.service.service.ServiceRegistryService;
+import com.servicedna.telemetry.dto.ServiceMetricsDto;
+import com.servicedna.telemetry.service.ServiceMetricsService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -28,9 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class ServiceController {
 
   private final ServiceRegistryService serviceRegistryService;
+  private final ServiceMetricsService serviceMetricsService;
 
-  public ServiceController(ServiceRegistryService serviceRegistryService) {
+  public ServiceController(
+      ServiceRegistryService serviceRegistryService, ServiceMetricsService serviceMetricsService) {
     this.serviceRegistryService = serviceRegistryService;
+    this.serviceMetricsService = serviceMetricsService;
   }
 
   @PostMapping
@@ -57,6 +63,16 @@ public class ServiceController {
       @AuthenticationPrincipal CustomUserDetails userDetails) {
     return ResponseEntity.ok(
         serviceRegistryService.getService(orgId, serviceId, userDetails.getUser().getId()));
+  }
+
+  @GetMapping("/{serviceId}/metrics")
+  public ResponseEntity<ServiceMetricsDto> getServiceMetrics(
+      @PathVariable UUID orgId,
+      @PathVariable UUID serviceId,
+      @RequestParam(defaultValue = "24h") String range,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(
+        serviceMetricsService.getMetrics(orgId, serviceId, userDetails.getUser().getId(), range));
   }
 
   @GetMapping("/map")

@@ -6,9 +6,12 @@ import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 import com.servicedna.service.domain.Service;
 import com.servicedna.service.domain.ServiceStatus;
 import com.servicedna.service.repository.ServiceRepository;
+import com.servicedna.telemetry.domain.ServicePing;
+import com.servicedna.telemetry.repository.ServicePingRepository;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +36,7 @@ public class HealthCheckProberService {
   private static final Logger log = LoggerFactory.getLogger(HealthCheckProberService.class);
 
   private final ServiceRepository serviceRepository;
+  private final ServicePingRepository servicePingRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final AlertEventPublisher alertEventPublisher;
   private final CacheManager cacheManager;
@@ -41,6 +45,7 @@ public class HealthCheckProberService {
 
   public HealthCheckProberService(
       ServiceRepository serviceRepository,
+      ServicePingRepository servicePingRepository,
       ApplicationEventPublisher eventPublisher,
       @Lazy AlertEventPublisher alertEventPublisher,
       CacheManager cacheManager,
@@ -48,6 +53,7 @@ public class HealthCheckProberService {
       @Value("${health-check.timeout-ms:5000}") long timeoutMs,
       @Value("${health-check.degraded-threshold-ms:2000}") long degradedThresholdMs) {
     this.serviceRepository = serviceRepository;
+    this.servicePingRepository = servicePingRepository;
     this.eventPublisher = eventPublisher;
     this.alertEventPublisher = alertEventPublisher;
     this.cacheManager = cacheManager;
@@ -80,8 +86,12 @@ public class HealthCheckProberService {
   }
 
   boolean probeOne(Service service) {
-    ServiceStatus newStatus = check(service.getHealthCheckUrl());
+    ProbeResult result = check(service.getHealthCheckUrl());
+    ServiceStatus newStatus = result.status();
     ServiceStatus oldStatus = service.getStatus();
+
+    servicePingRepository.save(
+        new ServicePing(UUID.randomUUID(), service, newStatus, (int) result.latencyMs(), null));
 
     if (oldStatus == newStatus) {
       return false;
@@ -128,18 +138,22 @@ public class HealthCheckProberService {
     }
   }
 
-  private ServiceStatus check(String healthCheckUrl) {
+  private ProbeResult check(String healthCheckUrl) {
     long start = System.currentTimeMillis();
     try {
       HttpStatusCode status = restTemplate.getForEntity(healthCheckUrl, Void.class).getStatusCode();
       long latencyMs = System.currentTimeMillis() - start;
 
       if (!status.is2xxSuccessful()) {
-        return ServiceStatus.DOWN;
+        return new ProbeResult(ServiceStatus.DOWN, latencyMs);
       }
-      return latencyMs > degradedThresholdMs ? ServiceStatus.DEGRADED : ServiceStatus.HEALTHY;
+      return new ProbeResult(
+          latencyMs > degradedThresholdMs ? ServiceStatus.DEGRADED : ServiceStatus.HEALTHY,
+          latencyMs);
     } catch (RestClientException e) {
-      return ServiceStatus.DOWN;
+      return new ProbeResult(ServiceStatus.DOWN, System.currentTimeMillis() - start);
     }
   }
+
+  private record ProbeResult(ServiceStatus status, long latencyMs) {}
 }
