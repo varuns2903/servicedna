@@ -17,16 +17,17 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { Building2, Users, CreditCard, Send, Check, X, UserCog } from 'lucide-react';
+import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone } from 'lucide-react';
 import type { OrganizationRole } from '@/api/organizations.api';
 import type { PlanType } from '@/api/billing.api';
+import { OnCallTab } from './OnCallTab';
 
 export function SettingsView() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
   const { data: orgs } = useOrganizations();
   const currentOrg = orgs?.find((o) => o.id === currentOrgId);
 
-  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account' | 'oncall'>('general');
 
   // General tab state
   const [orgName, setOrgName] = useState('');
@@ -195,6 +196,17 @@ export function SettingsView() {
           <div className="flex items-center space-x-2">
             <Users className="h-4 w-4" />
             <span>Members & Invites</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('oncall')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'oncall' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            <Phone className="h-4 w-4" />
+            <span>On-Call</span>
           </div>
         </button>
         <button
@@ -372,6 +384,8 @@ export function SettingsView() {
             </div>
           </div>
         )}
+
+        {activeTab === 'oncall' && currentOrgId && <OnCallTab orgId={currentOrgId} members={members} />}
 
         {activeTab === 'billing' && (
           <div className="space-y-6 max-w-5xl">
