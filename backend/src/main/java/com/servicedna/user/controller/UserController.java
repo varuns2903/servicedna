@@ -7,7 +7,10 @@ import com.servicedna.auth.dto.UserDto;
 import com.servicedna.auth.security.CustomUserDetails;
 import com.servicedna.auth.service.AuthService;
 import com.servicedna.user.domain.User;
+import com.servicedna.user.dto.DataExportDto;
+import com.servicedna.user.dto.DeleteAccountRequest;
 import com.servicedna.user.repository.UserRepository;
+import com.servicedna.user.service.AccountService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,10 +29,13 @@ public class UserController {
 
   private final AuthService authService;
   private final UserRepository userRepository;
+  private final AccountService accountService;
 
-  public UserController(AuthService authService, UserRepository userRepository) {
+  public UserController(
+      AuthService authService, UserRepository userRepository, AccountService accountService) {
     this.authService = authService;
     this.userRepository = userRepository;
+    this.accountService = accountService;
   }
 
   @GetMapping("/me")
@@ -82,5 +88,19 @@ public class UserController {
     user.setNotifyOnNewIncident(request.notifyOnNewIncident());
     userRepository.save(user);
     return ResponseEntity.ok(new NotificationPreferencesDto(user.isNotifyOnNewIncident()));
+  }
+
+  @GetMapping("/me/export")
+  public ResponseEntity<DataExportDto> exportMyData(
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(accountService.exportUserData(userDetails.getUser().getId()));
+  }
+
+  @PostMapping("/me/delete-account")
+  public ResponseEntity<Void> deleteAccount(
+      @AuthenticationPrincipal CustomUserDetails userDetails,
+      @Valid @RequestBody DeleteAccountRequest request) {
+    accountService.deleteAccount(userDetails.getUser().getId(), request.password());
+    return ResponseEntity.ok().build();
   }
 }

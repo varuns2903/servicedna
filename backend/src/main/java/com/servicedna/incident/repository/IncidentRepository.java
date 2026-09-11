@@ -18,4 +18,6 @@ public interface IncidentRepository extends JpaRepository<Incident, UUID> {
 
   List<Incident> findByOrganizationIdAndStatusNotAndAcknowledgedAtIsNullAndEscalatedAtIsNullAndSeverityInAndCreatedAtBefore(
       UUID organizationId, IncidentStatus status, List<IncidentSeverity> severities, OffsetDateTime cutoff);
+
+  List<Incident> findByCreatedById(UUID userId);
 }

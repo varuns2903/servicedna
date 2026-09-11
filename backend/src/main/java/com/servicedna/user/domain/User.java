@@ -33,6 +33,9 @@ public class User {
   @Column(name = "notify_on_new_incident", nullable = false)
   private boolean notifyOnNewIncident = false;
 
+  @Column(name = "deleted_at")
+  private OffsetDateTime deletedAt;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -96,6 +99,14 @@ public class User {
 
   public void setNotifyOnNewIncident(boolean notifyOnNewIncident) {
     this.notifyOnNewIncident = notifyOnNewIncident;
+  }
+
+  public OffsetDateTime getDeletedAt() {
+    return deletedAt;
+  }
+
+  public void setDeletedAt(OffsetDateTime deletedAt) {
+    this.deletedAt = deletedAt;
   }
 
   public OffsetDateTime getCreatedAt() {

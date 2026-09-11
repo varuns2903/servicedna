@@ -115,3 +115,17 @@ export function useConfirmEmailChange() {
     },
   });
 }
+
+export function useExportMyData() {
+  return useMutation({
+    mutationFn: AuthApi.exportMyData,
+  });
+}
+
+export function useDeleteAccount() {
+  const { logout } = useAuthStore();
+  return useMutation({
+    mutationFn: (password: string) => AuthApi.deleteAccount(password),
+    onSuccess: () => logout(),
+  });
+}

@@ -21,6 +21,25 @@ export interface NotificationPreferencesDto {
   notifyOnNewIncident: boolean;
 }
 
+export interface DataExportDto {
+  userId: string;
+  email: string;
+  accountCreatedAt: string;
+  organizations: {
+    organizationId: string;
+    organizationName: string;
+    role: string;
+    memberSince: string;
+  }[];
+  incidentsCreated: {
+    incidentId: string;
+    title: string;
+    severity: string;
+    status: string;
+    createdAt: string;
+  }[];
+}
+
 export const AuthApi = {
   getMe: async (): Promise<UserDto> => {
     const { data } = await apiClient.get<UserDto>('/auth/me');
@@ -99,5 +118,14 @@ export const AuthApi = {
       preferences
     );
     return data;
+  },
+
+  exportMyData: async (): Promise<DataExportDto> => {
+    const { data } = await apiClient.get<DataExportDto>('/users/me/export');
+    return data;
+  },
+
+  deleteAccount: async (password: string): Promise<void> => {
+    await apiClient.post('/users/me/delete-account', { password });
   },
 };

@@ -17,12 +17,14 @@ import {
   useRequestEmailChange,
   useNotificationPreferences,
   useUpdateNotificationPreferences,
+  useExportMyData,
+  useDeleteAccount,
 } from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone, FileText, AlertTriangle } from 'lucide-react';
+import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone, FileText, AlertTriangle, Download } from 'lucide-react';
 import type { OrganizationRole } from '@/api/organizations.api';
 import type { PlanType } from '@/api/billing.api';
 import { OnCallTab } from './OnCallTab';
@@ -120,6 +122,41 @@ export function SettingsView() {
   const [emailChangePassword, setEmailChangePassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
+  const exportMyData = useExportMyData();
+  const deleteAccount = useDeleteAccount();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleExportData = () => {
+    exportMyData.mutate(undefined, {
+      onSuccess: (data) => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: 'application/json;charset=utf-8;',
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `servicedna-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      },
+    });
+  };
+
+  const handleDeleteAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError(null);
+    deleteAccount.mutate(deletePassword, {
+      onError: (err) => {
+        setDeleteError(
+          (axios.isAxiosError(err) && err.response?.data?.message) || 'Could not delete account.'
+        );
+      },
+    });
+  };
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
@@ -623,6 +660,100 @@ export function SettingsView() {
                     disabled={updateNotificationPreferences.isPending}
                   />
                 </label>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Data</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-200">Export my data</p>
+                    <p className="text-xs text-gray-500">
+                      Download a JSON file with your account details, organization memberships, and
+                      incidents you've reported.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleExportData}
+                    disabled={exportMyData.isPending}
+                    className="flex items-center space-x-2 shrink-0 ml-4"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>{exportMyData.isPending ? 'Preparing...' : 'Export Data'}</span>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-rose-500/30">
+              <CardHeader>
+                <CardTitle className="text-rose-400">Danger Zone</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!showDeleteConfirm ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-200">Delete account</p>
+                      <p className="text-xs text-gray-500">
+                        Permanently deactivates your account and removes you from all organizations.
+                        This cannot be undone.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="border-rose-500/40 text-rose-400 hover:bg-rose-500/10 shrink-0 ml-4"
+                    >
+                      Delete Account
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleDeleteAccount} className="space-y-4">
+                    <p className="text-sm text-gray-300">
+                      This will permanently deactivate your account. If you're the sole owner of any
+                      organization, you'll need to transfer ownership or delete it first. Enter your
+                      password to confirm.
+                    </p>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Password</label>
+                      <Input
+                        type="password"
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    {deleteError && (
+                      <div className="rounded-md border border-rose-500/20 bg-rose-500/10 p-2 text-xs text-rose-400">
+                        {deleteError}
+                      </div>
+                    )}
+                    <div className="flex justify-end space-x-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeletePassword('');
+                          setDeleteError(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={deleteAccount.isPending || !deletePassword}
+                        className="bg-rose-600 hover:bg-rose-500 text-white"
+                      >
+                        {deleteAccount.isPending ? 'Deleting...' : 'Permanently Delete Account'}
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </CardContent>
             </Card>
           </div>
