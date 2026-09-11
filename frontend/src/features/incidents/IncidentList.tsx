@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { useIncidents } from '@/hooks/useIncidents';
+import { useIncidents, useUpdateIncidentStatus } from '@/hooks/useIncidents';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -14,11 +14,15 @@ import { CreateIncidentModal } from './CreateIncidentModal';
 export function IncidentList() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
   const { data: incidents, isLoading } = useIncidents(currentOrgId || undefined);
+  const updateStatus = useUpdateIncidentStatus();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | 'ALL'>('ALL');
   const [severityFilter, setSeverityFilter] = useState<IncidentSeverity | 'ALL'>('ALL');
   const [isCreateOpen, setCreateOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<IncidentStatus>('RESOLVED');
+  const [applyingBulk, setApplyingBulk] = useState(false);
 
   const filteredIncidents = useMemo(() => {
     if (!incidents) return incidents;
@@ -32,6 +36,24 @@ export function IncidentList() {
       return true;
     });
   }, [incidents, search, statusFilter, severityFilter]);
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((i) => i !== id) : [...current, id]
+    );
+  };
+
+  const handleApplyBulkStatus = async () => {
+    if (!currentOrgId || selectedIds.length === 0) return;
+    setApplyingBulk(true);
+    await Promise.all(
+      selectedIds.map((incidentId) =>
+        updateStatus.mutateAsync({ orgId: currentOrgId, incidentId, data: { status: bulkStatus } })
+      )
+    );
+    setApplyingBulk(false);
+    setSelectedIds([]);
+  };
 
   if (isLoading) {
     return <div className="p-8 text-gray-400">Loading incidents...</div>;
@@ -82,6 +104,32 @@ export function IncidentList() {
         <span className="text-sm text-gray-400">{filteredIncidents?.length || 0} incidents</span>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center space-x-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+          <span className="text-sm text-gray-200">{selectedIds.length} selected</span>
+          <select
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value as IncidentStatus)}
+            className="bg-charcoal-900 border border-charcoal-700 rounded-md p-1.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="INVESTIGATING">Investigating</option>
+            <option value="IDENTIFIED">Identified</option>
+            <option value="MONITORING">Monitoring</option>
+            <option value="RESOLVED">Resolved</option>
+          </select>
+          <Button size="sm" onClick={handleApplyBulkStatus} disabled={applyingBulk}>
+            {applyingBulk ? 'Applying...' : 'Apply'}
+          </Button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds([])}
+            className="text-xs text-gray-400 hover:text-gray-200"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       <div className="grid gap-4">
         {filteredIncidents?.length === 0 ? (
           <Card>
@@ -96,11 +144,17 @@ export function IncidentList() {
           </Card>
         ) : (
           filteredIncidents?.map((incident) => (
-            <Link key={incident.id} to={`/incidents/${incident.id}`} className="block">
-              <Card className="hover:border-charcoal-600 transition-colors cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
+            <Card key={incident.id} className="hover:border-charcoal-600 transition-colors">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1.5 rounded border-charcoal-600 bg-charcoal-900 text-emerald-500 focus:ring-emerald-500"
+                      checked={selectedIds.includes(incident.id)}
+                      onChange={() => toggleSelected(incident.id)}
+                    />
+                    <Link to={`/incidents/${incident.id}`} className="block hover:opacity-90">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-medium text-white">{incident.title}</h3>
                         <Badge variant={incident.severity === 'CRITICAL' ? 'danger' : incident.severity === 'MAJOR' ? 'warning' : 'default'}>
@@ -111,17 +165,17 @@ export function IncidentList() {
                         </Badge>
                       </div>
                       <p className="text-gray-400 line-clamp-2">{incident.description}</p>
-                    </div>
-                    <div className="text-right text-sm text-gray-500">
-                      <div className="flex items-center justify-end space-x-1">
-                        <Clock className="h-4 w-4" />
-                        <span>{formatDistanceToNow(new Date(incident.createdAt), { addSuffix: true })}</span>
-                      </div>
+                    </Link>
+                  </div>
+                  <div className="text-right text-sm text-gray-500">
+                    <div className="flex items-center justify-end space-x-1">
+                      <Clock className="h-4 w-4" />
+                      <span>{formatDistanceToNow(new Date(incident.createdAt), { addSuffix: true })}</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
+                </div>
+              </CardContent>
+            </Card>
           ))
         )}
       </div>

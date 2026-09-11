@@ -1,24 +1,29 @@
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useServices } from '@/hooks/useServices';
+import { useServices, useCreateService } from '@/hooks/useServices';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { StatusIndicator } from '@/components/status/StatusIndicator';
 import type { ServiceStatus } from '@/components/status/StatusIndicator';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Download, Upload } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { formatDistanceToNow } from 'date-fns';
 import { RegisterServiceModal } from './RegisterServiceModal';
+import { downloadCsv, parseCsv } from '@/utils/csv';
 
 export function ServiceList() {
   const navigate = useNavigate();
   const { data: services, isLoading, isError } = useServices();
+  const createService = useCreateService();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRegisterOpen, setRegisterOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ServiceStatus | 'ALL'>('ALL');
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
+  const [importSummary, setImportSummary] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const regions = useMemo(
     () => [...new Set((services || []).map((s) => s.region).filter(Boolean))].sort(),
@@ -42,6 +47,69 @@ export function ServiceList() {
     });
   }, [services, search, statusFilter, regionFilter]);
 
+  const handleExport = () => {
+    const rows = (filteredServices || []).map((s) => [
+      s.name,
+      s.description || '',
+      s.region || '',
+      s.repositoryUrl || '',
+      s.healthCheckUrl || '',
+      s.status,
+    ]);
+    downloadCsv(
+      'services.csv',
+      ['name', 'description', 'region', 'repositoryUrl', 'healthCheckUrl', 'status'],
+      rows
+    );
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const text = await file.text();
+    const rows = parseCsv(text);
+    if (rows.length < 2) {
+      setImportSummary('No rows found in file.');
+      return;
+    }
+
+    const header = rows[0].map((h) => h.trim().toLowerCase());
+    const nameIdx = header.indexOf('name');
+    if (nameIdx === -1) {
+      setImportSummary('CSV must have a "name" column.');
+      return;
+    }
+    const descIdx = header.indexOf('description');
+    const regionIdx = header.indexOf('region');
+    const repoIdx = header.indexOf('repositoryurl');
+    const healthIdx = header.indexOf('healthcheckurl');
+
+    setImporting(true);
+    setImportSummary(null);
+    let succeeded = 0;
+    let failed = 0;
+    for (const row of rows.slice(1)) {
+      const name = row[nameIdx]?.trim();
+      if (!name) continue;
+      try {
+        await createService.mutateAsync({
+          name,
+          description: descIdx >= 0 ? row[descIdx]?.trim() || undefined : undefined,
+          region: regionIdx >= 0 ? row[regionIdx]?.trim() || undefined : undefined,
+          repositoryUrl: repoIdx >= 0 ? row[repoIdx]?.trim() || undefined : undefined,
+          healthCheckUrl: healthIdx >= 0 ? row[healthIdx]?.trim() || undefined : undefined,
+        });
+        succeeded++;
+      } catch {
+        failed++;
+      }
+    }
+    setImporting(false);
+    setImportSummary(`Imported ${succeeded} service${succeeded === 1 ? '' : 's'}${failed > 0 ? `, ${failed} failed` : ''}.`);
+  };
+
   if (isError) {
     return (
       <div className="flex h-full flex-col">
@@ -57,11 +125,34 @@ export function ServiceList() {
     <div className="flex h-full flex-col space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-white">Services</h1>
-        <Button size="sm" onClick={() => setRegisterOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Register Service
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button size="sm" variant="outline" onClick={handleExport} disabled={!filteredServices?.length}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            <Upload className="mr-2 h-4 w-4" />
+            {importing ? 'Importing...' : 'Import CSV'}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <Button size="sm" onClick={() => setRegisterOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Register Service
+          </Button>
+        </div>
       </div>
+
+      {importSummary && (
+        <div className="rounded-md border border-charcoal-700 bg-charcoal-800 p-2 text-sm text-gray-300">
+          {importSummary}
+        </div>
+      )}
 
       <div className="flex items-center justify-between space-x-4">
         <div className="flex items-center space-x-3">
