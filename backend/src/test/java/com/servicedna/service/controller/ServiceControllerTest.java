@@ -5,6 +5,9 @@ import com.servicedna.auth.dto.RegisterRequest;
 import com.servicedna.organization.dto.CreateOrganizationRequest;
 import com.servicedna.service.dto.AddDependencyRequest;
 import com.servicedna.service.dto.CreateServiceRequest;
+import com.servicedna.service.dto.UpdateServiceRequest;
+import com.servicedna.service.domain.ServiceStatus;
+import com.servicedna.telemetry.dto.PingRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +19,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.closeTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -233,5 +239,99 @@ class ServiceControllerTest {
                 .andExpect(jsonPath("$.edges").isArray())
                 .andExpect(jsonPath("$.edges[0].sourceId").value(serviceAId))
                 .andExpect(jsonPath("$.edges[0].targetId").value(serviceBId));
+    }
+
+    @Test
+    void shouldUpdateDeleteAndRegenerateApiKey() throws Exception {
+        String createRes = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("EditableService", null, null, "us-east-1", null))))
+                .andReturn().getResponse().getContentAsString();
+        String serviceId = objectMapper.readTree(createRes).get("id").asText();
+        String originalApiKey = objectMapper.readTree(createRes).get("apiKey").asText();
+
+        UpdateServiceRequest updateReq =
+                new UpdateServiceRequest("RenamedService", "new description", null, "eu-west-1", null);
+        mockMvc.perform(put("/api/v1/organizations/" + org1Id + "/services/" + serviceId)
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("RenamedService"))
+                .andExpect(jsonPath("$.region").value("eu-west-1"))
+                .andExpect(jsonPath("$.apiKey").doesNotExist());
+
+        // Another org's member cannot edit it.
+        mockMvc.perform(put("/api/v1/organizations/" + org1Id + "/services/" + serviceId)
+                .header("Authorization", "Bearer " + user2Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateReq)))
+                .andExpect(status().isForbidden());
+
+        String regenRes = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services/" + serviceId + "/api-key/regenerate")
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.apiKey").exists())
+                .andReturn().getResponse().getContentAsString();
+        String newApiKey = objectMapper.readTree(regenRes).get("apiKey").asText();
+        org.assertj.core.api.Assertions.assertThat(newApiKey).isNotEqualTo(originalApiKey);
+
+        // The old key no longer authenticates a ping.
+        mockMvc.perform(post("/api/v1/ping")
+                .header("X-API-Key", originalApiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 20, null))))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(delete("/api/v1/organizations/" + org1Id + "/services/" + serviceId)
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services/" + serviceId)
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldComputeUptimeAndLatencyFromPings() throws Exception {
+        String createRes = mockMvc.perform(post("/api/v1/organizations/" + org1Id + "/services")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateServiceRequest("MetricsService", null, null, "us-east-1", null))))
+                .andReturn().getResponse().getContentAsString();
+        String serviceId = objectMapper.readTree(createRes).get("id").asText();
+        String apiKey = objectMapper.readTree(createRes).get("apiKey").asText();
+
+        mockMvc.perform(post("/api/v1/ping")
+                .header("X-API-Key", apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 40, null))))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/ping")
+                .header("X-API-Key", apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 60, null))))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/ping")
+                .header("X-API-Key", apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.DOWN, null, "timeout"))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services/" + serviceId + "/metrics")
+                .param("range", "24h")
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pingCount").value(3))
+                .andExpect(jsonPath("$.uptimePercentage").value(closeTo(66.67, 0.1)))
+                .andExpect(jsonPath("$.avgLatencyMs").value(50.0))
+                .andExpect(jsonPath("$.dataPoints.length()").value(3));
+
+        mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services/" + serviceId + "/metrics")
+                .param("range", "not-a-real-range")
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_RANGE"));
     }
 }

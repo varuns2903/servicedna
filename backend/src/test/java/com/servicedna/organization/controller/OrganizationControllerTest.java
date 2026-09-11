@@ -16,7 +16,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -146,5 +148,79 @@ class OrganizationControllerTest {
                 .content(objectMapper.writeValueAsString(new AddMemberRequest(user3Email, OrganizationRole.MEMBER))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+    }
+
+    @Test
+    void shouldUpdateMemberRoleAndRemoveMember() throws Exception {
+        String orgRes = mockMvc.perform(post("/api/v1/organizations")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateOrganizationRequest("Membership Corp"))))
+                .andReturn().getResponse().getContentAsString();
+        String orgId = objectMapper.readTree(orgRes).get("id").asText();
+
+        String memberRes = mockMvc.perform(post("/api/v1/organizations/" + orgId + "/members")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new AddMemberRequest(user2Email, OrganizationRole.MEMBER))))
+                .andReturn().getResponse().getContentAsString();
+        String memberId = objectMapper.readTree(memberRes).get("id").asText();
+
+        // Owner promotes the member to ADMIN.
+        mockMvc.perform(patch("/api/v1/organizations/" + orgId + "/members/" + memberId)
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("ADMIN"));
+
+        // A non-owner/admin cannot change roles (re-add a plain member to prove it).
+        String user3Email = "user3-" + UUID.randomUUID() + "@example.com";
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new RegisterRequest(user3Email, "password123"))));
+        String member3Res = mockMvc.perform(post("/api/v1/organizations/" + orgId + "/members")
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new AddMemberRequest(user3Email, OrganizationRole.MEMBER))))
+                .andReturn().getResponse().getContentAsString();
+        String member3Id = objectMapper.readTree(member3Res).get("id").asText();
+
+        mockMvc.perform(patch("/api/v1/organizations/" + orgId + "/members/" + member3Id)
+                .header("Authorization", "Bearer " + user2Token) // now ADMIN, allowed
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"VIEWER\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("VIEWER"));
+
+        // The sole owner cannot be demoted or removed.
+        String ownerMemberRes = mockMvc.perform(get("/api/v1/organizations/" + orgId + "/members")
+                .header("Authorization", "Bearer " + user1Token))
+                .andReturn().getResponse().getContentAsString();
+        String ownerMemberId = null;
+        for (com.fasterxml.jackson.databind.JsonNode node : objectMapper.readTree(ownerMemberRes)) {
+            if (node.get("role").asText().equals("OWNER")) {
+                ownerMemberId = node.get("id").asText();
+            }
+        }
+        mockMvc.perform(patch("/api/v1/organizations/" + orgId + "/members/" + ownerMemberId)
+                .header("Authorization", "Bearer " + user1Token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"MEMBER\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("LAST_OWNER"));
+        mockMvc.perform(delete("/api/v1/organizations/" + orgId + "/members/" + ownerMemberId)
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("LAST_OWNER"));
+
+        // Removing a non-owner member works.
+        mockMvc.perform(delete("/api/v1/organizations/" + orgId + "/members/" + member3Id)
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/organizations/" + orgId + "/members")
+                .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
     }
 }

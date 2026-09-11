@@ -144,6 +144,44 @@ class AuthControllerTest {
     }
 
     @Test
+    void shouldResendVerificationAndInvalidateOldToken() throws Exception {
+        String email = "resend-" + UUID.randomUUID() + "@example.com";
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new RegisterRequest(email, "password123"))))
+                .andExpect(status().isCreated());
+
+        String oldToken = verificationTokenFor(email);
+
+        mockMvc.perform(post("/api/v1/auth/resend-verification")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\"}"))
+                .andExpect(status().isOk());
+
+        // The old token was invalidated by the resend.
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", oldToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_TOKEN"));
+
+        // The new token works.
+        String newToken = verificationTokenFor(email);
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", newToken))
+                .andExpect(status().isOk());
+
+        // Resending for an already-verified account is a silent no-op (non-enumeration stance).
+        mockMvc.perform(post("/api/v1/auth/resend-verification")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\"}"))
+                .andExpect(status().isOk());
+
+        // Resending for an unknown email is also a silent no-op.
+        mockMvc.perform(post("/api/v1/auth/resend-verification")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"no-such-account@example.com\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void shouldRefreshTokenAndRotateOnUse() throws Exception {
         String email = "refresh@example.com";
         mockMvc.perform(post("/api/v1/auth/register")
