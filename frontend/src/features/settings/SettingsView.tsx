@@ -17,17 +17,18 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone } from 'lucide-react';
+import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone, FileText } from 'lucide-react';
 import type { OrganizationRole } from '@/api/organizations.api';
 import type { PlanType } from '@/api/billing.api';
 import { OnCallTab } from './OnCallTab';
+import { AuditLogTab } from './AuditLogTab';
 
 export function SettingsView() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
   const { data: orgs } = useOrganizations();
   const currentOrg = orgs?.find((o) => o.id === currentOrgId);
 
-  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account' | 'oncall'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account' | 'oncall' | 'audit'>('general');
 
   // General tab state
   const [orgName, setOrgName] = useState('');
@@ -229,6 +230,17 @@ export function SettingsView() {
           <div className="flex items-center space-x-2">
             <UserCog className="h-4 w-4" />
             <span>Account</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('audit')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'audit' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            <FileText className="h-4 w-4" />
+            <span>Audit Log</span>
           </div>
         </button>
       </div>
@@ -568,6 +580,8 @@ export function SettingsView() {
             </Card>
           </div>
         )}
+
+        {activeTab === 'audit' && currentOrgId && <AuditLogTab orgId={currentOrgId} />}
       </div>
     </div>
   );
