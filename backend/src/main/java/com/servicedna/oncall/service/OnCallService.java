@@ -17,6 +17,7 @@ import com.servicedna.organization.service.OrganizationService;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,20 @@ public class OnCallService {
         .findByOrganizationId(organizationId)
         .map(this::mapToDto)
         .orElse(new OnCallRotationDto(7, LocalDate.now(), List.of(), null, null));
+  }
+
+  /**
+   * Internal lookup for other services (e.g. paging whoever's on call when a severe incident is
+   * reported) — unlike {@link #getRotation}, this doesn't check the caller's org membership,
+   * since callers here already act within a request already scoped to the organization.
+   */
+  @Transactional(readOnly = true)
+  public Optional<String> getCurrentOnCallEmail(UUID organizationId) {
+    return onCallRotationRepository
+        .findByOrganizationId(organizationId)
+        .map(this::mapToDto)
+        .map(OnCallRotationDto::currentOnCall)
+        .map(OnCallMemberDto::email);
   }
 
   @Transactional

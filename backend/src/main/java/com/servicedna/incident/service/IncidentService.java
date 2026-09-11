@@ -1,9 +1,11 @@
 package com.servicedna.incident.service;
 
 import com.servicedna.common.exception.ApiException;
+import com.servicedna.common.mail.MailService;
 import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 import com.servicedna.incident.domain.Incident;
 import com.servicedna.incident.domain.IncidentPostMortem;
+import com.servicedna.incident.domain.IncidentSeverity;
 import com.servicedna.incident.domain.IncidentStatus;
 import com.servicedna.incident.dto.CreateIncidentRequest;
 import com.servicedna.incident.dto.IncidentDto;
@@ -12,6 +14,7 @@ import com.servicedna.incident.dto.UpdateIncidentStatusRequest;
 import com.servicedna.incident.dto.UpsertPostMortemRequest;
 import com.servicedna.incident.repository.IncidentPostMortemRepository;
 import com.servicedna.incident.repository.IncidentRepository;
+import com.servicedna.oncall.service.OnCallService;
 import com.servicedna.organization.domain.Organization;
 import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.organization.service.OrganizationService;
@@ -27,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,8 +44,11 @@ public class IncidentService {
   private final OrganizationRepository organizationRepository;
   private final UserRepository userRepository;
   private final OrganizationService organizationService;
+  private final OnCallService onCallService;
+  private final MailService mailService;
   private final ApplicationEventPublisher eventPublisher;
   private final MeterRegistry meterRegistry;
+  private final String frontendUrl;
 
   public IncidentService(
       IncidentRepository incidentRepository,
@@ -50,16 +57,22 @@ public class IncidentService {
       OrganizationRepository organizationRepository,
       UserRepository userRepository,
       OrganizationService organizationService,
+      OnCallService onCallService,
+      MailService mailService,
       ApplicationEventPublisher eventPublisher,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      @Value("${frontend.url}") String frontendUrl) {
     this.incidentRepository = incidentRepository;
     this.postMortemRepository = postMortemRepository;
     this.serviceRepository = serviceRepository;
     this.organizationRepository = organizationRepository;
     this.userRepository = userRepository;
     this.organizationService = organizationService;
+    this.onCallService = onCallService;
+    this.mailService = mailService;
     this.eventPublisher = eventPublisher;
     this.meterRegistry = meterRegistry;
+    this.frontendUrl = frontendUrl;
   }
 
   @Transactional
@@ -112,7 +125,38 @@ public class IncidentService {
 
     incident = incidentRepository.save(incident);
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+    notifyOnCallIfSevere(incident);
     return mapToDto(incident);
+  }
+
+  /**
+   * Pages whoever's currently on call for CRITICAL/MAJOR incidents — without this, the on-call
+   * rotation is purely informational and nobody actually gets notified when something serious
+   * happens. MINOR/LOW incidents don't page to avoid alert fatigue.
+   */
+  private void notifyOnCallIfSevere(Incident incident) {
+    if (incident.getSeverity() != IncidentSeverity.CRITICAL
+        && incident.getSeverity() != IncidentSeverity.MAJOR) {
+      return;
+    }
+
+    onCallService
+        .getCurrentOnCallEmail(incident.getOrganization().getId())
+        .ifPresent(
+            email -> {
+              String link = frontendUrl + "/incidents/" + incident.getId();
+              mailService.send(
+                  email,
+                  "[" + incident.getSeverity() + "] " + incident.getTitle(),
+                  "You're currently on call and a new "
+                      + incident.getSeverity()
+                      + " incident was just reported:\n\n"
+                      + incident.getTitle()
+                      + "\n\n"
+                      + incident.getDescription()
+                      + "\n\n"
+                      + link);
+            });
   }
 
   @Transactional(readOnly = true)
