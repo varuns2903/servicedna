@@ -191,6 +191,26 @@ npm run test:e2e
 
 ---
 
+## 🐳 Run Everything with Docker
+
+Prefer not to install Java or Node locally? `docker-compose.yml` also builds and runs the backend
+and frontend themselves, not just the infrastructure:
+
+```bash
+cp backend/.env.example .env   # fill in JWT_SECRET at minimum
+docker-compose up -d --build
+```
+
+This builds and starts **everything** — Postgres, Redis, Kafka, Zipkin, the Spring Boot API, and
+the frontend served by nginx. The app is available at `http://localhost:5173` and the API at
+`http://localhost:8080`. `JWT_SECRET` is the only variable docker-compose refuses to default —
+everything else (GitHub OAuth, SSO, SMTP, Stripe) is optional and can be left unset.
+
+To rebuild after pulling changes: `docker-compose up -d --build`. To stop everything:
+`docker-compose down` (add `-v` to also drop the Postgres volume).
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -219,7 +239,7 @@ servicedna/
 │   │   └── stores/         # Zustand stores (auth, org, UI)
 │   ├── tests/              # Playwright E2E tests
 │   └── playwright.config.ts
-├── docker-compose.yml      # Local infrastructure
+├── docker-compose.yml      # Infra + backend + frontend containers
 ├── API.md                  # API reference
 ├── ARCHITECTURE.md         # System architecture docs
 ├── CONTRIBUTING.md         # Contribution guidelines

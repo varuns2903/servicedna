@@ -59,5 +59,51 @@ services:
     ports:
       - "${ZIPKIN_PORT:-9411}:9411"
 
+  backend:
+    build: ./backend
+    container_name: servicedna-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-servicedna}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set — see backend/.env.example}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-dummy-id}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-dummy-secret}
+      OIDC_ISSUER_URI: ${OIDC_ISSUER_URI:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080/api/v1}
+        VITE_AUTH_LOGIN_URL: ${VITE_AUTH_LOGIN_URL:-http://localhost:8080/oauth2/authorization/github}
+        VITE_SSO_LOGIN_URL: ${VITE_SSO_LOGIN_URL:-http://localhost:8080/oauth2/authorization/oidc}
+    container_name: servicedna-frontend
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+
 volumes:
   pgdata:
