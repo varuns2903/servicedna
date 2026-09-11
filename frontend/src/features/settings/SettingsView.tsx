@@ -216,15 +216,15 @@ export function SettingsView() {
   if (!currentOrg) return <div className="p-8 text-gray-400">Loading settings...</div>;
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 space-y-6 md:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-white">Settings</h1>
       </div>
 
-      <div className="flex space-x-4 border-b border-charcoal-700">
+      <div className="flex space-x-4 overflow-x-auto border-b border-charcoal-700 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button
           onClick={() => setActiveTab('general')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+          className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'general' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -235,7 +235,7 @@ export function SettingsView() {
         </button>
         <button
           onClick={() => setActiveTab('members')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+          className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'members' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -246,7 +246,7 @@ export function SettingsView() {
         </button>
         <button
           onClick={() => setActiveTab('oncall')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+          className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'oncall' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -257,7 +257,7 @@ export function SettingsView() {
         </button>
         <button
           onClick={() => setActiveTab('escalation')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+          className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'escalation' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -268,7 +268,7 @@ export function SettingsView() {
         </button>
         <button
           onClick={() => setActiveTab('billing')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+          className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'billing' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -279,7 +279,7 @@ export function SettingsView() {
         </button>
         <button
           onClick={() => setActiveTab('account')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+          className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'account' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -290,7 +290,7 @@ export function SettingsView() {
         </button>
         <button
           onClick={() => setActiveTab('audit')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+          className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'audit' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -335,7 +335,7 @@ export function SettingsView() {
                 <CardTitle>Invite New Member</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSendInvite} className="flex items-end space-x-4">
+                <form onSubmit={handleSendInvite} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-4">
                   <div className="flex-1">
                     <label className="block text-sm text-gray-400 mb-1">Email Address</label>
                     <input
@@ -347,7 +347,7 @@ export function SettingsView() {
                       className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
                     />
                   </div>
-                  <div className="w-48">
+                  <div className="sm:w-48">
                     <label className="block text-sm text-gray-400 mb-1">Role</label>
                     <select
                       value={inviteRole}
@@ -359,7 +359,7 @@ export function SettingsView() {
                       <option value="VIEWER">Viewer</option>
                     </select>
                   </div>
-                  <Button type="submit" disabled={createInvite.isPending} className="flex items-center space-x-2">
+                  <Button type="submit" disabled={createInvite.isPending} className="flex items-center justify-center space-x-2">
                     <Send className="h-4 w-4" />
                     <span>Send Invite</span>
                   </Button>
@@ -367,7 +367,7 @@ export function SettingsView() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <Card>
                 <CardHeader>
                   <CardTitle>Active Members</CardTitle>
@@ -461,7 +461,7 @@ export function SettingsView() {
           <div className="space-y-6 max-w-5xl">
             <Card className="border-emerald-500/30">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="text-lg font-medium text-white mb-1">Current Subscription</h3>
                     {loadingSubscription ? (
@@ -482,7 +482,7 @@ export function SettingsView() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <Card className="flex flex-col">
                 <CardHeader>
                   <CardTitle className="text-xl">Free</CardTitle>

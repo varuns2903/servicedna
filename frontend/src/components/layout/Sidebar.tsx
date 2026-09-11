@@ -1,6 +1,6 @@
 
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Server, Network, AlertTriangle, BellRing, Settings, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Server, Network, AlertTriangle, BellRing, Settings, Activity, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useUIStore } from '@/stores/useUIStore';
 import { cn } from '@/utils/cn';
 
@@ -14,51 +14,75 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar, mobileSidebarOpen, setMobileSidebarOpen } = useUIStore();
 
   return (
-    <aside
-      className={cn(
-        'relative flex h-full flex-col border-r border-charcoal-700 bg-charcoal-800 transition-all duration-300',
-        sidebarCollapsed ? 'w-16' : 'w-64'
+    <>
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
       )}
-    >
-      <div className="flex h-14 items-center justify-between border-b border-charcoal-700 px-4">
-        <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
-          <Activity className="h-6 w-6 shrink-0 text-emerald-400" />
-          {!sidebarCollapsed && <span className="font-semibold tracking-tight text-white">ServiceDNA</span>}
-        </div>
-      </div>
 
-      <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.path}
-            className={({ isActive }) =>
-              cn(
-                'group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-charcoal-700 text-white'
-                  : 'text-gray-400 hover:bg-charcoal-700/50 hover:text-white'
-              )
-            }
-            title={sidebarCollapsed ? item.name : undefined}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex h-full flex-col border-r border-charcoal-700 bg-charcoal-800 transition-transform duration-300 md:static md:z-auto md:translate-x-0 md:transition-[width]',
+          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          sidebarCollapsed ? 'w-64 md:w-16' : 'w-64'
+        )}
+      >
+        <div className="flex h-14 items-center justify-between border-b border-charcoal-700 px-4">
+          <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
+            <Activity className="h-6 w-6 shrink-0 text-emerald-400" />
+            {(!sidebarCollapsed || mobileSidebarOpen) && (
+              <span className="font-semibold tracking-tight text-white">ServiceDNA</span>
+            )}
+          </div>
+          <button
+            onClick={() => setMobileSidebarOpen(false)}
+            className="rounded-md p-1 text-gray-400 hover:text-white md:hidden"
           >
-            <item.icon className={cn('h-5 w-5 shrink-0', sidebarCollapsed ? 'mx-auto' : 'mr-3')} />
-            {!sidebarCollapsed && <span>{item.name}</span>}
-          </NavLink>
-        ))}
-      </nav>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-      <div className="border-t border-charcoal-700 p-2">
-        <button
-          onClick={toggleSidebar}
-          className="flex w-full items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-charcoal-700 hover:text-white"
-        >
-          {sidebarCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-        </button>
-      </div>
-    </aside>
+        <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.path}
+              onClick={() => setMobileSidebarOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  'group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-charcoal-700 text-white'
+                    : 'text-gray-400 hover:bg-charcoal-700/50 hover:text-white'
+                )
+              }
+              title={sidebarCollapsed && !mobileSidebarOpen ? item.name : undefined}
+            >
+              <item.icon
+                className={cn(
+                  'h-5 w-5 shrink-0',
+                  sidebarCollapsed && !mobileSidebarOpen ? 'md:mx-auto md:mr-0 mr-3' : 'mr-3'
+                )}
+              />
+              {(!sidebarCollapsed || mobileSidebarOpen) && <span>{item.name}</span>}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="border-t border-charcoal-700 p-2">
+          <button
+            onClick={toggleSidebar}
+            className="hidden w-full items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-charcoal-700 hover:text-white md:flex"
+          >
+            {sidebarCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

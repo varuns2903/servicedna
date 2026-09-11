@@ -55,12 +55,12 @@ export function IncidentDetails() {
   };
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center space-x-4">
+    <div className="p-4 space-y-6 md:p-8">
+      <div className="flex flex-wrap items-center gap-3">
         <Link to="/incidents" className="text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-2xl font-semibold text-white">Incident: {incident.title}</h1>
+        <h1 className="text-xl font-semibold text-white sm:text-2xl">Incident: {incident.title}</h1>
         <Badge variant={incident.severity === 'CRITICAL' ? 'danger' : incident.severity === 'MAJOR' ? 'warning' : 'default'}>
           {incident.severity}
         </Badge>
@@ -69,8 +69,8 @@ export function IncidentDetails() {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>Description</CardTitle>

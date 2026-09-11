@@ -6,6 +6,9 @@ interface UIState {
   toggleCommandPalette: () => void;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  mobileSidebarOpen: boolean;
+  setMobileSidebarOpen: (open: boolean) => void;
+  toggleMobileSidebar: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -14,4 +17,7 @@ export const useUIStore = create<UIState>((set) => ({
   toggleCommandPalette: () => set((state) => ({ isCommandPaletteOpen: !state.isCommandPaletteOpen })),
   sidebarCollapsed: false,
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  mobileSidebarOpen: false,
+  setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
+  toggleMobileSidebar: () => set((state) => ({ mobileSidebarOpen: !state.mobileSidebarOpen })),
 }));

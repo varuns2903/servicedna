@@ -60,8 +60,8 @@ export function IncidentList() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 space-y-6 md:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-white">Incidents</h1>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -69,8 +69,8 @@ export function IncidentList() {
         </Button>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="relative w-72">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <Input
             placeholder="Search incidents..."
@@ -105,7 +105,7 @@ export function IncidentList() {
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="flex items-center space-x-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
           <span className="text-sm text-gray-200">{selectedIds.length} selected</span>
           <select
             value={bulkStatus}
@@ -145,17 +145,17 @@ export function IncidentList() {
         ) : (
           filteredIncidents?.map((incident) => (
             <Card key={incident.id} className="hover:border-charcoal-600 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start space-x-3 min-w-0">
                     <input
                       type="checkbox"
-                      className="mt-1.5 rounded border-charcoal-600 bg-charcoal-900 text-emerald-500 focus:ring-emerald-500"
+                      className="mt-1.5 shrink-0 rounded border-charcoal-600 bg-charcoal-900 text-emerald-500 focus:ring-emerald-500"
                       checked={selectedIds.includes(incident.id)}
                       onChange={() => toggleSelected(incident.id)}
                     />
-                    <Link to={`/incidents/${incident.id}`} className="block hover:opacity-90">
-                      <div className="flex items-center space-x-3 mb-2">
+                    <Link to={`/incidents/${incident.id}`} className="block min-w-0 hover:opacity-90">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <h3 className="text-lg font-medium text-white">{incident.title}</h3>
                         <Badge variant={incident.severity === 'CRITICAL' ? 'danger' : incident.severity === 'MAJOR' ? 'warning' : 'default'}>
                           {incident.severity}
@@ -167,8 +167,8 @@ export function IncidentList() {
                       <p className="text-gray-400 line-clamp-2">{incident.description}</p>
                     </Link>
                   </div>
-                  <div className="text-right text-sm text-gray-500">
-                    <div className="flex items-center justify-end space-x-1">
+                  <div className="shrink-0 text-sm text-gray-500 sm:text-right">
+                    <div className="flex items-center space-x-1 sm:justify-end">
                       <Clock className="h-4 w-4" />
                       <span>{formatDistanceToNow(new Date(incident.createdAt), { addSuffix: true })}</span>
                     </div>
