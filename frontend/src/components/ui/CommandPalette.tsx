@@ -4,18 +4,20 @@ import { Command } from 'cmdk';
 import { useUIStore } from '@/stores/useUIStore';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { useServices } from '@/hooks/useServices';
-import { useIncidents } from '@/hooks/useIncidents';
-import { Search, Server, AlertTriangle, Settings, LayoutDashboard, Share2 } from 'lucide-react';
+import { useIncidents, useAcknowledgeIncident, useUpdateIncidentStatus } from '@/hooks/useIncidents';
+import { Search, Server, AlertTriangle, Settings, LayoutDashboard, Share2, CheckCheck, CheckCircle2 } from 'lucide-react';
 
 export function CommandPalette() {
   const { isCommandPaletteOpen, setCommandPaletteOpen, toggleCommandPalette } = useUIStore();
   const navigate = useNavigate();
   const orgId = useOrganizationStore((state) => state.selectedOrganizationId);
-  
+
   // These hooks already use the orgId from the store internally
   const { data: services } = useServices();
   const { data: incidents } = useIncidents(orgId || undefined);
-  
+  const acknowledgeIncident = useAcknowledgeIncident();
+  const updateIncidentStatus = useUpdateIncidentStatus();
+
   const [searchValue, setSearchValue] = useState('');
 
   // Toggle the menu when ⌘K is pressed
@@ -114,6 +116,45 @@ export function CommandPalette() {
                   >
                     <AlertTriangle className="w-4 h-4 mr-3 text-amber-500" /> {incident.title}
                   </Command.Item>
+                ))}
+              </Command.Group>
+            )}
+
+            {orgId && incidents && incidents.some((i) => !i.acknowledgedAt || i.status !== 'RESOLVED') && (
+              <Command.Group heading="Quick Actions" className="text-xs font-semibold text-gray-500 px-2 py-3 uppercase tracking-wider border-t border-charcoal-700 mt-2">
+                {incidents.map((incident) => (
+                  <div key={incident.id}>
+                    {!incident.acknowledgedAt && (
+                      <Command.Item
+                        value={`acknowledge ack ${incident.title}`}
+                        onSelect={() =>
+                          runCommand(() =>
+                            acknowledgeIncident.mutate({ orgId, incidentId: incident.id })
+                          )
+                        }
+                        className="flex items-center px-3 py-2 text-sm text-gray-200 rounded-md cursor-pointer hover:bg-emerald-500/10 hover:text-emerald-400 aria-selected:bg-emerald-500/10 aria-selected:text-emerald-400"
+                      >
+                        <CheckCheck className="w-4 h-4 mr-3 text-emerald-400" /> Acknowledge &ldquo;{incident.title}&rdquo;
+                      </Command.Item>
+                    )}
+                    {incident.status !== 'RESOLVED' && (
+                      <Command.Item
+                        value={`resolve ${incident.title}`}
+                        onSelect={() =>
+                          runCommand(() =>
+                            updateIncidentStatus.mutate({
+                              orgId,
+                              incidentId: incident.id,
+                              data: { status: 'RESOLVED' },
+                            })
+                          )
+                        }
+                        className="flex items-center px-3 py-2 text-sm text-gray-200 rounded-md cursor-pointer hover:bg-emerald-500/10 hover:text-emerald-400 aria-selected:bg-emerald-500/10 aria-selected:text-emerald-400"
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-3 text-emerald-400" /> Mark &ldquo;{incident.title}&rdquo; resolved
+                      </Command.Item>
+                    )}
+                  </div>
                 ))}
               </Command.Group>
             )}
