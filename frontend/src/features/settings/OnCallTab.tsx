@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useOnCallRotation, useUpsertOnCallRotation } from '@/hooks/useOnCall';
+import { OnCallCalendar } from './OnCallCalendar';
 import type { OrganizationMemberDto } from '@/api/organizations.api';
 
 interface OnCallTabProps {
@@ -74,7 +75,7 @@ export function OnCallTab({ orgId, members }: OnCallTabProps) {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center space-x-3">
@@ -211,6 +212,8 @@ export function OnCallTab({ orgId, members }: OnCallTabProps) {
           </div>
         </CardContent>
       </Card>
+
+      {rotation && <OnCallCalendar rotation={rotation} />}
     </div>
   );
 }
