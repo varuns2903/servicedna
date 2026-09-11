@@ -10,6 +10,23 @@ export function useSsoConfig() {
   });
 }
 
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: ['auth', 'notification-preferences'],
+    queryFn: AuthApi.getNotificationPreferences,
+  });
+}
+
+export function useUpdateNotificationPreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: AuthApi.updateNotificationPreferences,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['auth', 'notification-preferences'], data);
+    },
+  });
+}
+
 export function useLogin() {
   const { setToken, setRefreshToken, setUser } = useAuthStore();
   return useMutation({

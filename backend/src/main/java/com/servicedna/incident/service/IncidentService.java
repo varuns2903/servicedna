@@ -16,6 +16,8 @@ import com.servicedna.incident.repository.IncidentPostMortemRepository;
 import com.servicedna.incident.repository.IncidentRepository;
 import com.servicedna.oncall.service.OnCallService;
 import com.servicedna.organization.domain.Organization;
+import com.servicedna.organization.domain.OrganizationMember;
+import com.servicedna.organization.repository.OrganizationMemberRepository;
 import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.organization.service.OrganizationService;
 import com.servicedna.service.domain.Service;
@@ -42,6 +44,7 @@ public class IncidentService {
   private final IncidentPostMortemRepository postMortemRepository;
   private final ServiceRepository serviceRepository;
   private final OrganizationRepository organizationRepository;
+  private final OrganizationMemberRepository organizationMemberRepository;
   private final UserRepository userRepository;
   private final OrganizationService organizationService;
   private final OnCallService onCallService;
@@ -55,6 +58,7 @@ public class IncidentService {
       IncidentPostMortemRepository postMortemRepository,
       ServiceRepository serviceRepository,
       OrganizationRepository organizationRepository,
+      OrganizationMemberRepository organizationMemberRepository,
       UserRepository userRepository,
       OrganizationService organizationService,
       OnCallService onCallService,
@@ -66,6 +70,7 @@ public class IncidentService {
     this.postMortemRepository = postMortemRepository;
     this.serviceRepository = serviceRepository;
     this.organizationRepository = organizationRepository;
+    this.organizationMemberRepository = organizationMemberRepository;
     this.userRepository = userRepository;
     this.organizationService = organizationService;
     this.onCallService = onCallService;
@@ -126,7 +131,33 @@ public class IncidentService {
     incident = incidentRepository.save(incident);
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
     notifyOnCallIfSevere(incident);
+    notifyOptedInMembers(incident, user);
     return mapToDto(incident);
+  }
+
+  /**
+   * Separate from on-call paging: this is opt-in visibility for members who aren't on call but
+   * want to know about incidents regardless of severity (e.g. a manager), not an alerting path,
+   * so it isn't gated to CRITICAL/MAJOR the way on-call paging is.
+   */
+  private void notifyOptedInMembers(Incident incident, User creator) {
+    for (OrganizationMember member :
+        organizationMemberRepository.findByOrganizationId(incident.getOrganization().getId())) {
+      User user = member.getUser();
+      if (!user.isNotifyOnNewIncident() || user.getId().equals(creator.getId())) {
+        continue;
+      }
+      String link = frontendUrl + "/incidents/" + incident.getId();
+      mailService.send(
+          user.getEmail(),
+          "[" + incident.getSeverity() + "] " + incident.getTitle(),
+          "A new incident was reported in your organization:\n\n"
+              + incident.getTitle()
+              + "\n\n"
+              + incident.getDescription()
+              + "\n\n"
+              + link);
+    }
   }
 
   /**

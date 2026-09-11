@@ -12,7 +12,12 @@ import {
 } from '@/hooks/useOrganizations';
 import { useUser } from '@/hooks/useUser';
 import { useSubscription, useCreateCheckoutSession } from '@/hooks/useBilling';
-import { useChangePassword, useRequestEmailChange } from '@/hooks/useAuth';
+import {
+  useChangePassword,
+  useRequestEmailChange,
+  useNotificationPreferences,
+  useUpdateNotificationPreferences,
+} from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -107,6 +112,8 @@ export function SettingsView() {
   // Account Tab state
   const changePassword = useChangePassword();
   const requestEmailChange = useRequestEmailChange();
+  const { data: notificationPreferences } = useNotificationPreferences();
+  const updateNotificationPreferences = useUpdateNotificationPreferences();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -590,6 +597,32 @@ export function SettingsView() {
                     </Button>
                   </div>
                 </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Notification Preferences</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <label className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-200">Email me about new incidents</p>
+                    <p className="text-xs text-gray-500">
+                      Get notified whenever any incident is reported in your organizations, regardless
+                      of severity or whether you're on call.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="ml-4 h-5 w-5 shrink-0 rounded border-charcoal-600 bg-charcoal-900 text-emerald-500 focus:ring-emerald-500"
+                    checked={notificationPreferences?.notifyOnNewIncident || false}
+                    onChange={(e) =>
+                      updateNotificationPreferences.mutate({ notifyOnNewIncident: e.target.checked })
+                    }
+                    disabled={updateNotificationPreferences.isPending}
+                  />
+                </label>
               </CardContent>
             </Card>
           </div>

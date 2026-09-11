@@ -17,6 +17,10 @@ export interface SsoConfigDto {
   oidcEnabled: boolean;
 }
 
+export interface NotificationPreferencesDto {
+  notifyOnNewIncident: boolean;
+}
+
 export const AuthApi = {
   getMe: async (): Promise<UserDto> => {
     const { data } = await apiClient.get<UserDto>('/auth/me');
@@ -78,5 +82,22 @@ export const AuthApi = {
 
   logout: async (refreshToken: string): Promise<void> => {
     await apiClient.post('/auth/logout', { refreshToken });
+  },
+
+  getNotificationPreferences: async (): Promise<NotificationPreferencesDto> => {
+    const { data } = await apiClient.get<NotificationPreferencesDto>(
+      '/users/me/notification-preferences'
+    );
+    return data;
+  },
+
+  updateNotificationPreferences: async (
+    preferences: NotificationPreferencesDto
+  ): Promise<NotificationPreferencesDto> => {
+    const { data } = await apiClient.patch<NotificationPreferencesDto>(
+      '/users/me/notification-preferences',
+      preferences
+    );
+    return data;
   },
 };

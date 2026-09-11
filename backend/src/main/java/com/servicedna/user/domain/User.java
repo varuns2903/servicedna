@@ -30,6 +30,9 @@ public class User {
   @Column(name = "email_verified", nullable = false)
   private boolean emailVerified = true;
 
+  @Column(name = "notify_on_new_incident", nullable = false)
+  private boolean notifyOnNewIncident = false;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -85,6 +88,14 @@ public class User {
 
   public void setEmailVerified(boolean emailVerified) {
     this.emailVerified = emailVerified;
+  }
+
+  public boolean isNotifyOnNewIncident() {
+    return notifyOnNewIncident;
+  }
+
+  public void setNotifyOnNewIncident(boolean notifyOnNewIncident) {
+    this.notifyOnNewIncident = notifyOnNewIncident;
   }
 
   public OffsetDateTime getCreatedAt() {
