@@ -17,10 +17,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone, FileText } from 'lucide-react';
+import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone, FileText, AlertTriangle } from 'lucide-react';
 import type { OrganizationRole } from '@/api/organizations.api';
 import type { PlanType } from '@/api/billing.api';
 import { OnCallTab } from './OnCallTab';
+import { EscalationTab } from './EscalationTab';
 import { AuditLogTab } from './AuditLogTab';
 
 export function SettingsView() {
@@ -28,7 +29,7 @@ export function SettingsView() {
   const { data: orgs } = useOrganizations();
   const currentOrg = orgs?.find((o) => o.id === currentOrgId);
 
-  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account' | 'oncall' | 'audit'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account' | 'oncall' | 'escalation' | 'audit'>('general');
 
   // General tab state
   const [orgName, setOrgName] = useState('');
@@ -208,6 +209,17 @@ export function SettingsView() {
           <div className="flex items-center space-x-2">
             <Phone className="h-4 w-4" />
             <span>On-Call</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('escalation')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'escalation' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span>Escalation</span>
           </div>
         </button>
         <button
@@ -398,6 +410,8 @@ export function SettingsView() {
         )}
 
         {activeTab === 'oncall' && currentOrgId && <OnCallTab orgId={currentOrgId} members={members} />}
+
+        {activeTab === 'escalation' && currentOrgId && <EscalationTab orgId={currentOrgId} />}
 
         {activeTab === 'billing' && (
           <div className="space-y-6 max-w-5xl">

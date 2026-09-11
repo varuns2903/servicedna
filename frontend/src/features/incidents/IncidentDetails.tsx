@@ -1,10 +1,16 @@
 import { useParams, Link } from 'react-router-dom';
-import { useIncident, useIncidentPostMortem, useUpdateIncidentStatus, useUpsertPostMortem } from '@/hooks/useIncidents';
+import {
+  useIncident,
+  useIncidentPostMortem,
+  useUpdateIncidentStatus,
+  useUpsertPostMortem,
+  useAcknowledgeIncident,
+} from '@/hooks/useIncidents';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, CheckCheck } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { IncidentStatus } from '@/api/incidents.api';
 
@@ -13,9 +19,10 @@ export function IncidentDetails() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
   const { data: incident, isLoading } = useIncident(currentOrgId || undefined, id);
   const { data: postMortem } = useIncidentPostMortem(currentOrgId || undefined, id);
-  
+
   const updateStatus = useUpdateIncidentStatus();
   const upsertPostMortem = useUpsertPostMortem();
+  const acknowledgeIncident = useAcknowledgeIncident();
 
   const [pmContent, setPmContent] = useState('');
 
@@ -38,6 +45,12 @@ export function IncidentDetails() {
   const handleSavePostMortem = () => {
     if (currentOrgId && id) {
       upsertPostMortem.mutate({ orgId: currentOrgId, incidentId: id, data: { content: pmContent } });
+    }
+  };
+
+  const handleAcknowledge = () => {
+    if (currentOrgId && id) {
+      acknowledgeIncident.mutate({ orgId: currentOrgId, incidentId: id });
     }
   };
 
@@ -98,8 +111,29 @@ export function IncidentDetails() {
               <CardTitle>Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
-                variant="outline" 
+              {incident.acknowledgedAt ? (
+                <div className="flex items-center space-x-2 rounded-md border border-emerald-500/20 bg-emerald-500/10 p-2 text-xs text-emerald-400">
+                  <CheckCheck className="h-4 w-4 shrink-0" />
+                  <span>Acknowledged {new Date(incident.acknowledgedAt).toLocaleString()}</span>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={handleAcknowledge}
+                  disabled={acknowledgeIncident.isPending}
+                >
+                  <CheckCheck className="mr-2 h-4 w-4" />
+                  {acknowledgeIncident.isPending ? 'Acknowledging...' : 'Acknowledge'}
+                </Button>
+              )}
+              {incident.escalatedAt && (
+                <div className="rounded-md border border-amber-500/20 bg-amber-500/10 p-2 text-xs text-amber-400">
+                  Escalated {new Date(incident.escalatedAt).toLocaleString()}
+                </div>
+              )}
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => handleStatusChange('INVESTIGATING')}
                 disabled={incident.status === 'INVESTIGATING'}

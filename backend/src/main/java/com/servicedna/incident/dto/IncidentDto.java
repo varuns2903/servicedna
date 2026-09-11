@@ -16,6 +16,8 @@ public record IncidentDto(
     IncidentSeverity severity,
     List<UUID> affectedServiceIds,
     OffsetDateTime resolvedAt,
+    OffsetDateTime acknowledgedAt,
+    OffsetDateTime escalatedAt,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt)
     implements java.io.Serializable {}

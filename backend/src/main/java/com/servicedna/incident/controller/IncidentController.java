@@ -68,6 +68,15 @@ public class IncidentController {
             orgId, incidentId, request, userDetails.getUser().getId()));
   }
 
+  @PostMapping("/{incidentId}/acknowledge")
+  public ResponseEntity<IncidentDto> acknowledgeIncident(
+      @PathVariable UUID orgId,
+      @PathVariable UUID incidentId,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(
+        incidentService.acknowledgeIncident(orgId, incidentId, userDetails.getUser().getId()));
+  }
+
   @PutMapping("/{incidentId}/post-mortem")
   public ResponseEntity<PostMortemDto> upsertPostMortem(
       @PathVariable UUID orgId,

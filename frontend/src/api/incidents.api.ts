@@ -13,6 +13,8 @@ export interface IncidentDto {
   severity: IncidentSeverity;
   affectedServiceIds: string[];
   resolvedAt: string | null;
+  acknowledgedAt: string | null;
+  escalatedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +61,11 @@ export const IncidentsApi = {
 
   updateStatus: async (orgId: string, incidentId: string, data: UpdateIncidentStatusRequest) => {
     const res = await apiClient.patch<IncidentDto>(`/organizations/${orgId}/incidents/${incidentId}/status`, data);
+    return res.data;
+  },
+
+  acknowledge: async (orgId: string, incidentId: string) => {
+    const res = await apiClient.post<IncidentDto>(`/organizations/${orgId}/incidents/${incidentId}/acknowledge`);
     return res.data;
   },
 

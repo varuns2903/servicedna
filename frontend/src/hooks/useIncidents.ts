@@ -50,6 +50,18 @@ export function useUpdateIncidentStatus() {
   });
 }
 
+export function useAcknowledgeIncident() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, incidentId }: { orgId: string; incidentId: string }) =>
+      IncidentsApi.acknowledge(orgId, incidentId),
+    onSuccess: (data, { orgId, incidentId }) => {
+      queryClient.setQueryData(['organizations', orgId, 'incidents', incidentId], data);
+      queryClient.invalidateQueries({ queryKey: ['organizations', orgId, 'incidents'] });
+    },
+  });
+}
+
 export function useUpsertPostMortem() {
   const queryClient = useQueryClient();
   return useMutation({

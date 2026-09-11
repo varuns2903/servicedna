@@ -59,6 +59,12 @@ public class Incident {
   @Column(name = "resolved_at")
   private OffsetDateTime resolvedAt;
 
+  @Column(name = "acknowledged_at")
+  private OffsetDateTime acknowledgedAt;
+
+  @Column(name = "escalated_at")
+  private OffsetDateTime escalatedAt;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -155,6 +161,22 @@ public class Incident {
 
   public void setResolvedAt(OffsetDateTime resolvedAt) {
     this.resolvedAt = resolvedAt;
+  }
+
+  public OffsetDateTime getAcknowledgedAt() {
+    return acknowledgedAt;
+  }
+
+  public void setAcknowledgedAt(OffsetDateTime acknowledgedAt) {
+    this.acknowledgedAt = acknowledgedAt;
+  }
+
+  public OffsetDateTime getEscalatedAt() {
+    return escalatedAt;
+  }
+
+  public void setEscalatedAt(OffsetDateTime escalatedAt) {
+    this.escalatedAt = escalatedAt;
   }
 
   public OffsetDateTime getCreatedAt() {

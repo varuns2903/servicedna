@@ -119,6 +119,8 @@ public class DashboardService {
         incident.getSeverity(),
         affectedServiceIds,
         incident.getResolvedAt(),
+        incident.getAcknowledgedAt(),
+        incident.getEscalatedAt(),
         incident.getCreatedAt(),
         incident.getUpdatedAt());
   }

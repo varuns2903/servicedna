@@ -210,6 +210,26 @@ public class IncidentService {
     return mapToDto(incident);
   }
 
+  /** Any org member can acknowledge — this stops the escalation job from paging past them. */
+  @Transactional
+  public IncidentDto acknowledgeIncident(UUID organizationId, UUID incidentId, UUID userId) {
+    organizationService.validateUserAccess(organizationId, userId);
+
+    Incident incident =
+        incidentRepository
+            .findByOrganizationIdAndId(organizationId, incidentId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND, "INCIDENT_NOT_FOUND", "Incident not found"));
+
+    if (incident.getAcknowledgedAt() == null) {
+      incident.setAcknowledgedAt(OffsetDateTime.now());
+      incident = incidentRepository.save(incident);
+    }
+    return mapToDto(incident);
+  }
+
   @Transactional
   public PostMortemDto upsertPostMortem(
       UUID organizationId, UUID incidentId, UpsertPostMortemRequest request, UUID userId) {
@@ -301,6 +321,8 @@ public class IncidentService {
         incident.getSeverity(),
         affectedServiceIds,
         incident.getResolvedAt(),
+        incident.getAcknowledgedAt(),
+        incident.getEscalatedAt(),
         incident.getCreatedAt(),
         incident.getUpdatedAt());
   }
