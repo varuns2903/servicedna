@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Search, LogOut, Wifi, WifiOff, Plus } from 'lucide-react';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@/hooks/useUser';
+import { useLogout } from '@/hooks/useAuth';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { useWebSocket } from '@/providers/WebSocketProvider';
@@ -10,7 +10,7 @@ import { useUIStore } from "@/stores/useUIStore";
 import { CreateOrganizationModal } from '@/features/organizations/CreateOrganizationModal';
 
 export function TopBar() {
-  const { logout } = useAuthStore();
+  const logout = useLogout();
   const navigate = useNavigate();
   const { data: user } = useUser();
   const { data: organizations } = useOrganizations();
@@ -20,8 +20,7 @@ export function TopBar() {
   const [isCreateOrgOpen, setCreateOrgOpen] = useState(false);
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    logout.mutate(undefined, { onSettled: () => navigate('/login') });
   };
 
   return (

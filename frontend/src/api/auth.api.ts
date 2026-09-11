@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { apiClient } from './client';
 
 export interface UserDto {
@@ -8,6 +9,7 @@ export interface UserDto {
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: UserDto;
 }
 
@@ -62,5 +64,19 @@ export const AuthApi = {
   getSsoConfig: async (): Promise<SsoConfigDto> => {
     const { data } = await apiClient.get<SsoConfigDto>('/auth/sso-config');
     return data;
+  },
+
+  refresh: async (refreshToken: string): Promise<AuthResponse> => {
+    // Deliberately bypasses apiClient's interceptors: this IS the recovery path they'd otherwise
+    // trigger, and reusing apiClient here would risk a refresh call retrying itself.
+    const { data } = await axios.post<AuthResponse>(
+      `${apiClient.defaults.baseURL}/auth/refresh`,
+      { refreshToken }
+    );
+    return data;
+  },
+
+  logout: async (refreshToken: string): Promise<void> => {
+    await apiClient.post('/auth/logout', { refreshToken });
   },
 };

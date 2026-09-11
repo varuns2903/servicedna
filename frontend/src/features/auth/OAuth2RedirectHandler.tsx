@@ -6,16 +6,19 @@ export function OAuth2RedirectHandler() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const setToken = useAuthStore((state) => state.setToken);
+  const setRefreshToken = useAuthStore((state) => state.setRefreshToken);
 
   useEffect(() => {
     const token = searchParams.get('token');
-    if (token) {
+    const refreshToken = searchParams.get('refreshToken');
+    if (token && refreshToken) {
       setToken(token);
+      setRefreshToken(refreshToken);
       navigate('/dashboard', { replace: true });
     } else {
       navigate('/login', { replace: true });
     }
-  }, [searchParams, navigate, setToken]);
+  }, [searchParams, navigate, setToken, setRefreshToken]);
 
   return (
     <div className="flex h-full w-full items-center justify-center">

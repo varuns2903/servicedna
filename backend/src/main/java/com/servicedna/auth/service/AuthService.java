@@ -3,6 +3,7 @@ package com.servicedna.auth.service;
 import com.servicedna.auth.domain.EmailChangeToken;
 import com.servicedna.auth.domain.EmailVerificationToken;
 import com.servicedna.auth.domain.PasswordResetToken;
+import com.servicedna.auth.domain.RefreshToken;
 import com.servicedna.auth.dto.AuthResponse;
 import com.servicedna.auth.dto.ForgotPasswordRequest;
 import com.servicedna.auth.dto.LoginRequest;
@@ -11,6 +12,7 @@ import com.servicedna.auth.dto.UserDto;
 import com.servicedna.auth.repository.EmailChangeTokenRepository;
 import com.servicedna.auth.repository.EmailVerificationTokenRepository;
 import com.servicedna.auth.repository.PasswordResetTokenRepository;
+import com.servicedna.auth.repository.RefreshTokenRepository;
 import com.servicedna.auth.security.JwtService;
 import com.servicedna.common.exception.ApiException;
 import com.servicedna.common.mail.MailService;
@@ -40,8 +42,10 @@ public class AuthService {
   private final EmailVerificationTokenRepository emailVerificationTokenRepository;
   private final PasswordResetTokenRepository passwordResetTokenRepository;
   private final EmailChangeTokenRepository emailChangeTokenRepository;
+  private final RefreshTokenRepository refreshTokenRepository;
   private final MailService mailService;
   private final String frontendUrl;
+  private final long refreshExpirationMs;
   private final SecureRandom secureRandom = new SecureRandom();
 
   public AuthService(
@@ -52,8 +56,10 @@ public class AuthService {
       EmailVerificationTokenRepository emailVerificationTokenRepository,
       PasswordResetTokenRepository passwordResetTokenRepository,
       EmailChangeTokenRepository emailChangeTokenRepository,
+      RefreshTokenRepository refreshTokenRepository,
       MailService mailService,
-      @Value("${frontend.url}") String frontendUrl) {
+      @Value("${frontend.url}") String frontendUrl,
+      @Value("${JWT_REFRESH_EXPIRATION_MS:2592000000}") long refreshExpirationMs) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
@@ -61,8 +67,10 @@ public class AuthService {
     this.emailVerificationTokenRepository = emailVerificationTokenRepository;
     this.passwordResetTokenRepository = passwordResetTokenRepository;
     this.emailChangeTokenRepository = emailChangeTokenRepository;
+    this.refreshTokenRepository = refreshTokenRepository;
     this.mailService = mailService;
     this.frontendUrl = frontendUrl;
+    this.refreshExpirationMs = refreshExpirationMs;
   }
 
   @Transactional
@@ -86,12 +94,10 @@ public class AuthService {
     user = userRepository.save(user);
     sendVerificationEmail(user);
 
-    String jwtToken = jwtService.generateToken(user.getEmail(), user.getRole().name());
-
-    return new AuthResponse(
-        jwtToken, new UserDto(user.getId(), user.getEmail(), user.getRole().name()));
+    return issueTokens(user);
   }
 
+  @Transactional
   public AuthResponse login(LoginRequest request) {
     try {
       authenticationManager.authenticate(
@@ -114,10 +120,57 @@ public class AuthService {
           "Please verify your email before signing in. Check your inbox for the verification link.");
     }
 
-    String jwtToken = jwtService.generateToken(user.getEmail(), user.getRole().name());
+    return issueTokens(user);
+  }
 
+  @Transactional
+  public AuthResponse refreshAccessToken(String refreshToken) {
+    RefreshToken existing =
+        refreshTokenRepository
+            .findByToken(refreshToken)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "Refresh token is invalid."));
+
+    if (existing.getExpiresAt().isBefore(Instant.now())) {
+      refreshTokenRepository.delete(existing);
+      throw new ApiException(
+          HttpStatus.UNAUTHORIZED, "REFRESH_TOKEN_EXPIRED", "Refresh token has expired. Please sign in again.");
+    }
+
+    // Rotate on every use: issueTokens below invalidates this (and any other) existing refresh
+    // token for the user before minting a new one, so a stolen-and-replayed refresh token is
+    // invalidated the moment the legitimate client refreshes next.
+    return issueTokens(existing.getUser());
+  }
+
+  @Transactional
+  public void logout(String refreshToken) {
+    refreshTokenRepository.findByToken(refreshToken).ifPresent(refreshTokenRepository::delete);
+  }
+
+  /** Issues a fresh access + refresh token pair for an already-authenticated user. */
+  @Transactional
+  public AuthResponse issueTokens(User user) {
+    String jwtToken = jwtService.generateToken(user.getEmail(), user.getRole().name());
+    String refreshToken = issueRefreshToken(user);
     return new AuthResponse(
-        jwtToken, new UserDto(user.getId(), user.getEmail(), user.getRole().name()));
+        jwtToken, refreshToken, new UserDto(user.getId(), user.getEmail(), user.getRole().name()));
+  }
+
+  private String issueRefreshToken(User user) {
+    // One active refresh token per user: a new login/refresh supersedes any previous session's
+    // refresh token, matching this app's existing single-session assumptions elsewhere.
+    refreshTokenRepository.deleteByUserId(user.getId());
+    RefreshToken refreshToken =
+        new RefreshToken(
+            UUID.randomUUID(),
+            user,
+            generateToken(),
+            Instant.now().plusMillis(refreshExpirationMs));
+    refreshTokenRepository.save(refreshToken);
+    return refreshToken.getToken();
   }
 
   @Transactional

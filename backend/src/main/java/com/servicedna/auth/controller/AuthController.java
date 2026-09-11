@@ -3,6 +3,7 @@ package com.servicedna.auth.controller;
 import com.servicedna.auth.dto.AuthResponse;
 import com.servicedna.auth.dto.ForgotPasswordRequest;
 import com.servicedna.auth.dto.LoginRequest;
+import com.servicedna.auth.dto.RefreshTokenRequest;
 import com.servicedna.auth.dto.RegisterRequest;
 import com.servicedna.auth.dto.ResetPasswordRequest;
 import com.servicedna.auth.dto.SsoConfigDto;
@@ -47,6 +48,17 @@ public class AuthController {
   @PostMapping("/login")
   public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
     return ResponseEntity.ok(authService.login(request));
+  }
+
+  @PostMapping("/refresh")
+  public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+    return ResponseEntity.ok(authService.refreshAccessToken(request.refreshToken()));
+  }
+
+  @PostMapping("/logout")
+  public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
+    authService.logout(request.refreshToken());
+    return ResponseEntity.ok().build();
   }
 
   @GetMapping("/verify-email")

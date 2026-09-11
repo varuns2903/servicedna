@@ -11,26 +11,42 @@ export function useSsoConfig() {
 }
 
 export function useLogin() {
-  const { setToken, setUser } = useAuthStore();
+  const { setToken, setRefreshToken, setUser } = useAuthStore();
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       AuthApi.login(email, password),
     onSuccess: (data) => {
       setToken(data.token);
+      setRefreshToken(data.refreshToken);
       setUser(data.user);
     },
   });
 }
 
 export function useRegister() {
-  const { setToken, setUser } = useAuthStore();
+  const { setToken, setRefreshToken, setUser } = useAuthStore();
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       AuthApi.register(email, password),
     onSuccess: (data) => {
       setToken(data.token);
+      setRefreshToken(data.refreshToken);
       setUser(data.user);
     },
+  });
+}
+
+export function useLogout() {
+  const { refreshToken, logout } = useAuthStore();
+  return useMutation({
+    mutationFn: async () => {
+      if (refreshToken) {
+        // Best-effort: revoke server-side so the refresh token can't be replayed, but a logout
+        // must still succeed locally even if the request fails (e.g. already offline).
+        await AuthApi.logout(refreshToken).catch(() => undefined);
+      }
+    },
+    onSettled: () => logout(),
   });
 }
 

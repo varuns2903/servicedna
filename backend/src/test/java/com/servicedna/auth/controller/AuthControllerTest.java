@@ -144,6 +144,57 @@ class AuthControllerTest {
     }
 
     @Test
+    void shouldRefreshTokenAndRotateOnUse() throws Exception {
+        String email = "refresh@example.com";
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new RegisterRequest(email, "password123"))))
+                .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", verificationTokenFor(email)))
+                .andExpect(status().isOk());
+
+        String loginJson = mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new LoginRequest(email, "password123"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshToken").exists())
+                .andReturn().getResponse().getContentAsString();
+        String refreshToken = objectMapper.readTree(loginJson).get("refreshToken").asText();
+
+        String refreshedJson = mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andExpect(jsonPath("$.refreshToken").exists())
+                .andReturn().getResponse().getContentAsString();
+        String newAccessToken = objectMapper.readTree(refreshedJson).get("token").asText();
+        String newRefreshToken = objectMapper.readTree(refreshedJson).get("refreshToken").asText();
+
+        // The new access token works.
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + newAccessToken))
+                .andExpect(status().isOk());
+
+        // The old refresh token is single-use — it was rotated away by the refresh above.
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_REFRESH_TOKEN"));
+
+        // Logout revokes the current refresh token too.
+        mockMvc.perform(post("/api/v1/auth/logout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + newRefreshToken + "\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + newRefreshToken + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_REFRESH_TOKEN"));
+    }
+
+    @Test
     void shouldRejectUnauthorizedAccess() throws Exception {
         mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isForbidden()); // Spring Security by default returns 403 when access is denied for an unauthenticated request without specific configuration mapping it to 401
