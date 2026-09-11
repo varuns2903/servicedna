@@ -17,6 +17,16 @@ export function useServices() {
   });
 }
 
+export function useService(serviceId: string | undefined) {
+  const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);
+
+  return useQuery({
+    queryKey: ['organizations', selectedOrganizationId, 'services', serviceId],
+    queryFn: () => ServicesApi.getService(selectedOrganizationId!, serviceId!),
+    enabled: !!selectedOrganizationId && !!serviceId,
+  });
+}
+
 export function useCreateService() {
   const queryClient = useQueryClient();
   const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);

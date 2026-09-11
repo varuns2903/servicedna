@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { AppShell } from '@/components/layout/AppShell';
 import { Dashboard } from '@/features/dashboard/Dashboard';
 import { ServiceList } from '@/features/services/ServiceList';
+import { ServiceDetails } from '@/features/services/ServiceDetails';
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { DependencyGraph } from '@/features/map/DependencyGraph';
 import { IncidentList } from '@/features/incidents/IncidentList';
@@ -85,18 +86,28 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/services" 
+          <Route
+            path="/services"
             element={
               <ProtectedRoute>
                 <AppShell>
                   <ServiceList />
                 </AppShell>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/map" 
+          <Route
+            path="/services/:serviceId"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <ServiceDetails />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/map"
             element={
               <ProtectedRoute>
                 <AppShell>

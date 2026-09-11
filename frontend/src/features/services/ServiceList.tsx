@@ -1,5 +1,6 @@
 
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useServices } from '@/hooks/useServices';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { StatusIndicator } from '@/components/status/StatusIndicator';
@@ -10,13 +11,11 @@ import { Search, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { formatDistanceToNow } from 'date-fns';
 import { RegisterServiceModal } from './RegisterServiceModal';
-import { EditServiceModal } from './EditServiceModal';
-import type { ServiceDto } from '@/api/services.api';
 
 export function ServiceList() {
+  const navigate = useNavigate();
   const { data: services, isLoading, isError } = useServices();
   const [isRegisterOpen, setRegisterOpen] = useState(false);
-  const [editingService, setEditingService] = useState<ServiceDto | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ServiceStatus | 'ALL'>('ALL');
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
@@ -137,7 +136,7 @@ export function ServiceList() {
               <TableRow
                 key={service.id}
                 className="cursor-pointer"
-                onClick={() => setEditingService(service)}
+                onClick={() => navigate(`/services/${service.id}`)}
               >
                 <TableCell className="font-medium text-gray-200">
                   <div className="flex flex-col">
@@ -163,11 +162,6 @@ export function ServiceList() {
       )}
 
       <RegisterServiceModal open={isRegisterOpen} onClose={() => setRegisterOpen(false)} />
-      <EditServiceModal
-        open={!!editingService}
-        service={editingService}
-        onClose={() => setEditingService(null)}
-      />
     </div>
   );
 }
