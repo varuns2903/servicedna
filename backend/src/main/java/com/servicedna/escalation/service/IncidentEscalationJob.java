@@ -7,6 +7,7 @@ import com.servicedna.incident.domain.Incident;
 import com.servicedna.incident.domain.IncidentSeverity;
 import com.servicedna.incident.domain.IncidentStatus;
 import com.servicedna.incident.repository.IncidentRepository;
+import com.servicedna.webhook.service.WebhookNotificationService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.slf4j.Logger;
@@ -31,16 +32,19 @@ public class IncidentEscalationJob {
   private final EscalationPolicyRepository escalationPolicyRepository;
   private final IncidentRepository incidentRepository;
   private final MailService mailService;
+  private final WebhookNotificationService webhookNotificationService;
   private final String frontendUrl;
 
   public IncidentEscalationJob(
       EscalationPolicyRepository escalationPolicyRepository,
       IncidentRepository incidentRepository,
       MailService mailService,
+      WebhookNotificationService webhookNotificationService,
       @Value("${frontend.url}") String frontendUrl) {
     this.escalationPolicyRepository = escalationPolicyRepository;
     this.incidentRepository = incidentRepository;
     this.mailService = mailService;
+    this.webhookNotificationService = webhookNotificationService;
     this.frontendUrl = frontendUrl;
   }
 
@@ -72,6 +76,10 @@ public class IncidentEscalationJob {
                 + link);
         incident.setEscalatedAt(OffsetDateTime.now());
         incidentRepository.save(incident);
+        webhookNotificationService.notify(
+            policy.getOrganization().getId(),
+            "[ESCALATED] " + incident.getTitle(),
+            link);
         log.info("Escalated incident {} to {}", incident.getId(), policy.getEscalationEmail());
       }
     }

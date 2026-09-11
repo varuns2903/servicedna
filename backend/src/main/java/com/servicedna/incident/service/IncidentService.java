@@ -24,6 +24,7 @@ import com.servicedna.service.domain.Service;
 import com.servicedna.service.repository.ServiceRepository;
 import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
+import com.servicedna.webhook.service.WebhookNotificationService;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -49,6 +50,7 @@ public class IncidentService {
   private final OrganizationService organizationService;
   private final OnCallService onCallService;
   private final MailService mailService;
+  private final WebhookNotificationService webhookNotificationService;
   private final ApplicationEventPublisher eventPublisher;
   private final MeterRegistry meterRegistry;
   private final String frontendUrl;
@@ -63,6 +65,7 @@ public class IncidentService {
       OrganizationService organizationService,
       OnCallService onCallService,
       MailService mailService,
+      WebhookNotificationService webhookNotificationService,
       ApplicationEventPublisher eventPublisher,
       MeterRegistry meterRegistry,
       @Value("${frontend.url}") String frontendUrl) {
@@ -75,6 +78,7 @@ public class IncidentService {
     this.organizationService = organizationService;
     this.onCallService = onCallService;
     this.mailService = mailService;
+    this.webhookNotificationService = webhookNotificationService;
     this.eventPublisher = eventPublisher;
     this.meterRegistry = meterRegistry;
     this.frontendUrl = frontendUrl;
@@ -132,6 +136,10 @@ public class IncidentService {
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
     notifyOnCallIfSevere(incident);
     notifyOptedInMembers(incident, user);
+    webhookNotificationService.notify(
+        organizationId,
+        "[" + incident.getSeverity() + "] New incident: " + incident.getTitle(),
+        frontendUrl + "/incidents/" + incident.getId());
     return mapToDto(incident);
   }
 
@@ -238,6 +246,12 @@ public class IncidentService {
 
     incident = incidentRepository.save(incident);
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+    if (request.status() == IncidentStatus.RESOLVED) {
+      webhookNotificationService.notify(
+          organizationId,
+          "Resolved: " + incident.getTitle(),
+          frontendUrl + "/incidents/" + incident.getId());
+    }
     return mapToDto(incident);
   }
 

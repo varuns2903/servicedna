@@ -24,19 +24,20 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone, FileText, AlertTriangle, Download } from 'lucide-react';
+import { Building2, Users, CreditCard, Send, Check, X, UserCog, Phone, FileText, AlertTriangle, Download, Webhook } from 'lucide-react';
 import type { OrganizationRole } from '@/api/organizations.api';
 import type { PlanType } from '@/api/billing.api';
 import { OnCallTab } from './OnCallTab';
 import { EscalationTab } from './EscalationTab';
 import { AuditLogTab } from './AuditLogTab';
+import { IntegrationsTab } from './IntegrationsTab';
 
 export function SettingsView() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
   const { data: orgs } = useOrganizations();
   const currentOrg = orgs?.find((o) => o.id === currentOrgId);
 
-  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account' | 'oncall' | 'escalation' | 'audit'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'billing' | 'account' | 'oncall' | 'escalation' | 'integrations' | 'audit'>('general');
 
   // General tab state
   const [orgName, setOrgName] = useState('');
@@ -267,6 +268,17 @@ export function SettingsView() {
           </div>
         </button>
         <button
+          onClick={() => setActiveTab('integrations')}
+          className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'integrations' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            <Webhook className="h-4 w-4" />
+            <span>Integrations</span>
+          </div>
+        </button>
+        <button
           onClick={() => setActiveTab('billing')}
           className={`shrink-0 pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'billing' ? 'border-emerald-500 text-white' : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -456,6 +468,8 @@ export function SettingsView() {
         {activeTab === 'oncall' && currentOrgId && <OnCallTab orgId={currentOrgId} members={members} />}
 
         {activeTab === 'escalation' && currentOrgId && <EscalationTab orgId={currentOrgId} />}
+
+        {activeTab === 'integrations' && currentOrgId && <IntegrationsTab orgId={currentOrgId} />}
 
         {activeTab === 'billing' && (
           <div className="space-y-6 max-w-5xl">
