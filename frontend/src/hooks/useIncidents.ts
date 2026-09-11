@@ -45,6 +45,14 @@ export function useIncident(orgId?: string, incidentId?: string) {
   });
 }
 
+export function useIncidentEvents(orgId?: string, incidentId?: string) {
+  return useQuery({
+    queryKey: ['organizations', orgId, 'incidents', incidentId, 'events'],
+    queryFn: () => IncidentsApi.getEvents(orgId!, incidentId!),
+    enabled: !!orgId && !!incidentId,
+  });
+}
+
 export function useIncidentPostMortem(orgId?: string, incidentId?: string) {
   return useQuery({
     queryKey: ['organizations', orgId, 'incidents', incidentId, 'post-mortem'],
@@ -86,8 +94,11 @@ export function useUpdateIncidentStatus() {
     onSuccess: (data, { orgId, incidentId }) => {
       queryClient.setQueryData(['organizations', orgId, 'incidents', incidentId], data);
     },
-    onSettled: (_data, _err, { orgId }) => {
+    onSettled: (_data, _err, { orgId, incidentId }) => {
       queryClient.invalidateQueries({ queryKey: ['organizations', orgId, 'incidents'] });
+      queryClient.invalidateQueries({
+        queryKey: ['organizations', orgId, 'incidents', incidentId, 'events'],
+      });
     },
   });
 }
@@ -115,8 +126,11 @@ export function useAcknowledgeIncident() {
     onSuccess: (data, { orgId, incidentId }) => {
       queryClient.setQueryData(['organizations', orgId, 'incidents', incidentId], data);
     },
-    onSettled: (_data, _err, { orgId }) => {
+    onSettled: (_data, _err, { orgId, incidentId }) => {
       queryClient.invalidateQueries({ queryKey: ['organizations', orgId, 'incidents'] });
+      queryClient.invalidateQueries({
+        queryKey: ['organizations', orgId, 'incidents', incidentId, 'events'],
+      });
     },
   });
 }
@@ -128,6 +142,9 @@ export function useUpsertPostMortem() {
       IncidentsApi.upsertPostMortem(orgId, incidentId, data),
     onSuccess: (data, { orgId, incidentId }) => {
       queryClient.setQueryData(['organizations', orgId, 'incidents', incidentId, 'post-mortem'], data);
+      queryClient.invalidateQueries({
+        queryKey: ['organizations', orgId, 'incidents', incidentId, 'events'],
+      });
     },
   });
 }

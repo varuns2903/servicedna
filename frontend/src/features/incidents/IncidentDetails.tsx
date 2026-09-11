@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { ArrowLeft, Save, CheckCheck } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { IncidentStatus } from '@/api/incidents.api';
+import { IncidentTimeline } from './IncidentTimeline';
 
 export function IncidentDetails() {
   const { id } = useParams<{ id: string }>();
@@ -24,11 +25,15 @@ export function IncidentDetails() {
   const upsertPostMortem = useUpsertPostMortem();
   const acknowledgeIncident = useAcknowledgeIncident();
 
-  const [pmContent, setPmContent] = useState('');
+  const [rootCause, setRootCause] = useState('');
+  const [timeline, setTimeline] = useState('');
+  const [actionItems, setActionItems] = useState('');
 
   useEffect(() => {
     if (postMortem) {
-      setPmContent(postMortem.content);
+      setRootCause(postMortem.rootCause);
+      setTimeline(postMortem.timeline);
+      setActionItems(postMortem.actionItems);
     }
   }, [postMortem]);
 
@@ -44,7 +49,11 @@ export function IncidentDetails() {
 
   const handleSavePostMortem = () => {
     if (currentOrgId && id) {
-      upsertPostMortem.mutate({ orgId: currentOrgId, incidentId: id, data: { content: pmContent } });
+      upsertPostMortem.mutate({
+        orgId: currentOrgId,
+        incidentId: id,
+        data: { rootCause, timeline, actionItems },
+      });
     }
   };
 
@@ -85,16 +94,39 @@ export function IncidentDetails() {
               <CardTitle>Post-Mortem</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <textarea
-                value={pmContent}
-                onChange={(e) => setPmContent(e.target.value)}
-                placeholder="Write the post-mortem analysis here..."
-                className="w-full h-48 bg-charcoal-900 border border-charcoal-700 rounded-md p-3 text-gray-100 focus:outline-none focus:border-emerald-500 transition-colors"
-              />
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Root Cause</label>
+                <textarea
+                  value={rootCause}
+                  onChange={(e) => setRootCause(e.target.value)}
+                  placeholder="What caused this incident?"
+                  className="w-full h-24 bg-charcoal-900 border border-charcoal-700 rounded-md p-3 text-gray-100 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Timeline</label>
+                <textarea
+                  value={timeline}
+                  onChange={(e) => setTimeline(e.target.value)}
+                  placeholder="What happened, in order?"
+                  className="w-full h-24 bg-charcoal-900 border border-charcoal-700 rounded-md p-3 text-gray-100 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Action Items</label>
+                <textarea
+                  value={actionItems}
+                  onChange={(e) => setActionItems(e.target.value)}
+                  placeholder="What will prevent this from happening again?"
+                  className="w-full h-24 bg-charcoal-900 border border-charcoal-700 rounded-md p-3 text-gray-100 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
               <div className="flex justify-end">
-                <Button 
-                  onClick={handleSavePostMortem} 
-                  disabled={upsertPostMortem.isPending}
+                <Button
+                  onClick={handleSavePostMortem}
+                  disabled={
+                    upsertPostMortem.isPending || !rootCause || !timeline || !actionItems
+                  }
                   className="flex items-center space-x-2"
                 >
                   <Save className="h-4 w-4" />
@@ -166,6 +198,8 @@ export function IncidentDetails() {
               </Button>
             </CardContent>
           </Card>
+
+          {currentOrgId && id && <IncidentTimeline orgId={currentOrgId} incidentId={id} />}
         </div>
       </div>
     </div>

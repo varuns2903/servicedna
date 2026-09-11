@@ -4,14 +4,18 @@ import com.servicedna.common.exception.ApiException;
 import com.servicedna.common.mail.MailService;
 import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 import com.servicedna.incident.domain.Incident;
+import com.servicedna.incident.domain.IncidentEvent;
+import com.servicedna.incident.domain.IncidentEventType;
 import com.servicedna.incident.domain.IncidentPostMortem;
 import com.servicedna.incident.domain.IncidentSeverity;
 import com.servicedna.incident.domain.IncidentStatus;
 import com.servicedna.incident.dto.CreateIncidentRequest;
 import com.servicedna.incident.dto.IncidentDto;
+import com.servicedna.incident.dto.IncidentEventDto;
 import com.servicedna.incident.dto.PostMortemDto;
 import com.servicedna.incident.dto.UpdateIncidentStatusRequest;
 import com.servicedna.incident.dto.UpsertPostMortemRequest;
+import com.servicedna.incident.repository.IncidentEventRepository;
 import com.servicedna.incident.repository.IncidentPostMortemRepository;
 import com.servicedna.incident.repository.IncidentRepository;
 import com.servicedna.oncall.service.OnCallService;
@@ -42,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class IncidentService {
 
   private final IncidentRepository incidentRepository;
+  private final IncidentEventRepository incidentEventRepository;
   private final IncidentPostMortemRepository postMortemRepository;
   private final ServiceRepository serviceRepository;
   private final OrganizationRepository organizationRepository;
@@ -57,6 +62,7 @@ public class IncidentService {
 
   public IncidentService(
       IncidentRepository incidentRepository,
+      IncidentEventRepository incidentEventRepository,
       IncidentPostMortemRepository postMortemRepository,
       ServiceRepository serviceRepository,
       OrganizationRepository organizationRepository,
@@ -70,6 +76,7 @@ public class IncidentService {
       MeterRegistry meterRegistry,
       @Value("${frontend.url}") String frontendUrl) {
     this.incidentRepository = incidentRepository;
+    this.incidentEventRepository = incidentEventRepository;
     this.postMortemRepository = postMortemRepository;
     this.serviceRepository = serviceRepository;
     this.organizationRepository = organizationRepository;
@@ -133,6 +140,7 @@ public class IncidentService {
     }
 
     incident = incidentRepository.save(incident);
+    recordEvent(incident, IncidentEventType.CREATED, "Incident reported", user);
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
     notifyOnCallIfSevere(incident);
     notifyOptedInMembers(incident, user);
@@ -141,6 +149,11 @@ public class IncidentService {
         "[" + incident.getSeverity() + "] New incident: " + incident.getTitle(),
         frontendUrl + "/incidents/" + incident.getId());
     return mapToDto(incident);
+  }
+
+  private void recordEvent(Incident incident, IncidentEventType type, String message, User actor) {
+    incidentEventRepository.save(
+        new IncidentEvent(UUID.randomUUID(), incident, type, message, actor));
   }
 
   /**
@@ -245,6 +258,11 @@ public class IncidentService {
     }
 
     incident = incidentRepository.save(incident);
+    recordEvent(
+        incident,
+        IncidentEventType.STATUS_CHANGED,
+        "Status changed to " + request.status(),
+        userRepository.findById(userId).orElse(null));
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
     if (request.status() == IncidentStatus.RESOLVED) {
       webhookNotificationService.notify(
@@ -271,6 +289,11 @@ public class IncidentService {
     if (incident.getAcknowledgedAt() == null) {
       incident.setAcknowledgedAt(OffsetDateTime.now());
       incident = incidentRepository.save(incident);
+      recordEvent(
+          incident,
+          IncidentEventType.ACKNOWLEDGED,
+          "Incident acknowledged",
+          userRepository.findById(userId).orElse(null));
     }
     return mapToDto(incident);
   }
@@ -313,7 +336,36 @@ public class IncidentService {
     }
 
     postMortem = postMortemRepository.save(postMortem);
+    recordEvent(
+        incident,
+        IncidentEventType.POST_MORTEM_UPDATED,
+        existing.isPresent() ? "Post-mortem updated" : "Post-mortem added",
+        userRepository.findById(userId).orElse(null));
     return mapToPostMortemDto(postMortem);
+  }
+
+  @Transactional(readOnly = true)
+  public List<IncidentEventDto> getIncidentEvents(UUID organizationId, UUID incidentId, UUID userId) {
+    organizationService.validateUserAccess(organizationId, userId);
+
+    incidentRepository
+        .findByOrganizationIdAndId(organizationId, incidentId)
+        .orElseThrow(
+            () ->
+                new ApiException(HttpStatus.NOT_FOUND, "INCIDENT_NOT_FOUND", "Incident not found"));
+
+    return incidentEventRepository.findByIncidentIdOrderByCreatedAtAsc(incidentId).stream()
+        .map(this::mapEventToDto)
+        .collect(Collectors.toList());
+  }
+
+  private IncidentEventDto mapEventToDto(IncidentEvent event) {
+    return new IncidentEventDto(
+        event.getId(),
+        event.getEventType(),
+        event.getMessage(),
+        event.getActor() != null ? event.getActor().getEmail() : null,
+        event.getCreatedAt());
   }
 
   @Transactional(readOnly = true)

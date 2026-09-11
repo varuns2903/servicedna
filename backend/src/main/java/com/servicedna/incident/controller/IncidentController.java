@@ -3,6 +3,7 @@ package com.servicedna.incident.controller;
 import com.servicedna.auth.security.CustomUserDetails;
 import com.servicedna.incident.dto.CreateIncidentRequest;
 import com.servicedna.incident.dto.IncidentDto;
+import com.servicedna.incident.dto.IncidentEventDto;
 import com.servicedna.incident.dto.PostMortemDto;
 import com.servicedna.incident.dto.UpdateIncidentStatusRequest;
 import com.servicedna.incident.dto.UpsertPostMortemRequest;
@@ -95,5 +96,14 @@ public class IncidentController {
       @AuthenticationPrincipal CustomUserDetails userDetails) {
     return ResponseEntity.ok(
         incidentService.getPostMortem(orgId, incidentId, userDetails.getUser().getId()));
+  }
+
+  @GetMapping("/{incidentId}/events")
+  public ResponseEntity<List<IncidentEventDto>> getIncidentEvents(
+      @PathVariable UUID orgId,
+      @PathVariable UUID incidentId,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(
+        incidentService.getIncidentEvents(orgId, incidentId, userDetails.getUser().getId()));
   }
 }

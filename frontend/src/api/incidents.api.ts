@@ -22,8 +22,9 @@ export interface IncidentDto {
 export interface PostMortemDto {
   id: string;
   incidentId: string;
-  content: string;
-  authorId: string;
+  rootCause: string;
+  timeline: string;
+  actionItems: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,7 +41,24 @@ export interface UpdateIncidentStatusRequest {
 }
 
 export interface UpsertPostMortemRequest {
-  content: string;
+  rootCause: string;
+  timeline: string;
+  actionItems: string;
+}
+
+export type IncidentEventType =
+  | 'CREATED'
+  | 'STATUS_CHANGED'
+  | 'ACKNOWLEDGED'
+  | 'ESCALATED'
+  | 'POST_MORTEM_UPDATED';
+
+export interface IncidentEventDto {
+  id: string;
+  eventType: IncidentEventType;
+  message: string;
+  actorEmail: string | null;
+  createdAt: string;
 }
 
 export const IncidentsApi = {
@@ -76,6 +94,11 @@ export const IncidentsApi = {
 
   upsertPostMortem: async (orgId: string, incidentId: string, data: UpsertPostMortemRequest) => {
     const res = await apiClient.put<PostMortemDto>(`/organizations/${orgId}/incidents/${incidentId}/post-mortem`, data);
+    return res.data;
+  },
+
+  getEvents: async (orgId: string, incidentId: string) => {
+    const res = await apiClient.get<IncidentEventDto[]>(`/organizations/${orgId}/incidents/${incidentId}/events`);
     return res.data;
   }
 };

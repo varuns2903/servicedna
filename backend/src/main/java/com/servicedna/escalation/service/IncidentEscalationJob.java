@@ -4,12 +4,16 @@ import com.servicedna.common.mail.MailService;
 import com.servicedna.escalation.domain.EscalationPolicy;
 import com.servicedna.escalation.repository.EscalationPolicyRepository;
 import com.servicedna.incident.domain.Incident;
+import com.servicedna.incident.domain.IncidentEvent;
+import com.servicedna.incident.domain.IncidentEventType;
 import com.servicedna.incident.domain.IncidentSeverity;
 import com.servicedna.incident.domain.IncidentStatus;
+import com.servicedna.incident.repository.IncidentEventRepository;
 import com.servicedna.incident.repository.IncidentRepository;
 import com.servicedna.webhook.service.WebhookNotificationService;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +35,7 @@ public class IncidentEscalationJob {
 
   private final EscalationPolicyRepository escalationPolicyRepository;
   private final IncidentRepository incidentRepository;
+  private final IncidentEventRepository incidentEventRepository;
   private final MailService mailService;
   private final WebhookNotificationService webhookNotificationService;
   private final String frontendUrl;
@@ -38,11 +43,13 @@ public class IncidentEscalationJob {
   public IncidentEscalationJob(
       EscalationPolicyRepository escalationPolicyRepository,
       IncidentRepository incidentRepository,
+      IncidentEventRepository incidentEventRepository,
       MailService mailService,
       WebhookNotificationService webhookNotificationService,
       @Value("${frontend.url}") String frontendUrl) {
     this.escalationPolicyRepository = escalationPolicyRepository;
     this.incidentRepository = incidentRepository;
+    this.incidentEventRepository = incidentEventRepository;
     this.mailService = mailService;
     this.webhookNotificationService = webhookNotificationService;
     this.frontendUrl = frontendUrl;
@@ -76,6 +83,14 @@ public class IncidentEscalationJob {
                 + link);
         incident.setEscalatedAt(OffsetDateTime.now());
         incidentRepository.save(incident);
+        incidentEventRepository.save(
+            new IncidentEvent(
+                UUID.randomUUID(),
+                incident,
+                IncidentEventType.ESCALATED,
+                "Escalated to " + policy.getEscalationEmail() + " after "
+                    + policy.getEscalateAfterMinutes() + " unacknowledged minutes",
+                null));
         webhookNotificationService.notify(
             policy.getOrganization().getId(),
             "[ESCALATED] " + incident.getTitle(),
