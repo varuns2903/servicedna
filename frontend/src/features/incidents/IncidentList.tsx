@@ -5,9 +5,11 @@ import { useIncidents } from '@/hooks/useIncidents';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { CheckCircle, Clock, Search } from 'lucide-react';
+import { CheckCircle, Clock, Plus, Search } from 'lucide-react';
 import type { IncidentStatus, IncidentSeverity } from '@/api/incidents.api';
+import { CreateIncidentModal } from './CreateIncidentModal';
 
 export function IncidentList() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
@@ -16,6 +18,7 @@ export function IncidentList() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | 'ALL'>('ALL');
   const [severityFilter, setSeverityFilter] = useState<IncidentSeverity | 'ALL'>('ALL');
+  const [isCreateOpen, setCreateOpen] = useState(false);
 
   const filteredIncidents = useMemo(() => {
     if (!incidents) return incidents;
@@ -38,6 +41,10 @@ export function IncidentList() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-white">Incidents</h1>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Report Incident
+        </Button>
       </div>
 
       <div className="flex items-center space-x-4">
@@ -118,6 +125,14 @@ export function IncidentList() {
           ))
         )}
       </div>
+
+      {currentOrgId && (
+        <CreateIncidentModal
+          open={isCreateOpen}
+          onClose={() => setCreateOpen(false)}
+          orgId={currentOrgId}
+        />
+      )}
     </div>
   );
 }
