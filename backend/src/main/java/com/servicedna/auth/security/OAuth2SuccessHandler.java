@@ -85,10 +85,21 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     // Check if user exists
     final String finalEmail = email;
     final boolean finalVerifiedEmail = providerVerifiedEmail;
+    java.util.Optional<User> existingUser = userRepository.findByEmail(email);
+
+    // An identity provider that reports email_verified=false must never be allowed to sign
+    // straight into an existing account on that email — that would let an attacker register an
+    // OIDC identity with an unverified claim matching a victim's email and take over their
+    // account without ever proving they control that address. A brand-new account carries no
+    // such risk, so only linking to an EXISTING user is gated on provider-verified email.
+    if (existingUser.isPresent() && !providerVerifiedEmail) {
+      throw new ServletException(
+          "Identity provider did not verify this email address; cannot sign in to an existing"
+              + " account with an unverified email claim");
+    }
+
     User user =
-        userRepository
-            .findByEmail(email)
-            .orElseGet(
+        existingUser.orElseGet(
                 () -> {
                   User newUser =
                       new User(
