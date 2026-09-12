@@ -21,8 +21,14 @@ public class CacheConfig {
     ObjectMapper cacheMapper = objectMapper.copy();
     PolymorphicTypeValidator ptv =
         BasicPolymorphicTypeValidator.builder().allowIfBaseType(Object.class).build();
+    // EVERYTHING (not NON_FINAL): cached DTOs are Java records, which are implicitly final, so
+    // NON_FINAL typing never embeds a type id for the record itself. On read, the deserializer
+    // then has no class to target and falls back to a generic Object/Map, which chokes on any
+    // nested typed collection (e.g. a record's `List<UUID>` field) with a "missing type id
+    // property '@class'" SerializationException. EVERYTHING types finals too, so the record's
+    // own class round-trips correctly.
     cacheMapper.activateDefaultTyping(
-        ptv, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+        ptv, ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.PROPERTY);
 
     GenericJackson2JsonRedisSerializer serializer =
         new GenericJackson2JsonRedisSerializer(cacheMapper);

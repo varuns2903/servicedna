@@ -44,6 +44,9 @@ public class Service {
   @Column(nullable = false)
   private String region = "global";
 
+  @Column(name = "slo_target_percentage", nullable = false)
+  private double sloTargetPercentage = 99.9;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private ServiceStatus status = ServiceStatus.UNKNOWN;
@@ -153,6 +156,14 @@ public class Service {
 
   public void setRegion(String region) {
     this.region = region;
+  }
+
+  public double getSloTargetPercentage() {
+    return sloTargetPercentage;
+  }
+
+  public void setSloTargetPercentage(double sloTargetPercentage) {
+    this.sloTargetPercentage = sloTargetPercentage;
   }
 
   public ServiceStatus getStatus() {

@@ -238,6 +238,9 @@ public class ServiceRegistryService {
     service.setRepositoryUrl(request.repositoryUrl());
     service.setRegion(request.region() != null ? request.region() : service.getRegion());
     service.setHealthCheckUrl(request.healthCheckUrl());
+    if (request.sloTargetPercentage() != null) {
+      service.setSloTargetPercentage(request.sloTargetPercentage());
+    }
 
     service = serviceRepository.save(service);
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
@@ -373,6 +376,7 @@ public class ServiceRegistryService {
         service.getRepositoryUrl(),
         service.getRegion(),
         service.getHealthCheckUrl(),
+        service.getSloTargetPercentage(),
         service.getStatus(),
         null,
         dependencyIds,
@@ -392,6 +396,7 @@ public class ServiceRegistryService {
         service.getRepositoryUrl(),
         service.getRegion(),
         service.getHealthCheckUrl(),
+        service.getSloTargetPercentage(),
         service.getStatus(),
         service.getApiKey(),
         dependencyIds,

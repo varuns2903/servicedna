@@ -1,0 +1,1 @@
+ALTER TABLE services ADD COLUMN slo_target_percentage DOUBLE PRECISION NOT NULL DEFAULT 99.9;

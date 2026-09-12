@@ -85,6 +85,14 @@ public class AnalyticsService {
               ? (double) uptimeMinutes / 60.0 / serviceIncidents.size()
               : (double) totalPeriodMinutes / 60.0;
 
+      double sloTarget = service.getSloTargetPercentage();
+      double errorBudgetMinutesTotal = totalPeriodMinutes * (100.0 - sloTarget) / 100.0;
+      double errorBudgetMinutesConsumed = serviceDowntimeMinutes;
+      double errorBudgetRemainingPercentage =
+          errorBudgetMinutesTotal > 0
+              ? 100.0 * (1 - errorBudgetMinutesConsumed / errorBudgetMinutesTotal)
+              : (errorBudgetMinutesConsumed > 0 ? -100.0 : 100.0);
+
       serviceSlas.add(
           new ServiceSlaDto(
               service.getId(),
@@ -92,7 +100,11 @@ public class AnalyticsService {
               uptimePercentage,
               serviceIncidents.size(),
               mttrMinutes,
-              mtbfHours));
+              mtbfHours,
+              sloTarget,
+              errorBudgetMinutesTotal,
+              errorBudgetMinutesConsumed,
+              Math.min(100.0, errorBudgetRemainingPercentage)));
 
       orgTotalDowntimeMinutes += serviceDowntimeMinutes;
       orgTotalMttrMinutes += serviceMttrSum;

@@ -252,7 +252,7 @@ class ServiceControllerTest {
         String originalApiKey = objectMapper.readTree(createRes).get("apiKey").asText();
 
         UpdateServiceRequest updateReq =
-                new UpdateServiceRequest("RenamedService", "new description", null, "eu-west-1", null);
+                new UpdateServiceRequest("RenamedService", "new description", null, "eu-west-1", null, null);
         mockMvc.perform(put("/api/v1/organizations/" + org1Id + "/services/" + serviceId)
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)

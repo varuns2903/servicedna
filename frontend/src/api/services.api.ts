@@ -9,6 +9,7 @@ export interface ServiceDto {
   repositoryUrl: string;
   region: string;
   healthCheckUrl: string | null;
+  sloTargetPercentage: number;
   status: ServiceStatus;
   // Only populated in the response to createService — redacted (null) on every list/get call
   // so the credential isn't re-exposed to every org member on every read.
@@ -32,6 +33,7 @@ export interface UpdateServiceRequest {
   repositoryUrl?: string;
   region?: string;
   healthCheckUrl?: string;
+  sloTargetPercentage?: number;
 }
 
 export type MetricsRange = '24h' | '7d' | '30d';

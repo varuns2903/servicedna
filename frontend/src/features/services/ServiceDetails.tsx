@@ -35,6 +35,7 @@ export function ServiceDetails() {
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [region, setRegion] = useState('');
   const [healthCheckUrl, setHealthCheckUrl] = useState('');
+  const [sloTargetPercentage, setSloTargetPercentage] = useState(99.9);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -52,6 +53,7 @@ export function ServiceDetails() {
       setRepositoryUrl(service.repositoryUrl || '');
       setRegion(service.region || '');
       setHealthCheckUrl(service.healthCheckUrl || '');
+      setSloTargetPercentage(service.sloTargetPercentage);
     }
   }, [service]);
 
@@ -67,6 +69,7 @@ export function ServiceDetails() {
         repositoryUrl: repositoryUrl.trim() || undefined,
         region: region.trim() || undefined,
         healthCheckUrl: healthCheckUrl.trim() || undefined,
+        sloTargetPercentage,
       },
     });
   };
@@ -158,6 +161,24 @@ export function ServiceDetails() {
                     onChange={(e) => setHealthCheckUrl(e.target.value)}
                     placeholder="https://api.example.com/health"
                   />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm text-gray-400">
+                    SLO Target (% uptime)
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    value={sloTargetPercentage}
+                    onChange={(e) => setSloTargetPercentage(Number(e.target.value))}
+                    className="max-w-[10rem]"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Sets the error budget used in the SLA report — e.g. 99.9% allows about 43
+                    minutes of downtime per 30-day period.
+                  </p>
                 </div>
 
                 {updateService.isError && (

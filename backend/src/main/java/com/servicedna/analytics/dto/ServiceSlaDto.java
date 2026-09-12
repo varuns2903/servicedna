@@ -8,5 +8,9 @@ public record ServiceSlaDto(
     double uptimePercentage,
     int incidentCount,
     double mttrMinutes,
-    double mtbfHours)
+    double mtbfHours,
+    double sloTargetPercentage,
+    double errorBudgetMinutesTotal,
+    double errorBudgetMinutesConsumed,
+    double errorBudgetRemainingPercentage)
     implements java.io.Serializable {}

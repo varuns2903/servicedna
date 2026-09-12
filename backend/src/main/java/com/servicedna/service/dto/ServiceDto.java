@@ -13,6 +13,7 @@ public record ServiceDto(
     String repositoryUrl,
     String region,
     String healthCheckUrl,
+    double sloTargetPercentage,
     ServiceStatus status,
     String apiKey,
     List<UUID> dependencyIds,
