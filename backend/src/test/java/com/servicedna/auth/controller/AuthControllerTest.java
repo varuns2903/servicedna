@@ -85,6 +85,37 @@ class AuthControllerTest {
     }
 
     @Test
+    void shouldReturnCurrentUserWithoutPasswordHash() throws Exception {
+        RegisterRequest registerRequest = new RegisterRequest("me-endpoint@example.com", "password123");
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/auth/verify-email")
+                .param("token", verificationTokenFor("me-endpoint@example.com")))
+                .andExpect(status().isOk());
+
+        LoginRequest loginRequest = new LoginRequest("me-endpoint@example.com", "password123");
+
+        String loginJson = mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        String token = objectMapper.readTree(loginJson).get("token").asText();
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("me-endpoint@example.com"))
+                .andExpect(jsonPath("$.role").value("OWNER"))
+                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+    }
+
+    @Test
     void shouldBlockLoginForUnverifiedEmail() throws Exception {
         RegisterRequest registerRequest = new RegisterRequest("unverified@example.com", "password123");
 

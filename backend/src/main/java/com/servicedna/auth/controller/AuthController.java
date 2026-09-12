@@ -7,6 +7,7 @@ import com.servicedna.auth.dto.RefreshTokenRequest;
 import com.servicedna.auth.dto.RegisterRequest;
 import com.servicedna.auth.dto.ResetPasswordRequest;
 import com.servicedna.auth.dto.SsoConfigDto;
+import com.servicedna.auth.dto.UserDto;
 import com.servicedna.auth.security.CustomUserDetails;
 import com.servicedna.auth.service.AuthService;
 import com.servicedna.user.domain.User;
@@ -87,10 +88,11 @@ public class AuthController {
   }
 
   @GetMapping("/me")
-  public ResponseEntity<User> getMe(@AuthenticationPrincipal CustomUserDetails userDetails) {
+  public ResponseEntity<UserDto> getMe(@AuthenticationPrincipal CustomUserDetails userDetails) {
     if (userDetails == null) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-    return ResponseEntity.ok(userDetails.getUser());
+    User user = userDetails.getUser();
+    return ResponseEntity.ok(new UserDto(user.getId(), user.getEmail(), user.getRole().name()));
   }
 }
