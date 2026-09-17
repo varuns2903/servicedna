@@ -43,10 +43,10 @@ test.describe('Navigation', () => {
     const dashboardLink = page.getByRole('link', { name: /dashboard/i });
     const loginButton = page.getByRole('button', { name: /github/i });
 
-    // Either we see the dashboard sidebar link (authenticated) or the login button
-    const isAuthenticated = await dashboardLink.isVisible().catch(() => false);
-    const isLoginPage = await loginButton.isVisible().catch(() => false);
-
-    expect(isAuthenticated || isLoginPage).toBeTruthy();
+    // Either we see the dashboard sidebar link (authenticated) or the login button.
+    // This has to be a single auto-waiting assertion on both locators: `/` mounts, reads the
+    // token, then redirects, so polling isVisible() right after goto() races that redirect and
+    // sees neither element yet.
+    await expect(dashboardLink.or(loginButton).first()).toBeVisible({ timeout: 10000 });
   });
 });
