@@ -1,0 +1,49 @@
+name: Docker
+
+# docker-compose builds both images, so a Dockerfile that no longer builds breaks local
+# setup and deployment without failing the Maven/Vite jobs in CI. This validates the image
+# builds only — it does not push anywhere.
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.image }} image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            context: backend
+          - image: frontend
+            context: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: false
+          tags: servicedna-${{ matrix.image }}:${{ github.sha }}
+          # Layer cache keyed to the Actions cache, so unchanged dependency layers (the
+          # backend's dependency:go-offline and the frontend's npm ci) survive between runs.
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

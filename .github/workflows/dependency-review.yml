@@ -1,0 +1,30 @@
+name: Dependency Review
+
+# Blocks a PR that pulls in a dependency with a known advisory or a disallowed licence,
+# which is cheaper than finding it after it is on main.
+on:
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Review dependency changes
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Lets the action leave its summary on the PR.
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Moderate-and-below get reported in the summary but don't block the merge.
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
