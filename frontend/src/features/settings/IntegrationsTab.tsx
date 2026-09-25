@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Trash2 } from 'lucide-react';
 import { useWebhooks, useCreateWebhook, useDeleteWebhook } from '@/hooks/useWebhooks';
 import type { WebhookType } from '@/api/webhooks.api';
+import { IngestionKeysCard } from './IngestionKeysCard';
 
 interface IntegrationsTabProps {
   orgId: string;
@@ -115,6 +116,8 @@ export function IntegrationsTab({ orgId }: IntegrationsTabProps) {
           )}
         </CardContent>
       </Card>
+
+      <IngestionKeysCard orgId={orgId} />
     </div>
   );
 }
