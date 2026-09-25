@@ -310,6 +310,7 @@ servicedna/
 | `RATE_LIMIT_MAX_REQUESTS` | Max API requests per client per minute | `100` |
 | `HEALTH_CHECK_INTERVAL_MS` | Interval between automated health-check probes | `30000` |
 | `HEALTH_CHECK_TIMEOUT_MS` | Per-probe HTTP timeout | `5000` |
+| `HEALTH_CHECK_STATUS_CONFIRMATIONS` | Consecutive agreeing observations (probes or pushed pings) required before a service's status changes; `1` applies every observation immediately | `2` |
 | `MANAGEMENT_ZIPKIN_TRACING_ENDPOINT` | Zipkin span export endpoint | `http://localhost:9411/api/v2/spans` |
 | `DATADOG_ENABLED` / `DATADOG_API_KEY` | Optional Datadog metrics export | `false` / — |
 | `NEW_RELIC_ENABLED` / `NEW_RELIC_API_KEY` / `NEW_RELIC_ACCOUNT_ID` | Optional New Relic metrics export | `false` / — / — |

@@ -1,5 +1,6 @@
 package com.servicedna.telemetry.repository;
 
+import org.springframework.data.domain.Pageable;
 import com.servicedna.telemetry.domain.ServicePing;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ServicePingRepository extends JpaRepository<ServicePing, UUID> {
   List<ServicePing> findByServiceIdOrderByCreatedAtDesc(UUID serviceId);
+
+  List<ServicePing> findByServiceIdOrderByCreatedAtDesc(UUID serviceId, Pageable pageable);
 
   List<ServicePing> findByServiceIdAndCreatedAtAfterOrderByCreatedAtAsc(
       UUID serviceId, OffsetDateTime since);
