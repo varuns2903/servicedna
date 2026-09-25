@@ -1,5 +1,6 @@
 package com.servicedna.service.service;
 
+import com.servicedna.billing.service.PlanLimitService;
 import com.servicedna.alert.event.ServiceStatusChangedEvent;
 import com.servicedna.alert.service.AlertEventPublisher;
 import com.servicedna.common.exception.ApiException;
@@ -39,17 +40,21 @@ public class ServiceRegistryService {
   private final ApplicationEventPublisher eventPublisher;
   private final SecureRandom secureRandom = new SecureRandom();
 
+  private final PlanLimitService planLimitService;
+
   public ServiceRegistryService(
       ServiceRepository serviceRepository,
       OrganizationRepository organizationRepository,
       OrganizationService organizationService,
       @Lazy AlertEventPublisher alertEventPublisher,
-      ApplicationEventPublisher eventPublisher) {
+      ApplicationEventPublisher eventPublisher,
+      PlanLimitService planLimitService) {
     this.serviceRepository = serviceRepository;
     this.organizationRepository = organizationRepository;
     this.organizationService = organizationService;
     this.alertEventPublisher = alertEventPublisher;
     this.eventPublisher = eventPublisher;
+    this.planLimitService = planLimitService;
   }
 
   @Transactional
@@ -58,6 +63,7 @@ public class ServiceRegistryService {
       allEntries = true)
   public ServiceDto createService(UUID organizationId, CreateServiceRequest request, UUID userId) {
     organizationService.validateUserAccess(organizationId, userId);
+    planLimitService.checkCanAddService(organizationId);
 
     if (serviceRepository.existsByOrganizationIdAndName(organizationId, request.name())) {
       throw new ApiException(

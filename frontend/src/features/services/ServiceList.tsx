@@ -1,5 +1,6 @@
 
 import { useMemo, useRef, useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useServices, useCreateService } from '@/hooks/useServices';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
@@ -90,6 +91,7 @@ export function ServiceList() {
     setImportSummary(null);
     let succeeded = 0;
     let failed = 0;
+    let stoppedReason: string | null = null;
     for (const row of rows.slice(1)) {
       const name = row[nameIdx]?.trim();
       if (!name) continue;
@@ -102,12 +104,20 @@ export function ServiceList() {
           healthCheckUrl: healthIdx >= 0 ? row[healthIdx]?.trim() || undefined : undefined,
         });
         succeeded++;
-      } catch {
+      } catch (error) {
+        // Every remaining row would hit the same limit, so stop and say why.
+        if (axios.isAxiosError(error) && error.response?.data?.errorCode === 'PLAN_LIMIT_REACHED') {
+          stoppedReason = error.response.data.message;
+          break;
+        }
         failed++;
       }
     }
     setImporting(false);
-    setImportSummary(`Imported ${succeeded} service${succeeded === 1 ? '' : 's'}${failed > 0 ? `, ${failed} failed` : ''}.`);
+    setImportSummary(
+      `Imported ${succeeded} service${succeeded === 1 ? '' : 's'}${failed > 0 ? `, ${failed} failed` : ''}.` +
+        (stoppedReason ? ` Stopped: ${stoppedReason}` : ''),
+    );
   };
 
   if (isError) {

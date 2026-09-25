@@ -10,6 +10,20 @@ export function useSubscription(orgId?: string) {
   });
 }
 
+export function usePlanUsage(orgId?: string) {
+  return useQuery({
+    queryKey: ['organizations', orgId, 'billing-usage'],
+    queryFn: () => BillingApi.getUsage(orgId!),
+    enabled: !!orgId,
+  });
+}
+
+export function useCreatePortalSession() {
+  return useMutation({
+    mutationFn: (orgId: string) => BillingApi.createPortalSession(orgId),
+  });
+}
+
 export function useCreateCheckoutSession() {
   return useMutation({
     mutationFn: ({ orgId, planType }: { orgId: string; planType: PlanType }) =>
