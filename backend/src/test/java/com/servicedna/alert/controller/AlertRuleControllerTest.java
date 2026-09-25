@@ -69,7 +69,7 @@ class AlertRuleControllerTest {
     @Test
     void shouldCreateAndListAlertRules() throws Exception {
         CreateAlertRuleRequest req = new CreateAlertRuleRequest(
-                AlertCondition.STATUS_DOWN, "https://webhook.site/my-hook", com.servicedna.alert.domain.IntegrationType.SLACK);
+                AlertCondition.STATUS_DOWN, "https://webhook.site/my-hook", com.servicedna.alert.domain.IntegrationType.SLACK, null);
 
         String ruleRes = mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
                 .header("Authorization", "Bearer " + userToken)
@@ -113,7 +113,7 @@ class AlertRuleControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
 
         CreateAlertRuleRequest req = new CreateAlertRuleRequest(
-                AlertCondition.STATUS_DOWN, "https://webhook.site/should-not-be-created", com.servicedna.alert.domain.IntegrationType.SLACK);
+                AlertCondition.STATUS_DOWN, "https://webhook.site/should-not-be-created", com.servicedna.alert.domain.IntegrationType.SLACK, null);
         mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
                 .header("Authorization", "Bearer " + outsiderToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -126,5 +126,44 @@ class AlertRuleControllerTest {
     void unauthenticatedRequestIsRejected() throws Exception {
         mockMvc.perform(get("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldCreateIncidentOnlyRuleWithoutWebhook() throws Exception {
+        CreateAlertRuleRequest req = new CreateAlertRuleRequest(
+                AlertCondition.STATUS_DOWN, null, null, com.servicedna.incident.domain.IncidentSeverity.CRITICAL);
+
+        mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.incidentSeverity").value("CRITICAL"))
+                .andExpect(jsonPath("$.webhookUrl").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void shouldRejectRuleWithNoAction() throws Exception {
+        CreateAlertRuleRequest req = new CreateAlertRuleRequest(AlertCondition.STATUS_DOWN, null, null, null);
+
+        mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("RULE_HAS_NO_ACTION"));
+    }
+
+    @Test
+    void shouldRejectIncidentSeverityOnRecoveryRule() throws Exception {
+        CreateAlertRuleRequest req = new CreateAlertRuleRequest(
+                AlertCondition.STATUS_RECOVERED, null, null, com.servicedna.incident.domain.IncidentSeverity.MINOR);
+
+        mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_RULE"));
     }
 }

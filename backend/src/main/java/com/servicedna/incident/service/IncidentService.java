@@ -25,6 +25,7 @@ import com.servicedna.organization.repository.OrganizationMemberRepository;
 import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.organization.service.OrganizationService;
 import com.servicedna.service.domain.Service;
+import com.servicedna.service.domain.ServiceStatus;
 import com.servicedna.service.repository.ServiceRepository;
 import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
@@ -141,14 +142,122 @@ public class IncidentService {
 
     incident = incidentRepository.save(incident);
     recordEvent(incident, IncidentEventType.CREATED, "Incident reported", user);
+    announceNewIncident(incident, user);
+    return mapToDto(incident);
+  }
+
+  /**
+   * Opens an incident for a service whose alert rule asked for one — or, if an alert already
+   * opened one that's still unresolved, adds to it, so a service has at most one open alert
+   * incident however many rules and repeat alerts fire. Severity only ever rises, and on-call is
+   * paged when it reaches CRITICAL/MAJOR.
+   */
+  @Transactional
+  @org.springframework.cache.annotation.CacheEvict(
+      value = "publicStatus",
+      key = "#organizationId.toString()")
+  public IncidentDto openOrUpdateAlertIncident(
+      UUID organizationId,
+      UUID serviceId,
+      String serviceName,
+      ServiceStatus oldStatus,
+      ServiceStatus newStatus,
+      IncidentSeverity severity) {
+    String change = serviceName + " changed status from " + oldStatus + " to " + newStatus;
+    String title = serviceName + " is " + newStatus;
+
+    Optional<Incident> open =
+        incidentRepository.findFirstByTriggeredByServiceIdAndStatusNot(
+            serviceId, IncidentStatus.RESOLVED);
+    if (open.isPresent()) {
+      Incident incident = open.get();
+      incident.setTitle(title);
+      recordEvent(incident, IncidentEventType.ALERT_TRIGGERED, change, null);
+      // IncidentSeverity is declared most severe first.
+      if (severity.ordinal() < incident.getSeverity().ordinal()) {
+        IncidentSeverity previous = incident.getSeverity();
+        incident.setSeverity(severity);
+        recordEvent(
+            incident,
+            IncidentEventType.SEVERITY_CHANGED,
+            "Severity raised from " + previous + " to " + severity,
+            null);
+        notifyOnCallIfSevere(incident);
+      }
+      incident = incidentRepository.save(incident);
+      eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+      return mapToDto(incident);
+    }
+
+    Organization organization =
+        organizationRepository
+            .findById(organizationId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND, "ORG_NOT_FOUND", "Organization not found"));
+    Service service =
+        serviceRepository
+            .findByOrganizationIdAndId(organizationId, serviceId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
+
+    Incident incident =
+        new Incident(
+            UUID.randomUUID(),
+            organization,
+            null,
+            title,
+            "Opened automatically by an alert rule: " + change + ".",
+            severity);
+    incident.setTriggeredByServiceId(serviceId);
+    incident.setAffectedServices(new HashSet<>(Set.of(service)));
+    incident = incidentRepository.save(incident);
+    recordEvent(incident, IncidentEventType.CREATED, "Opened automatically: " + change, null);
+    announceNewIncident(incident, null);
+    return mapToDto(incident);
+  }
+
+  /** Resolves the service's open alert incident, if any, once the service is healthy again. */
+  @Transactional
+  @org.springframework.cache.annotation.CacheEvict(
+      value = "publicStatus",
+      key = "#organizationId.toString()")
+  public Optional<IncidentDto> resolveAlertIncident(
+      UUID organizationId, UUID serviceId, String serviceName) {
+    return incidentRepository
+        .findFirstByTriggeredByServiceIdAndStatusNot(serviceId, IncidentStatus.RESOLVED)
+        .map(
+            incident -> {
+              incident.setStatus(IncidentStatus.RESOLVED);
+              incident.setResolvedAt(OffsetDateTime.now());
+              incident = incidentRepository.save(incident);
+              recordEvent(
+                  incident,
+                  IncidentEventType.STATUS_CHANGED,
+                  "Resolved automatically: " + serviceName + " recovered",
+                  null);
+              eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+              webhookNotificationService.notify(
+                  organizationId,
+                  "Resolved: " + incident.getTitle(),
+                  frontendUrl + "/incidents/" + incident.getId());
+              return mapToDto(incident);
+            });
+  }
+
+  /** Fan-out for a newly opened incident; {@code creator} is null when an alert opened it. */
+  private void announceNewIncident(Incident incident, User creator) {
+    UUID organizationId = incident.getOrganization().getId();
     eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
     notifyOnCallIfSevere(incident);
-    notifyOptedInMembers(incident, user);
+    notifyOptedInMembers(incident, creator);
     webhookNotificationService.notify(
         organizationId,
         "[" + incident.getSeverity() + "] New incident: " + incident.getTitle(),
         frontendUrl + "/incidents/" + incident.getId());
-    return mapToDto(incident);
   }
 
   private void recordEvent(Incident incident, IncidentEventType type, String message, User actor) {
@@ -165,7 +274,7 @@ public class IncidentService {
     for (OrganizationMember member :
         organizationMemberRepository.findByOrganizationId(incident.getOrganization().getId())) {
       User user = member.getUser();
-      if (!user.isNotifyOnNewIncident() || user.getId().equals(creator.getId())) {
+      if (!user.isNotifyOnNewIncident() || (creator != null && user.getId().equals(creator.getId()))) {
         continue;
       }
       String link = frontendUrl + "/incidents/" + incident.getId();
@@ -411,7 +520,8 @@ public class IncidentService {
     return new IncidentDto(
         incident.getId(),
         incident.getOrganization().getId(),
-        incident.getCreatedBy().getId(),
+        incident.getCreatedBy() != null ? incident.getCreatedBy().getId() : null,
+        incident.getTriggeredByServiceId(),
         incident.getTitle(),
         incident.getDescription(),
         incident.getStatus(),

@@ -76,6 +76,7 @@ export function IncidentDetails() {
         <Badge variant={incident.status === 'RESOLVED' ? 'success' : 'warning'}>
           {incident.status}
         </Badge>
+        {incident.triggeredByServiceId && <Badge variant="default">Auto-opened</Badge>}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

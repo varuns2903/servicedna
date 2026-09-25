@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+- Alert rules can open incidents. Set `incidentSeverity` on a `STATUS_DOWN` or `STATUS_DEGRADED`
+  rule and a matching status change opens an incident (paging on-call for CRITICAL/MAJOR, and
+  escalating if unacknowledged) — no human needed. A service has at most one open alert incident:
+  repeat alerts update its timeline and can raise its severity, and it resolves automatically when
+  the service recovers. Webhooks are now optional on a rule that opens incidents. Incidents opened
+  this way have no reporter and carry `triggeredByServiceId`; the UI marks them "Auto-opened".
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent

@@ -17,7 +17,7 @@ import {
 } from '@/hooks/useServices';
 import { useServiceMap } from '@/hooks/useServiceMap';
 import { useAlertRules, useDeleteAlertRule } from '@/hooks/useAlerts';
-import { ALERT_CONDITION_LABELS, INTEGRATION_TYPE_LABELS } from '@/api/alerts.api';
+import { ALERT_CONDITION_LABELS, describeAlertRuleActions } from '@/api/alerts.api';
 import type { MetricsRange } from '@/api/services.api';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 
@@ -406,7 +406,7 @@ export function ServiceDetails() {
                           {ALERT_CONDITION_LABELS[rule.condition] ?? rule.condition}
                         </p>
                         <p className="text-gray-500">
-                          {INTEGRATION_TYPE_LABELS[rule.integrationType] ?? rule.integrationType}
+                          {describeAlertRuleActions(rule)}
                         </p>
                       </div>
                       <button

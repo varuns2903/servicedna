@@ -1,5 +1,6 @@
 package com.servicedna.alert.domain;
 
+import com.servicedna.incident.domain.IncidentSeverity;
 import com.servicedna.organization.domain.Organization;
 import com.servicedna.service.domain.Service;
 import jakarta.persistence.Column;
@@ -34,12 +35,17 @@ public class AlertRule {
   @Column(nullable = false)
   private AlertCondition condition;
 
-  @Column(name = "webhook_url", nullable = false)
+  @Column(name = "webhook_url")
   private String webhookUrl;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "integration_type", nullable = false)
   private IntegrationType integrationType = IntegrationType.GENERIC;
+
+  /** When set, a matching status change opens (or updates) an incident with this severity. */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "incident_severity")
+  private IncidentSeverity incidentSeverity;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -57,13 +63,23 @@ public class AlertRule {
       Service service,
       AlertCondition condition,
       String webhookUrl,
-      IntegrationType integrationType) {
+      IntegrationType integrationType,
+      IncidentSeverity incidentSeverity) {
     this.id = id;
     this.organization = organization;
     this.service = service;
     this.condition = condition;
     this.webhookUrl = webhookUrl;
     this.integrationType = integrationType != null ? integrationType : IntegrationType.GENERIC;
+    this.incidentSeverity = incidentSeverity;
+  }
+
+  public IncidentSeverity getIncidentSeverity() {
+    return incidentSeverity;
+  }
+
+  public void setIncidentSeverity(IncidentSeverity incidentSeverity) {
+    this.incidentSeverity = incidentSeverity;
   }
 
   public UUID getId() {

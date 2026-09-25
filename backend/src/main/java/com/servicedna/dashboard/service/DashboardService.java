@@ -112,7 +112,8 @@ public class DashboardService {
     return new IncidentDto(
         incident.getId(),
         incident.getOrganization().getId(),
-        incident.getCreatedBy().getId(),
+        incident.getCreatedBy() != null ? incident.getCreatedBy().getId() : null,
+        incident.getTriggeredByServiceId(),
         incident.getTitle(),
         incident.getDescription(),
         incident.getStatus(),

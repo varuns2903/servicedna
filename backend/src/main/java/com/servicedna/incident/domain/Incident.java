@@ -31,9 +31,14 @@ public class Incident {
   @JoinColumn(name = "organization_id", nullable = false)
   private Organization organization;
 
+  /** Null for incidents opened automatically by an alert rule. */
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "created_by", nullable = false)
+  @JoinColumn(name = "created_by")
   private User createdBy;
+
+  /** The service whose alert opened this incident; null for incidents reported by a person. */
+  @Column(name = "triggered_by_service_id")
+  private UUID triggeredByServiceId;
 
   @Column(nullable = false)
   private String title;
@@ -105,6 +110,14 @@ public class Incident {
 
   public void setOrganization(Organization organization) {
     this.organization = organization;
+  }
+
+  public UUID getTriggeredByServiceId() {
+    return triggeredByServiceId;
+  }
+
+  public void setTriggeredByServiceId(UUID triggeredByServiceId) {
+    this.triggeredByServiceId = triggeredByServiceId;
   }
 
   public User getCreatedBy() {

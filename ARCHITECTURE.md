@@ -51,7 +51,9 @@ event processing, Redis for caching/rate-limiting, and PostgreSQL as the system 
   Postgres). A status change publishes a `ServiceStatusChangedEvent` onto Kafka.
 - **Alert evaluation**: `AlertEventConsumer` consumes those Kafka events, finds the service's
   alert rules matching the new status (`STATUS_DOWN` / `STATUS_DEGRADED` / `STATUS_RECOVERED`),
-  and posts each rule's webhook, unless the service is in an active maintenance window.
+  and posts each rule's webhook, unless the service is in an active maintenance window. Rules
+  with an incident severity open (or update) the service's single open alert incident through
+  `IncidentService.openOrUpdateAlertIncident`; recovery resolves it via `resolveAlertIncident`.
 - **Dashboard live updates**: any incident or service-status change publishes a
   `DashboardInvalidationEvent` in-process, which the dashboard module turns into a STOMP broadcast
   to `/topic/organizations/{orgId}/dashboard` — the frontend's WebSocket provider invalidates the

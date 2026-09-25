@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { IncidentSeverity } from './incidents.api';
 
 // Mirrors the backend's AlertCondition / IntegrationType enums: rules fire on service status
 // transitions, and are serialized as plain enum strings.
@@ -22,16 +23,31 @@ export interface AlertRuleDto {
   organizationId: string;
   serviceId: string;
   condition: AlertCondition;
-  webhookUrl: string;
+  webhookUrl: string | null;
   integrationType: IntegrationType;
+  /** When set, a matching status change opens or updates an incident with this severity. */
+  incidentSeverity: IncidentSeverity | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateAlertRuleRequest {
   condition: AlertCondition;
-  webhookUrl: string;
+  webhookUrl?: string;
   integrationType: IntegrationType;
+  incidentSeverity?: IncidentSeverity;
+}
+
+/** One-line summary of what a rule does when it fires, e.g. "Slack webhook · Opens CRITICAL incident". */
+export function describeAlertRuleActions(rule: AlertRuleDto): string {
+  const actions: string[] = [];
+  if (rule.webhookUrl) {
+    actions.push(`${INTEGRATION_TYPE_LABELS[rule.integrationType] ?? rule.integrationType} (${rule.webhookUrl})`);
+  }
+  if (rule.incidentSeverity) {
+    actions.push(`Opens ${rule.incidentSeverity} incident`);
+  }
+  return actions.join(' · ');
 }
 
 export const AlertsApi = {
