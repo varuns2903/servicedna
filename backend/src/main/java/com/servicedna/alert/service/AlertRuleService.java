@@ -71,6 +71,8 @@ public class AlertRuleService {
           "Recovery can't open an incident; incidents opened by alerts resolve on recovery automatically.");
     }
 
+    validateThreshold(request);
+
     AlertRule rule =
         new AlertRule(
             UUID.randomUUID(),
@@ -79,7 +81,9 @@ public class AlertRuleService {
             request.condition(),
             hasWebhook ? request.webhookUrl() : null,
             request.integrationType(),
-            request.incidentSeverity());
+            request.incidentSeverity(),
+            request.condition().isThreshold() ? request.threshold() : null,
+            request.condition().usesWindow() ? request.windowMinutes() : null);
 
     rule = alertRuleRepository.save(rule);
     return mapToDto(rule);
@@ -106,6 +110,30 @@ public class AlertRuleService {
     alertRuleRepository.delete(rule);
   }
 
+  private static void validateThreshold(CreateAlertRuleRequest request) {
+    AlertCondition condition = request.condition();
+    if (!condition.isThreshold()) {
+      return;
+    }
+    if (request.threshold() == null) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "INVALID_RULE", condition + " requires a threshold.");
+    }
+    if (condition == AlertCondition.ERROR_RATE_ABOVE && request.threshold() > 100) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "INVALID_RULE", "Error rate threshold is a percentage (0-100).");
+    }
+    if (condition == AlertCondition.CONSECUTIVE_FAILURES
+        && request.threshold() != Math.floor(request.threshold())) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "INVALID_RULE", "Consecutive failures must be a whole number.");
+    }
+    if (condition.usesWindow() && request.windowMinutes() == null) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "INVALID_RULE", condition + " requires windowMinutes.");
+    }
+  }
+
   private AlertRuleDto mapToDto(AlertRule rule) {
     return new AlertRuleDto(
         rule.getId(),
@@ -115,6 +143,9 @@ public class AlertRuleService {
         rule.getWebhookUrl(),
         rule.getIntegrationType(),
         rule.getIncidentSeverity(),
+        rule.getThreshold(),
+        rule.getWindowMinutes(),
+        rule.isBreached(),
         rule.getCreatedAt(),
         rule.getUpdatedAt());
   }

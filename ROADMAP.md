@@ -73,11 +73,11 @@ down too and gets its own incident — two incidents for one root cause.
 - Incident retitled after the likeliest root cause when a deeper dependency joins
 - Uses the declared graph today; switches to the observed graph once Phase 3 lands
 
-### 1.2 Threshold alert conditions
+### 1.2 Threshold alert conditions — ✅ Done
 The UI originally promised these; implement them for real:
 - `LATENCY_ABOVE` (ms, over N minutes), `ERROR_RATE_ABOVE` (%, over N minutes),
   `CONSECUTIVE_FAILURES` (count)
-- Evaluated in the existing Kafka alert consumer against recent pings (later: against trace metrics)
+- Evaluated by a scheduled evaluator (every 30 s) against recent pings, not the Kafka consumer — thresholds can be crossed without any status change (later: against trace metrics)
 
 ### 1.3 Plan limits enforced
 Billing shows "Free: 3 services max", but nothing enforces it.

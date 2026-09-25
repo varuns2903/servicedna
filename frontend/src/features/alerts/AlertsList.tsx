@@ -5,7 +5,15 @@ import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Trash2, Plus, Bell } from 'lucide-react';
-import { ALERT_CONDITION_LABELS, INTEGRATION_TYPE_LABELS, describeAlertRuleActions } from '@/api/alerts.api';
+import {
+  ALERT_CONDITION_LABELS,
+  INTEGRATION_TYPE_LABELS,
+  THRESHOLD_UNITS,
+  describeAlertRuleActions,
+  describeAlertRuleCondition,
+  isThresholdCondition,
+  usesWindow,
+} from '@/api/alerts.api';
 import type { AlertCondition, IntegrationType } from '@/api/alerts.api';
 import type { IncidentSeverity } from '@/api/incidents.api';
 
@@ -28,6 +36,8 @@ export function AlertsList() {
   const [integration, setIntegration] = useState<IntegrationType>('GENERIC');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [incidentSeverity, setIncidentSeverity] = useState<IncidentSeverity | ''>('CRITICAL');
+  const [threshold, setThreshold] = useState(1000);
+  const [windowMinutes, setWindowMinutes] = useState(5);
 
   // Recovery can't open an incident: incidents opened by alerts resolve on recovery by themselves.
   const canOpenIncident = condition !== 'STATUS_RECOVERED';
@@ -46,6 +56,8 @@ export function AlertsList() {
         integrationType: integration,
         webhookUrl: webhookUrl.trim() || undefined,
         incidentSeverity: severity,
+        threshold: isThresholdCondition(condition) ? threshold : undefined,
+        windowMinutes: usesWindow(condition) ? windowMinutes : undefined,
       }
     }, {
       onSuccess: () => {
@@ -108,7 +120,11 @@ export function AlertsList() {
                       <label className="block text-sm text-gray-400 mb-1">Condition</label>
                       <select 
                         value={condition} 
-                        onChange={(e) => setCondition(e.target.value as AlertCondition)}
+                        onChange={(e) => {
+                          const next = e.target.value as AlertCondition;
+                          setCondition(next);
+                          setThreshold(next === 'LATENCY_ABOVE' ? 1000 : next === 'ERROR_RATE_ABOVE' ? 25 : 3);
+                        }}
                         className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
                       >
                         {Object.entries(ALERT_CONDITION_LABELS).map(([value, label]) => (
@@ -116,6 +132,37 @@ export function AlertsList() {
                         ))}
                       </select>
                     </div>
+                    {isThresholdCondition(condition) && (
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-1">
+                          Threshold ({THRESHOLD_UNITS[condition]})
+                        </label>
+                        <input
+                          type="number"
+                          min={condition === 'CONSECUTIVE_FAILURES' ? 1 : 0}
+                          max={condition === 'ERROR_RATE_ABOVE' ? 100 : undefined}
+                          step={condition === 'CONSECUTIVE_FAILURES' ? 1 : 'any'}
+                          required
+                          value={threshold}
+                          onChange={(e) => setThreshold(Number(e.target.value))}
+                          className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
+                        />
+                      </div>
+                    )}
+                    {usesWindow(condition) && (
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-1">Window (minutes)</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={60}
+                          required
+                          value={windowMinutes}
+                          onChange={(e) => setWindowMinutes(Number(e.target.value))}
+                          className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm text-gray-400 mb-1">Integration</label>
                       <select 
@@ -183,7 +230,8 @@ export function AlertsList() {
                   <CardContent className="p-4 flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">
-                        {ALERT_CONDITION_LABELS[alert.condition] ?? alert.condition}
+                        {describeAlertRuleCondition(alert)}
+                        {alert.breached && <span className="ml-2 text-xs font-normal text-rose-400">● breached</span>}
                       </h4>
                       <p className="text-sm text-gray-400">
                         {describeAlertRuleActions(alert)}

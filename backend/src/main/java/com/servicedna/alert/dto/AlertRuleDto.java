@@ -14,5 +14,8 @@ public record AlertRuleDto(
     String webhookUrl,
     IntegrationType integrationType,
     IncidentSeverity incidentSeverity,
+    Double threshold,
+    Integer windowMinutes,
+    boolean breached,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {}

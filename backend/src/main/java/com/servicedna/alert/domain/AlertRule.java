@@ -47,6 +47,17 @@ public class AlertRule {
   @Column(name = "incident_severity")
   private IncidentSeverity incidentSeverity;
 
+  /** Threshold conditions only: ms, percent, or a failure count depending on the condition. */
+  private Double threshold;
+
+  /** LATENCY_ABOVE / ERROR_RATE_ABOVE only: how far back to look. */
+  @Column(name = "window_minutes")
+  private Integer windowMinutes;
+
+  /** Threshold conditions only: whether the threshold is currently exceeded. */
+  @Column(nullable = false)
+  private boolean breached;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -64,7 +75,9 @@ public class AlertRule {
       AlertCondition condition,
       String webhookUrl,
       IntegrationType integrationType,
-      IncidentSeverity incidentSeverity) {
+      IncidentSeverity incidentSeverity,
+      Double threshold,
+      Integer windowMinutes) {
     this.id = id;
     this.organization = organization;
     this.service = service;
@@ -72,6 +85,24 @@ public class AlertRule {
     this.webhookUrl = webhookUrl;
     this.integrationType = integrationType != null ? integrationType : IntegrationType.GENERIC;
     this.incidentSeverity = incidentSeverity;
+    this.threshold = threshold;
+    this.windowMinutes = windowMinutes;
+  }
+
+  public Double getThreshold() {
+    return threshold;
+  }
+
+  public Integer getWindowMinutes() {
+    return windowMinutes;
+  }
+
+  public boolean isBreached() {
+    return breached;
+  }
+
+  public void setBreached(boolean breached) {
+    this.breached = breached;
   }
 
   public IncidentSeverity getIncidentSeverity() {

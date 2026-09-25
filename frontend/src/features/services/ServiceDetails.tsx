@@ -17,7 +17,7 @@ import {
 } from '@/hooks/useServices';
 import { useServiceMap } from '@/hooks/useServiceMap';
 import { useAlertRules, useDeleteAlertRule } from '@/hooks/useAlerts';
-import { ALERT_CONDITION_LABELS, describeAlertRuleActions } from '@/api/alerts.api';
+import { describeAlertRuleActions, describeAlertRuleCondition } from '@/api/alerts.api';
 import type { MetricsRange } from '@/api/services.api';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 
@@ -403,7 +403,8 @@ export function ServiceDetails() {
                     >
                       <div className="text-xs text-gray-300">
                         <p className="font-medium text-gray-200">
-                          {ALERT_CONDITION_LABELS[rule.condition] ?? rule.condition}
+                          {describeAlertRuleCondition(rule)}
+                          {rule.breached && <span className="ml-1 text-rose-400">● breached</span>}
                         </p>
                         <p className="text-gray-500">
                           {describeAlertRuleActions(rule)}

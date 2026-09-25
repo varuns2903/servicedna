@@ -13,6 +13,12 @@ All notable changes to this project are documented in this file. The format is b
   repeat alerts update its timeline and can raise its severity, and it resolves automatically when
   the service recovers. Webhooks are now optional on a rule that opens incidents. Incidents opened
   this way have no reporter and carry `triggeredByServiceId`; the UI marks them "Auto-opened".
+- Threshold alert conditions: `LATENCY_ABOVE` (average latency of successful checks over a
+  window), `ERROR_RATE_ABOVE` (percentage of failed checks over a window), and
+  `CONSECUTIVE_FAILURES` (the latest N checks all failed). Evaluated every 30 seconds; each rule
+  fires once when crossed and once when cleared, with the same webhook and incident actions as
+  status rules. An incident a threshold opened resolves once the metric clears and the service is
+  healthy; a service with a breached threshold rule doesn't count as recovered.
 - Cascading failures are grouped into one incident. When a service goes unhealthy while
   something it depends on (or that depends on it, transitively) already has an open alert
   incident, it joins that incident instead of opening another, and the incident is retitled after
