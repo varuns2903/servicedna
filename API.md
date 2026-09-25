@@ -155,12 +155,13 @@ any CRITICAL/MAJOR incident that's gone unacknowledged past the configured windo
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/` | Create an alert rule (latency threshold, error rate, or consecutive-failure count) |
+| POST | `/` | Create an alert rule: `condition` (`STATUS_DOWN` \| `STATUS_DEGRADED` \| `STATUS_RECOVERED`), `webhookUrl`, `integrationType` (`GENERIC` \| `SLACK` \| `DISCORD`) |
 | GET | `/` | List alert rules for a service |
 | DELETE | `/{ruleId}` | Delete a rule |
 
-Alert evaluation runs asynchronously off a Kafka consumer and opens an incident automatically when
-a rule's condition is met.
+Alert evaluation runs asynchronously off a Kafka consumer: when a service's status changes, every
+rule matching the new status posts to its webhook (suppressed while the service is in an active
+maintenance window). Alerts notify only — they don't open incidents.
 
 ---
 

@@ -41,7 +41,7 @@ Live health overview of all services with instant WebSocket updates. No refresh 
 Visualize service-to-service relationships with an auto-layouted directed graph. Click any node to explore blast radius and upstream/downstream dependencies.
 
 ### 🚨 Incident Management
-Full lifecycle from detection to resolution: manual or alert-triggered creation, status transitions, acknowledgement, a structured post-mortem (root cause / timeline / action items), and an auto-built event timeline — no manual logging required.
+Full lifecycle from detection to resolution: manual creation, status transitions, acknowledgement, a structured post-mortem (root cause / timeline / action items), and an auto-built event timeline — no manual logging required.
 
 ### 📟 On-Call & Escalation
 Configure a rotating on-call schedule per organization, view it as a color-coded monthly calendar, and set an escalation policy that pages a fallback contact if a critical incident goes unacknowledged.
@@ -50,7 +50,7 @@ Configure a rotating on-call schedule per organization, view it as a color-coded
 <td width="50%">
 
 ### 🔔 Alerts & Notification Webhooks
-Define per-service alert rules (latency, error rate, consecutive failures) that automatically open incidents, and route incident created/resolved/escalated events to Slack, Microsoft Teams, or any generic JSON webhook.
+Define per-service alert rules that fire a Slack, Discord, or generic JSON webhook when a service goes down, becomes degraded, or recovers, and route incident created/resolved/escalated events to Slack, Microsoft Teams, or any generic JSON webhook.
 
 ### 📈 SLA & Error Budgets
 Set a per-service uptime SLO target and track its error budget — total allowed downtime, how much is consumed, and the burn-down — over 7/30/90-day windows, alongside uptime, MTTR, and MTBF.
@@ -125,7 +125,7 @@ Built-in subscription management with Free, Pro, and Enterprise tiers — checko
 | `oncall` | Rotating on-call schedule configuration and current-on-call lookup |
 | `escalation` | Escalation policy config and the scheduled job that pages unacknowledged incidents |
 | `webhook` | Org-level Slack/Teams/generic notification webhooks for incident events |
-| `alert` | Alert rule configuration, Kafka consumer for threshold evaluation |
+| `alert` | Alert rule configuration, Kafka consumer that fires webhooks on service status changes |
 | `analytics` | SLA report generation: uptime, MTTR, MTBF, and per-service error budgets |
 | `dashboard` | Aggregated summary, WebSocket broadcast via STOMP |
 | `billing` | Stripe subscriptions, checkout sessions, webhook handler |
