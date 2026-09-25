@@ -5,7 +5,8 @@ import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Trash2, Plus, Bell } from 'lucide-react';
-import type { AlertConditionType, IntegrationType } from '@/api/alerts.api';
+import { ALERT_CONDITION_LABELS, INTEGRATION_TYPE_LABELS } from '@/api/alerts.api';
+import type { AlertCondition, IntegrationType } from '@/api/alerts.api';
 
 export function AlertsList() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
@@ -20,10 +21,8 @@ export function AlertsList() {
 
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [type, setType] = useState<AlertConditionType>('LATENCY_ABOVE');
-  const [threshold, setThreshold] = useState(1000);
-  const [duration, setDuration] = useState(5);
-  const [integration, setIntegration] = useState<IntegrationType>('WEBHOOK');
+  const [condition, setCondition] = useState<AlertCondition>('STATUS_DOWN');
+  const [integration, setIntegration] = useState<IntegrationType>('GENERIC');
   const [webhookUrl, setWebhookUrl] = useState('');
 
   const handleCreate = (e: React.FormEvent) => {
@@ -34,7 +33,7 @@ export function AlertsList() {
       orgId: currentOrgId,
       serviceId: selectedServiceId,
       data: {
-        condition: { type, threshold, durationMinutes: duration },
+        condition,
         integrationType: integration,
         webhookUrl
       }
@@ -98,34 +97,14 @@ export function AlertsList() {
                     <div>
                       <label className="block text-sm text-gray-400 mb-1">Condition</label>
                       <select 
-                        value={type} 
-                        onChange={(e) => setType(e.target.value as AlertConditionType)}
+                        value={condition} 
+                        onChange={(e) => setCondition(e.target.value as AlertCondition)}
                         className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
                       >
-                        <option value="LATENCY_ABOVE">Latency Above</option>
-                        <option value="ERROR_RATE_ABOVE">Error Rate Above</option>
-                        <option value="STATUS_DOWN">Status Down</option>
+                        {Object.entries(ALERT_CONDITION_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
                       </select>
-                    </div>
-                    {type !== 'STATUS_DOWN' && (
-                      <div>
-                        <label className="block text-sm text-gray-400 mb-1">Threshold</label>
-                        <input 
-                          type="number" 
-                          value={threshold} 
-                          onChange={(e) => setThreshold(Number(e.target.value))}
-                          className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Duration (minutes)</label>
-                      <input 
-                        type="number" 
-                        value={duration} 
-                        onChange={(e) => setDuration(Number(e.target.value))}
-                        className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
-                      />
                     </div>
                     <div>
                       <label className="block text-sm text-gray-400 mb-1">Integration</label>
@@ -134,16 +113,15 @@ export function AlertsList() {
                         onChange={(e) => setIntegration(e.target.value as IntegrationType)}
                         className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
                       >
-                        <option value="WEBHOOK">Webhook</option>
-                        <option value="SLACK">Slack</option>
-                        <option value="PAGERDUTY">PagerDuty</option>
-                        <option value="EMAIL">Email</option>
+                        {Object.entries(INTEGRATION_TYPE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
                       </select>
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm text-gray-400 mb-1">Target URL / Address</label>
+                      <label className="block text-sm text-gray-400 mb-1">Webhook URL</label>
                       <input 
-                        type="text" 
+                        type="url" 
                         required
                         value={webhookUrl} 
                         onChange={(e) => setWebhookUrl(e.target.value)}
@@ -177,11 +155,10 @@ export function AlertsList() {
                   <CardContent className="p-4 flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">
-                        {alert.condition.type.replace(/_/g, ' ')} 
-                        {alert.condition.type !== 'STATUS_DOWN' && ` > ${alert.condition.threshold}`}
+                        {ALERT_CONDITION_LABELS[alert.condition] ?? alert.condition}
                       </h4>
                       <p className="text-sm text-gray-400">
-                        For {alert.condition.durationMinutes} minutes • {alert.integrationType} ({alert.webhookUrl})
+                        {INTEGRATION_TYPE_LABELS[alert.integrationType] ?? alert.integrationType} ({alert.webhookUrl})
                       </p>
                     </div>
                     <Button 

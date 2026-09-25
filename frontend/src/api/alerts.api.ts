@@ -1,13 +1,21 @@
 import { apiClient } from './client';
 
-export type AlertConditionType = 'LATENCY_ABOVE' | 'ERROR_RATE_ABOVE' | 'STATUS_DOWN';
-export type IntegrationType = 'WEBHOOK' | 'SLACK' | 'PAGERDUTY' | 'EMAIL';
+// Mirrors the backend's AlertCondition / IntegrationType enums: rules fire on service status
+// transitions, and are serialized as plain enum strings.
+export type AlertCondition = 'STATUS_DOWN' | 'STATUS_DEGRADED' | 'STATUS_RECOVERED';
+export type IntegrationType = 'GENERIC' | 'SLACK' | 'DISCORD';
 
-export interface AlertCondition {
-  type: AlertConditionType;
-  threshold: number;
-  durationMinutes: number;
-}
+export const ALERT_CONDITION_LABELS: Record<AlertCondition, string> = {
+  STATUS_DOWN: 'Status Down',
+  STATUS_DEGRADED: 'Status Degraded',
+  STATUS_RECOVERED: 'Status Recovered',
+};
+
+export const INTEGRATION_TYPE_LABELS: Record<IntegrationType, string> = {
+  GENERIC: 'Generic Webhook',
+  SLACK: 'Slack',
+  DISCORD: 'Discord',
+};
 
 export interface AlertRuleDto {
   id: string;
