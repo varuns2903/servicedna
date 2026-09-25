@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -21,6 +22,13 @@ public interface IncidentRepository extends JpaRepository<Incident, UUID> {
 
   List<Incident> findByCreatedById(UUID userId);
 
-  Optional<Incident> findFirstByTriggeredByServiceIdAndStatusNot(
-      UUID serviceId, IncidentStatus status);
+  /** Unresolved alert-opened incidents that list the service as affected, newest first. */
+  @Query(
+      "select i from Incident i join i.affectedServices s where s.id = :serviceId"
+          + " and i.triggeredByServiceId is not null and i.status <> :resolved"
+          + " order by i.createdAt desc")
+  List<Incident> findOpenAlertIncidentsAffecting(UUID serviceId, IncidentStatus resolved);
+
+  List<Incident> findByOrganizationIdAndTriggeredByServiceIdIsNotNullAndStatusNotOrderByCreatedAtDesc(
+      UUID organizationId, IncidentStatus status);
 }

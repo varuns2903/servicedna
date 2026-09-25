@@ -13,6 +13,11 @@ All notable changes to this project are documented in this file. The format is b
   repeat alerts update its timeline and can raise its severity, and it resolves automatically when
   the service recovers. Webhooks are now optional on a rule that opens incidents. Incidents opened
   this way have no reporter and carry `triggeredByServiceId`; the UI marks them "Auto-opened".
+- Cascading failures are grouped into one incident. When a service goes unhealthy while
+  something it depends on (or that depends on it, transitively) already has an open alert
+  incident, it joins that incident instead of opening another, and the incident is retitled after
+  the deepest failing dependency — the likely root cause. The incident resolves only once every
+  affected service has recovered; partial recoveries appear on the timeline.
 
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
