@@ -1,0 +1,2 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+io.github.varuns2903.servicedna.ServiceDnaEnvironmentPostProcessor

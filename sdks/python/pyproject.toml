@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "servicedna"
+version = "0.1.0"
+description = "Connect a Python service to ServiceDNA: traces, self-registration and health heartbeats with two environment variables."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+dependencies = [
+  "opentelemetry-api~=1.45",
+  "opentelemetry-sdk~=1.45",
+  "opentelemetry-exporter-otlp-proto-http~=1.45",
+  "opentelemetry-instrumentation==0.66b0",
+  # Instrumentations only activate when their library is installed, so the common ones ship by default.
+  "opentelemetry-instrumentation-asgi==0.66b0",
+  "opentelemetry-instrumentation-wsgi==0.66b0",
+  "opentelemetry-instrumentation-fastapi==0.66b0",
+  "opentelemetry-instrumentation-flask==0.66b0",
+  "opentelemetry-instrumentation-django==0.66b0",
+  "opentelemetry-instrumentation-requests==0.66b0",
+  "opentelemetry-instrumentation-httpx==0.66b0",
+  "opentelemetry-instrumentation-urllib3==0.66b0",
+  "opentelemetry-instrumentation-aiohttp-client==0.66b0",
+  "opentelemetry-instrumentation-grpc==0.66b0",
+  "opentelemetry-instrumentation-sqlalchemy==0.66b0",
+  "opentelemetry-instrumentation-psycopg2==0.66b0",
+  "opentelemetry-instrumentation-redis==0.66b0",
+  "opentelemetry-instrumentation-kafka-python==0.66b0",
+  "opentelemetry-instrumentation-confluent-kafka==0.66b0",
+]
+
+[project.urls]
+Source = "https://github.com/varuns2903/servicedna/tree/main/sdks/python"
+
+[project.scripts]
+servicedna-run = "servicedna.run:main"
+
+[project.entry-points.opentelemetry_distro]
+servicedna = "servicedna.distro:ServiceDnaDistro"
+
+[project.entry-points.opentelemetry_configurator]
+servicedna = "servicedna.distro:ServiceDnaConfigurator"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/servicedna"]

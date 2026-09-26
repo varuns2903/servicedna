@@ -1,0 +1,77 @@
+name: SDKs
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["sdks/**", ".github/workflows/sdks.yml"]
+  pull_request:
+    branches: ["main"]
+    paths: ["sdks/**", ".github/workflows/sdks.yml"]
+
+concurrency:
+  group: sdks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: Node SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sdks/node/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  python:
+    name: Python SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e . pytest
+      - run: pytest -q tests
+
+  go:
+    name: Go SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sdks/go/go.mod
+          cache-dependency-path: sdks/go/go.sum
+      - run: go vet ./...
+      - run: go test ./...
+
+  java:
+    name: Spring Boot starter
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: ./mvnw -B install

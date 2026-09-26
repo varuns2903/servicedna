@@ -104,7 +104,7 @@ ServiceDNA SDK, the graph, flows, and testing features light up without extra se
 - Storage: full traces in **Tempo** (or Jaeger); only aggregates (edges, metrics) in Postgres
 - Ships in `docker-compose.yml` so local setup stays one command
 
-### 2.2 Language SDKs — auto-configured
+### 2.2 Language SDKs — auto-configured — ✅ Done
 Each SDK wraps OpenTelemetry with ServiceDNA defaults; nothing proprietary on the wire.
 
 **Java / Spring Boot** — like adding `spring-kafka`:

@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: quotes-service
+server:
+  port: ${PORT:8090}

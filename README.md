@@ -65,6 +65,14 @@ Built-in subscription management with Free, Pro, and Enterprise tiers — checko
 </tr>
 </table>
 
+### 🔌 Connect a service in two lines
+
+Add the SDK for your language and set `SERVICEDNA_URL` + `SERVICEDNA_KEY` (an organization
+ingestion key from Settings → Integrations). The service registers itself, sends distributed
+traces, and reports health — no manual registration. SDKs for [Node.js](sdks/node),
+[Python](sdks/python), [Go](sdks/go) and [Spring Boot](sdks/java); anything already on
+OpenTelemetry can point its OTLP exporter at ServiceDNA instead.
+
 ### And also...
 
 - 🔐 **GitHub OAuth2 + Generic OIDC SSO** — passwordless login via rotating JWT access/refresh tokens, with provider-verified-email checks on account linking
