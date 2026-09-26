@@ -155,13 +155,16 @@ any CRITICAL/MAJOR incident that's gone unacknowledged past the configured windo
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/` | Create an alert rule: `condition` (`STATUS_DOWN` \| `STATUS_DEGRADED` \| `STATUS_RECOVERED`), `webhookUrl`, `integrationType` (`GENERIC` \| `SLACK` \| `DISCORD`) |
+| POST | `/` | Create an alert rule: `condition` (`STATUS_DOWN` \| `STATUS_DEGRADED` \| `STATUS_RECOVERED`), and at least one action — `webhookUrl` + `integrationType` (`GENERIC` \| `SLACK` \| `DISCORD`), and/or `incidentSeverity` (`CRITICAL` \| `MAJOR` \| `MINOR` \| `LOW`; not allowed on `STATUS_RECOVERED`) |
 | GET | `/` | List alert rules for a service |
 | DELETE | `/{ruleId}` | Delete a rule |
 
 Alert evaluation runs asynchronously off a Kafka consumer: when a service's status changes, every
 rule matching the new status posts to its webhook (suppressed while the service is in an active
-maintenance window). Alerts notify only — they don't open incidents.
+maintenance window). Rules with an `incidentSeverity` also open an incident: a service has at most
+one open alert-opened incident — repeat alerts add to its timeline and can raise (never lower) its
+severity — and it resolves automatically when the service reports healthy again. CRITICAL/MAJOR
+alert incidents page on-call and escalate like any other incident.
 
 ---
 

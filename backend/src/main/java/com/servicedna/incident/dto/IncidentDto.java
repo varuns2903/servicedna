@@ -10,6 +10,7 @@ public record IncidentDto(
     UUID id,
     UUID organizationId,
     UUID createdById,
+    UUID triggeredByServiceId,
     String title,
     String description,
     IncidentStatus status,

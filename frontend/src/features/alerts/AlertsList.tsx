@@ -5,8 +5,11 @@ import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Trash2, Plus, Bell } from 'lucide-react';
-import { ALERT_CONDITION_LABELS, INTEGRATION_TYPE_LABELS } from '@/api/alerts.api';
+import { ALERT_CONDITION_LABELS, INTEGRATION_TYPE_LABELS, describeAlertRuleActions } from '@/api/alerts.api';
 import type { AlertCondition, IntegrationType } from '@/api/alerts.api';
+import type { IncidentSeverity } from '@/api/incidents.api';
+
+const INCIDENT_SEVERITIES: IncidentSeverity[] = ['CRITICAL', 'MAJOR', 'MINOR', 'LOW'];
 
 export function AlertsList() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
@@ -24,6 +27,12 @@ export function AlertsList() {
   const [condition, setCondition] = useState<AlertCondition>('STATUS_DOWN');
   const [integration, setIntegration] = useState<IntegrationType>('GENERIC');
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [incidentSeverity, setIncidentSeverity] = useState<IncidentSeverity | ''>('CRITICAL');
+
+  // Recovery can't open an incident: incidents opened by alerts resolve on recovery by themselves.
+  const canOpenIncident = condition !== 'STATUS_RECOVERED';
+  const severity = canOpenIncident && incidentSeverity ? incidentSeverity : undefined;
+  const hasAction = webhookUrl.trim() !== '' || severity !== undefined;
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +44,8 @@ export function AlertsList() {
       data: {
         condition,
         integrationType: integration,
-        webhookUrl
+        webhookUrl: webhookUrl.trim() || undefined,
+        incidentSeverity: severity,
       }
     }, {
       onSuccess: () => {
@@ -118,11 +128,29 @@ export function AlertsList() {
                         ))}
                       </select>
                     </div>
+                    {canOpenIncident && (
+                      <div className="col-span-2">
+                        <label className="block text-sm text-gray-400 mb-1">Open incident</label>
+                        <select
+                          value={incidentSeverity}
+                          onChange={(e) => setIncidentSeverity(e.target.value as IncidentSeverity | '')}
+                          className="w-full bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-white"
+                        >
+                          <option value="">Don't open an incident</option>
+                          {INCIDENT_SEVERITIES.map((s) => (
+                            <option key={s} value={s}>Open a {s} incident</option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Repeat alerts update the same open incident, and it resolves automatically when the service recovers.
+                        </p>
+                      </div>
+                    )}
                     <div className="col-span-2">
-                      <label className="block text-sm text-gray-400 mb-1">Webhook URL</label>
+                      <label className="block text-sm text-gray-400 mb-1">Webhook URL {severity && '(optional)'}</label>
                       <input 
                         type="url" 
-                        required
+                        required={!severity}
                         value={webhookUrl} 
                         onChange={(e) => setWebhookUrl(e.target.value)}
                         placeholder="https://..."
@@ -132,7 +160,7 @@ export function AlertsList() {
                   </div>
                   <div className="flex justify-end space-x-3 pt-4">
                     <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={createAlert.isPending}>
+                    <Button type="submit" disabled={createAlert.isPending || !hasAction}>
                       {createAlert.isPending ? 'Saving...' : 'Save Rule'}
                     </Button>
                   </div>
@@ -158,7 +186,7 @@ export function AlertsList() {
                         {ALERT_CONDITION_LABELS[alert.condition] ?? alert.condition}
                       </h4>
                       <p className="text-sm text-gray-400">
-                        {INTEGRATION_TYPE_LABELS[alert.integrationType] ?? alert.integrationType} ({alert.webhookUrl})
+                        {describeAlertRuleActions(alert)}
                       </p>
                     </div>
                     <Button 

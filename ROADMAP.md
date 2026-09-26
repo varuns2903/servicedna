@@ -54,14 +54,22 @@ Bugs found while running ShopLite. Small, independent, do these first.
 
 ## Phase 1 — Close the core gaps
 
-### 1.1 Alerts open incidents automatically
+### 1.1 Alerts open incidents automatically — ✅ Done
 Today an outage at 3am fires a webhook and pages nobody, because on-call paging and escalation
 only start when a human creates an incident.
 
 - Alert rule option: **Open incident** with a severity (e.g. `STATUS_DOWN → CRITICAL`)
 - Auto-resolve (or move to `MONITORING`) on `STATUS_RECOVERED`
 - De-duplicate: one open incident per service per condition; repeat events append to its timeline
-- Affected services pre-filled from the dependency graph (the failing service + observed callers)
+- ~~Affected services pre-filled from the dependency graph~~ → moved to **1.1b**
+
+### 1.1b Group cascading failures into one incident
+Found while testing 1.1: when payment-service goes down, order-service (which depends on it) goes
+down too and gets its own incident — two incidents for one root cause.
+- When a service's dependency (declared, later observed — Phase 3) already has an open alert
+  incident, add the service to that incident instead of opening a new one
+- Resolve the grouped incident only once every affected service has recovered
+- Timeline shows the cascade: "order-service DOWN — depends on payment-service"
 
 ### 1.2 Threshold alert conditions
 The UI originally promised these; implement them for real:

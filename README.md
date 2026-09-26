@@ -41,7 +41,7 @@ Live health overview of all services with instant WebSocket updates. No refresh 
 Visualize service-to-service relationships with an auto-layouted directed graph. Click any node to explore blast radius and upstream/downstream dependencies.
 
 ### 🚨 Incident Management
-Full lifecycle from detection to resolution: manual creation, status transitions, acknowledgement, a structured post-mortem (root cause / timeline / action items), and an auto-built event timeline — no manual logging required.
+Full lifecycle from detection to resolution: created manually or automatically by alert rules, status transitions, acknowledgement, a structured post-mortem (root cause / timeline / action items), and an auto-built event timeline — no manual logging required.
 
 ### 📟 On-Call & Escalation
 Configure a rotating on-call schedule per organization, view it as a color-coded monthly calendar, and set an escalation policy that pages a fallback contact if a critical incident goes unacknowledged.
@@ -50,7 +50,7 @@ Configure a rotating on-call schedule per organization, view it as a color-coded
 <td width="50%">
 
 ### 🔔 Alerts & Notification Webhooks
-Define per-service alert rules that fire a Slack, Discord, or generic JSON webhook when a service goes down, becomes degraded, or recovers, and route incident created/resolved/escalated events to Slack, Microsoft Teams, or any generic JSON webhook.
+Define per-service alert rules that fire a Slack, Discord, or generic JSON webhook and/or open an incident (paging on-call for CRITICAL/MAJOR) when a service goes down or becomes degraded — auto-resolved on recovery — and route incident created/resolved/escalated events to Slack, Microsoft Teams, or any generic JSON webhook.
 
 ### 📈 SLA & Error Budgets
 Set a per-service uptime SLO target and track its error budget — total allowed downtime, how much is consumed, and the burn-down — over 7/30/90-day windows, alongside uptime, MTTR, and MTBF.

@@ -6,7 +6,10 @@ export type IncidentSeverity = 'CRITICAL' | 'MAJOR' | 'MINOR' | 'LOW';
 export interface IncidentDto {
   id: string;
   organizationId: string;
-  createdById: string;
+  /** Null when an alert rule opened the incident. */
+  createdById: string | null;
+  /** The service whose alert opened this incident; null for incidents reported by a person. */
+  triggeredByServiceId: string | null;
   title: string;
   description: string;
   status: IncidentStatus;
@@ -51,7 +54,9 @@ export type IncidentEventType =
   | 'STATUS_CHANGED'
   | 'ACKNOWLEDGED'
   | 'ESCALATED'
-  | 'POST_MORTEM_UPDATED';
+  | 'POST_MORTEM_UPDATED'
+  | 'ALERT_TRIGGERED'
+  | 'SEVERITY_CHANGED';
 
 export interface IncidentEventDto {
   id: string;

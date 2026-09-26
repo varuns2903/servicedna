@@ -1,5 +1,6 @@
 package com.servicedna.alert.service;
 
+import com.servicedna.alert.domain.AlertCondition;
 import com.servicedna.alert.domain.AlertRule;
 import com.servicedna.alert.dto.AlertRuleDto;
 import com.servicedna.alert.dto.CreateAlertRuleRequest;
@@ -56,14 +57,29 @@ public class AlertRuleService {
                     new ApiException(
                         HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
 
+    boolean hasWebhook = request.webhookUrl() != null && !request.webhookUrl().isBlank();
+    if (!hasWebhook && request.incidentSeverity() == null) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST,
+          "RULE_HAS_NO_ACTION",
+          "An alert rule needs a webhook URL, an incident severity, or both.");
+    }
+    if (request.incidentSeverity() != null && request.condition() == AlertCondition.STATUS_RECOVERED) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST,
+          "INVALID_RULE",
+          "Recovery can't open an incident; incidents opened by alerts resolve on recovery automatically.");
+    }
+
     AlertRule rule =
         new AlertRule(
             UUID.randomUUID(),
             organization,
             service,
             request.condition(),
-            request.webhookUrl(),
-            request.integrationType());
+            hasWebhook ? request.webhookUrl() : null,
+            request.integrationType(),
+            request.incidentSeverity());
 
     rule = alertRuleRepository.save(rule);
     return mapToDto(rule);
@@ -98,6 +114,7 @@ public class AlertRuleService {
         rule.getCondition(),
         rule.getWebhookUrl(),
         rule.getIntegrationType(),
+        rule.getIncidentSeverity(),
         rule.getCreatedAt(),
         rule.getUpdatedAt());
   }
