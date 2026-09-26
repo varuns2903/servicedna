@@ -114,11 +114,12 @@ public class AlertRuleService {
   }
 
   @Transactional
-  public void deleteAlertRule(UUID organizationId, UUID ruleId, UUID userId) {
+  public void deleteAlertRule(UUID organizationId, UUID serviceId, UUID ruleId, UUID userId) {
     organizationService.validateUserAccess(organizationId, userId);
     AlertRule rule =
         alertRuleRepository
             .findByOrganizationIdAndId(organizationId, ruleId)
+            .filter(r -> r.getService().getId().equals(serviceId))
             .orElseThrow(
                 () ->
                     new ApiException(

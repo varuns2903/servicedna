@@ -312,7 +312,7 @@ servicedna/
 | `JWT_SECRET` | Access token signing key (256-bit min) | — |
 | `JWT_EXPIRATION_MS` | Access token TTL in ms | `86400000` |
 | `JWT_REFRESH_EXPIRATION_MS` | Refresh token TTL in ms | `2592000000` (30 days) |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Outbound mail for verification/reset/notification emails (optional — logs instead of sending if unset) | — |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Outbound mail for verification/reset/notification emails. docker-compose defaults to the bundled Mailpit — read them at http://localhost:8025. Unsent emails are logged without their content | — (`mailpit:1025` in docker-compose) |
 | `MAIL_FROM` | From-address for outbound email | — |
 | `BILLING_ENFORCE_PLAN_LIMITS` | Enforce plan limits (Free: 3 services, 1 day of ping history; Pro: 50, 30 days; Enterprise: unlimited). Set `false` for a self-hosted deployment that doesn't sell plans | `true` |
 | `STRIPE_API_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe secret key and webhook signing secret | — |

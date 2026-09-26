@@ -1,10 +1,10 @@
 package com.servicedna.logs;
 
 import com.servicedna.common.exception.ApiException;
+import com.servicedna.common.filter.AttributeFilter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 
@@ -21,8 +21,6 @@ public final class LogQl {
       "warn", "warn|warning",
       "error", "error|fatal|critical");
   private static final Pattern TRACE_ID = Pattern.compile("^[0-9a-fA-F]{16,32}$");
-  private static final Pattern ATTRIBUTE = Pattern.compile("^\\s*([A-Za-z_][\\w.\\-]*)\\s*(!=|>=|<=|=~|!~|=|>|<)\\s*(.*?)\\s*$");
-  private static final Pattern NUMBER = Pattern.compile("^-?\\d+(\\.\\d+)?$");
 
   static String query(Filters f) {
     List<String> selector = new ArrayList<>();
@@ -61,22 +59,18 @@ public final class LogQl {
 
   /** {@code orderId=o-17}, {@code http.status_code>=500}: numeric comparisons stay numeric. */
   static String attribute(String filter) {
-    Matcher m = ATTRIBUTE.matcher(filter);
-    if (!m.matches() || m.group(3).isEmpty()) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_FILTER", "Filters look like key=value, key>=500 or key=~regex: " + filter);
-    }
-    String key = m.group(1).replace('.', '_').replace('-', '_');
-    String op = m.group(2);
-    String raw = m.group(3);
-    String value = raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"") ? raw.substring(1, raw.length() - 1) : raw;
+    AttributeFilter f = AttributeFilter.parse(filter);
+    String key = f.key().replace('.', '_').replace('-', '_');
+    String op = f.operator();
     if (op.startsWith(">") || op.startsWith("<")) {
-      if (!NUMBER.matcher(value).matches()) {
+      if (!f.valueIsNumber()) {
         throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_FILTER", op + " compares numbers: " + filter);
       }
-      return key + " " + op + " " + value;
+      return key + " " + op + " " + f.value();
     }
-    return key + op + quote(value);
+    return key + op + quote(f.value());
   }
+
 
   private static boolean present(String s) {
     return s != null && !s.isBlank();

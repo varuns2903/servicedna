@@ -16,7 +16,7 @@
     "node": ">=18.19"
   },
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

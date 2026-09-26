@@ -120,6 +120,14 @@ public final class AssertionEvaluator {
     }
   }
 
+  private static int index(String digits) {
+    int n = 0;
+    for (int i = 0; i < digits.length(); i++) {
+      n = n * 10 + (digits.charAt(i) - '0');
+    }
+    return n;
+  }
+
   /** Dot path into JSON: "lines.0.qty". */
   static JsonNode at(JsonNode node, String path) {
     JsonNode current = node;
@@ -127,7 +135,11 @@ public final class AssertionEvaluator {
       if (current == null || current.isMissingNode() || current.isNull()) {
         return null;
       }
-      current = current.isArray() && part.chars().allMatch(Character::isDigit) ? current.get(Integer.parseInt(part)) : current.get(part);
+      if (current.isArray() && !part.isEmpty() && part.chars().allMatch(Character::isDigit)) {
+        current = part.length() > 9 ? null : current.get(index(part)); // longer can't be an index
+      } else {
+        current = current.get(part);
+      }
     }
     return current == null || current.isMissingNode() ? null : current;
   }

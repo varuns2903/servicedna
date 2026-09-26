@@ -36,12 +36,8 @@ public class MailService {
     try {
       mailSender.send(message);
     } catch (MailException e) {
-      log.warn(
-          "Could not send email to {} (SMTP not configured or unreachable): {}. Logging content instead:\nSubject: {}\n{}",
-          to,
-          e.getMessage(),
-          subject,
-          body);
+      // Never the content: emails carry sign-in and reset links. Locally, read them in Mailpit.
+      log.warn("Could not send an email (SMTP not configured or unreachable): {}", e.getMessage());
     }
   }
 }

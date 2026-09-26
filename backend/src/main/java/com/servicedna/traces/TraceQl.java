@@ -1,10 +1,9 @@
 package com.servicedna.traces;
 
 import com.servicedna.common.exception.ApiException;
+import com.servicedna.common.filter.AttributeFilter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 
 /** Builds TraceQL from explorer filters, so users search with fields rather than query syntax. */
@@ -25,8 +24,6 @@ public final class TraceQl {
       /** Text inside captured request/response bodies, e.g. an order id. */
       String text) {}
 
-  private static final Pattern ATTRIBUTE = Pattern.compile("^\\s*([A-Za-z_][\\w.\\-]*)\\s*(!=|>=|<=|=~|!~|=|>|<)\\s*(.*?)\\s*$");
-  private static final Pattern NUMBER = Pattern.compile("^-?\\d+(\\.\\d+)?$");
 
   /** The span selector for the filters: all conditions must hold on one span. */
   static String query(Filters f) {
@@ -70,18 +67,12 @@ public final class TraceQl {
    * numbers and booleans compare as such, anything else as a string (quotes optional).
    */
   static String attribute(String filter) {
-    Matcher m = ATTRIBUTE.matcher(filter);
-    if (!m.matches() || m.group(3).isEmpty()) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_FILTER", "Filters look like key=value, key>=500 or key=~regex: " + filter);
-    }
-    String key = m.group(1);
-    String op = m.group(2);
-    String raw = m.group(3);
-    boolean quoted = raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"");
-    String value = quoted ? raw.substring(1, raw.length() - 1) : raw;
+    AttributeFilter f = AttributeFilter.parse(filter);
+    String key = f.key();
     String scoped = key.startsWith("span.") || key.startsWith("resource.") ? key : "." + key;
-    boolean literal = !quoted && !op.contains("~") && (NUMBER.matcher(value).matches() || value.equals("true") || value.equals("false"));
-    return scoped + " " + op + " " + (literal ? value : quote(value));
+    boolean literal = !f.quoted() && !f.operator().contains("~")
+        && (f.valueIsNumber() || f.value().equals("true") || f.value().equals("false"));
+    return scoped + " " + f.operator() + " " + (literal ? f.value() : quote(f.value()));
   }
 
   private static boolean present(String s) {
