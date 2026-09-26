@@ -120,8 +120,11 @@ func TestGRPCFallsBackToReflectionV1Alpha(t *testing.T) {
 	job := testJob()
 	job.Protocol = "GRPC"
 	job.Target.Service, job.Target.Method, job.Target.Address = "health", "grpc.health.v1.Health/Check", lis.Addr().String()
-	res := (&Runner{}).execute(context.Background(), job)
-	if !res.Sent || res.Body != `{"status":"SERVING"}` {
-		t.Fatalf("result %+v", res)
+	// The v1 probe's rejection can surface on Send (as io.EOF) or on Recv, depending on timing.
+	for i := 0; i < 50; i++ {
+		res := (&Runner{}).execute(context.Background(), job)
+		if !res.Sent || res.Body != `{"status":"SERVING"}` {
+			t.Fatalf("attempt %d: result %+v", i, res)
+		}
 	}
 }

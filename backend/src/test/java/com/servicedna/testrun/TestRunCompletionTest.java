@@ -56,6 +56,20 @@ class TestRunCompletionTest {
   }
 
   @Test
+  void hopsFollowTheCallTreeEvenWhenClocksDisagree() {
+    Instant t = Instant.parse("2026-09-26T10:00:00Z");
+    TraceDto.Trace trace = new TraceDto.Trace("t", t, 20, List.of(
+        // orders' host clock runs behind: its spans start "before" the gateway's.
+        new TraceDto.Span("3", "2", "orders", "POST /orders", "SERVER", t.minusMillis(50), 5, false, null, Map.of(), List.of()),
+        new TraceDto.Span("5", "3", "payments", "Charge", "SERVER", t.minusMillis(40), 5, false, null, Map.of(), List.of()),
+        new TraceDto.Span("1", null, "gateway", "POST /api/orders", "SERVER", t, 20, false, null, Map.of(), List.of()),
+        new TraceDto.Span("2", "1", "gateway", "POST", "CLIENT", t.plusMillis(1), 10, false, null, Map.of(), List.of()),
+        new TraceDto.Span("4", "1", "users", "GET /users/1", "SERVER", t.plusMillis(15), 1, false, null, Map.of(), List.of())));
+
+    assertThat(TestRunViews.hops(trace)).extracting(TestRunDto.Hop::service).containsExactly("gateway", "orders", "payments", "users");
+  }
+
+  @Test
   void aRunCompletesOnceItsTraceStopsGrowing() throws Exception {
     AtomicReference<List<TraceDto.Span>> spans = new AtomicReference<>(new ArrayList<>());
     when(traces.trace(any(UUID.class), anyString())).thenAnswer(inv -> new TraceDto.Trace("t", Instant.now(), 1, spans.get()));

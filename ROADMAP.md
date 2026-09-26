@@ -234,7 +234,7 @@ Same trace data, finer grain: nodes are **operations**, not services.
 Send real data through the real code in dev / stage / prod and see each service's input and
 output — the Kafka-UI-produce-message experience, extended across the whole system.
 
-### 5.1 How it works — ✅ Done (API; the Test Studio page is 5.7)
+### 5.1 How it works — ✅ Done
 1. In **Test Studio**, pick an entry point from the discovered catalog: REST endpoint, gRPC
    method, GraphQL operation, or Kafka topic
 2. ServiceDNA generates a **payload template** from the schema (OpenAPI / proto / AsyncAPI /
@@ -382,6 +382,15 @@ correlation (logback/log4j/winston/structlog bridges).
   before data leaves the network; size caps on bodies
 - **Side effects**: services can honour a `sdna.test` flag to dry-run (skip real charges/emails);
   prod test runs require explicit per-environment permission
+
+### 5.7 Test Studio page — ✅ Done
+- Pick an environment, a service and an operation from its catalog (HTTP, GraphQL, gRPC, or a
+  Kafka topic from its consumers); the body is templated from the request schema
+- Send; the response and every hop fill in live, each expandable to what it received, returned
+  and captured
+- Turn a run into assertions in one click (or add hops one by one), send-and-check, and save the
+  case to a collection; run collections as suites and see which checks failed
+- Settings → Integrations lists environments; admins allow test runs in production-like ones
 
 ---
 

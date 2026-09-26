@@ -80,7 +80,37 @@ public class TestRunViews {
           httpStatus(a), firstNonNull(a.get("sdna.request.body"), statement(a)), a.get("sdna.response.body"), captured));
     }
     attachInternalCaptures(trace, byId, hops);
+    // Causal order (callers before what they call, siblings by start time): clocks on different
+    // hosts disagree, so sorting by start alone can put a service before its caller.
+    Map<String, Integer> order = treeOrder(trace.spans());
+    hops.sort(java.util.Comparator.comparingInt(h -> order.getOrDefault(h.spanId(), Integer.MAX_VALUE)));
     return hops;
+  }
+
+  private static Map<String, Integer> treeOrder(List<TraceDto.Span> spans) {
+    Map<String, List<TraceDto.Span>> children = new java.util.HashMap<>();
+    List<TraceDto.Span> roots = new ArrayList<>();
+    java.util.Set<String> ids = new java.util.HashSet<>();
+    spans.forEach(s -> ids.add(s.spanId()));
+    for (TraceDto.Span s : spans) {
+      if (s.parentSpanId() == null || !ids.contains(s.parentSpanId())) {
+        roots.add(s);
+      } else {
+        children.computeIfAbsent(s.parentSpanId(), k -> new ArrayList<>()).add(s);
+      }
+    }
+    java.util.Comparator<TraceDto.Span> byStart = java.util.Comparator.comparing(TraceDto.Span::start);
+    Map<String, Integer> order = new java.util.HashMap<>();
+    java.util.Deque<TraceDto.Span> stack = new java.util.ArrayDeque<>();
+    roots.stream().sorted(byStart.reversed()).forEach(stack::push);
+    while (!stack.isEmpty()) {
+      TraceDto.Span span = stack.pop();
+      if (order.putIfAbsent(span.spanId(), order.size()) != null) {
+        continue;
+      }
+      children.getOrDefault(span.spanId(), List.of()).stream().sorted(byStart.reversed()).forEach(stack::push);
+    }
+    return order;
   }
 
   private static void attachInternalCaptures(TraceDto.Trace trace, Map<String, TraceDto.Span> byId, List<TestRunDto.Hop> hops) {

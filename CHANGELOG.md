@@ -7,6 +7,14 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Test Studio (`/testing`): compose an HTTP, GraphQL, gRPC or Kafka request from a service's
+  catalog (body templated from its request schema), send it through the environment's runner and
+  watch each hop arrive with what it received and returned. One click turns a run into
+  assertions; send-and-check evaluates them; cases save to collections, which run as suites with
+  per-check results. Settings → Integrations gains an Environments card to allow test runs in
+  production-like environments.
+- A service's operations now include its entry operations — ones only uninstrumented callers
+  (browsers, cron, the runner) use — so the gateway's endpoints can be picked in Test Studio.
 - Alert rules can open incidents. Set `incidentSeverity` on a `STATUS_DOWN` or `STATUS_DEGRADED`
   rule and a matching status change opens an incident (paging on-call for CRITICAL/MAJOR, and
   escalating if unacknowledged) — no human needed. A service has at most one open alert incident:
@@ -123,6 +131,8 @@ All notable changes to this project are documented in this file. The format is b
   and exits non-zero on failure.
 
 ### Changed
+- Test run hops are returned in call order (callers before what they call) rather than by start
+  time, which clock skew between hosts could scramble.
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
   disagreeing near the DEGRADED threshold, no longer flips it back and forth. A newly registered
@@ -132,6 +142,8 @@ All notable changes to this project are documented in this file. The format is b
   include a `serviceName` field.
 
 ### Fixed
+- Runner: gRPC calls to servers that only speak reflection v1alpha (Python's grpcio) could fail
+  with `EOF` — the v1 probe's rejection sometimes surfaces on Send, which is now read from Recv.
 - Stripe checkout redirected to `http://localhost:5173` whatever `FRONTEND_URL` was set to.
 - `docker-compose.yml` never passed the `STRIPE_*` variables to the backend, so billing couldn't
   work when running everything in Docker.
