@@ -34,7 +34,7 @@ function errorMessage(err: unknown, fallback: string) {
  * Build a request against a service or topic, send it through the environment's runner and watch
  * it travel; turn what happened into assertions and save it as a case in a collection.
  */
-export function Composer({ environment, seed }: { environment: string | null; seed?: ComposerSeed }) {
+export function Composer({ environment, seed, initialRunId }: { environment: string | null; seed?: ComposerSeed; initialRunId?: string | null }) {
   const initial = seed?.testCase.request;
   const [request, setRequest] = useState<TestRequest>(
     initial ?? { protocol: 'HTTP', method: 'POST', path: '', body: '', testMode: true },
@@ -47,7 +47,8 @@ export function Composer({ environment, seed }: { environment: string | null; se
   const [caseName, setCaseName] = useState(seed?.testCase.name ?? '');
   const [collectionId, setCollectionId] = useState<string>(seed?.collectionId ?? '');
   const [newCollection, setNewCollection] = useState('');
-  const [runId, setRunId] = useState<string | null>(null);
+  // A run opened from elsewhere (e.g. a replay), shown next to an empty composer.
+  const [runId, setRunId] = useState<string | null>(initialRunId ?? null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 

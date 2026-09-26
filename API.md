@@ -157,6 +157,7 @@ Malformed TraceQL returns `400 INVALID_QUERY` with the trace store's parse error
 | Method | Path | Description |
 |---|---|---|
 | POST | `/` | Queue a request for a runner: `protocol` (`HTTP`, `GRAPHQL`, `GRPC`, `MESSAGING`), `serviceId` + `method` + concrete `path` (HTTP/GraphQL), `serviceId` + `grpcMethod` (`package.Service/Method`), or `topic` + `key` (messaging); `headers`, `body`, optional `environment` (defaults to the service's). Gets its own `traceId` |
+| POST | `/replay` | Re-send the request a trace recorded — its entry request, or `spanId`'s — as a test run (`{traceId, spanId?, environment?, testMode?}`): HTTP method and path, gRPC method or Kafka topic and key, with the captured body. `422 NOT_REPLAYABLE` when the body wasn't captured (turn on `SERVICEDNA_CAPTURE_ON_ERROR`) |
 | GET | `/` | Recent runs |
 | GET | `/{runId}` | Status (`QUEUED` → `RUNNING` → `WAITING` → `COMPLETED`, or `FAILED`/`TIMED_OUT`), the entry call's `result`, and `hops`: every service the request reached (and databases/external calls it made), with what each received and returned |
 
@@ -240,6 +241,9 @@ telemetry, so one key per environment or collector is enough. Only a hash is sto
 | PUT | `/{incidentId}/post-mortem` | Upsert the post-mortem (root cause / timeline / action items) — only once resolved |
 | GET | `/{incidentId}/post-mortem` | Get the post-mortem |
 | GET | `/{incidentId}/events` | Auto-built event timeline (created, acknowledged, status changes, escalated, post-mortem updates) |
+| GET | `/{incidentId}/failing-traces` | Failing traces through the affected services (any service if none) from 15 min before the incident opened until it resolved |
+| GET / POST | `/{incidentId}/traces` | Attached traces / attach one (`{traceId, note}`): its hops are snapshotted so the failure path outlives trace retention, and a `TRACE_ATTACHED` timeline event says where it failed. `409` if already attached |
+| DELETE | `/{incidentId}/traces/{traceId}` | Detach |
 
 ---
 

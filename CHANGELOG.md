@@ -7,6 +7,13 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Incidents show their traces: failing requests through the affected services while the incident
+  was open, and traces attached as evidence with a note. Attaching snapshots the request's hops
+  (so the post-mortem keeps the failure path after trace retention) and adds a timeline entry
+  saying where it failed. Any trace can be replayed — rebuilt from its captured request and sent
+  through a runner, usually into a non-production environment — from the incident page or the
+  trace explorer. API: `/incidents/{id}/failing-traces`, `/incidents/{id}/traces`,
+  `POST /test-runs/replay`.
 - Follow a business key (`/follow`): every request, separate trace and log line that touched an
   id like `orderId=o-17`, in time order — so work that lost its trace context (queues, batch
   jobs, background workers) is still connected. SDKs gain `tag(name, value)` (Node.js, Python,

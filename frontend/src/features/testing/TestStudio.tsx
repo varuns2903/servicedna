@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { TestCase } from '@/api/testing.api';
 import { useServices } from '@/hooks/useServices';
 import { useEnvironments } from '@/hooks/useTesting';
@@ -21,6 +22,7 @@ const TABS: { value: Tab; label: string }[] = [
 export function TestStudio() {
   const [tab, setTab] = useState<Tab>('compose');
   const [chosen, setEnvironment] = useState<string | null>(null);
+  const [search] = useSearchParams();
   const [seed, setSeed] = useState<{ key: number; value?: ComposerSeed }>({ key: 0 });
   const [suiteId, setSuiteId] = useState<string | null>(null);
   const { data: settings } = useEnvironments();
@@ -96,7 +98,7 @@ export function TestStudio() {
       <div className="flex min-h-0 flex-1 flex-col">
         {/* Kept mounted so a composed request and its run survive switching tabs. */}
         <div className={tab === 'compose' ? 'contents' : 'hidden'}>
-          <Composer key={seed.key} environment={environment} seed={seed.value} />
+          <Composer key={seed.key} environment={environment} seed={seed.value} initialRunId={seed.key === 0 ? search.get('run') : null} />
         </div>
         {tab === 'collections' && (
           <CollectionsPanel

@@ -48,7 +48,7 @@ public class TestRunViews {
    * handling the request), and client/producer spans that nothing instrumented answered
    * (databases, external APIs, topics) — each with what went in and came out.
    */
-  static List<TestRunDto.Hop> hops(TraceDto.Trace trace) {
+  public static List<TestRunDto.Hop> hops(TraceDto.Trace trace) {
     Map<String, TraceDto.Span> byId = new LinkedHashMap<>();
     trace.spans().forEach(s -> byId.put(s.spanId(), s));
     java.util.Set<String> answered = new java.util.HashSet<>();

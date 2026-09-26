@@ -40,6 +40,15 @@ export function useSendTestRun() {
   });
 }
 
+export function useReplay() {
+  const orgId = useOrgId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { traceId: string; spanId?: string; environment?: string | null }) => TestingApi.replay(orgId!, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['organizations', orgId, 'test-runs'] }),
+  });
+}
+
 export function useTestCollections() {
   const orgId = useOrgId();
   return useQuery({

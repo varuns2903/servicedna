@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { Search, X } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useServices } from '@/hooks/useServices';
 import { useTrace, useTraceAttributes, useTraceExplore } from '@/hooks/useTraces';
 import { TraceWaterfall } from './TraceWaterfall';
 import { TraceLogs } from '@/features/logs/TraceLogs';
+import { ReplayControl } from '@/features/testing/ReplayControl';
 
 const RANGES = [
   { minutes: 15, label: 'Last 15 min' },
@@ -283,6 +284,7 @@ function ResultRow({ trace, active, onOpen }: { trace: FoundTrace; active: boole
 
 function OpenTrace({ traceId, spanId }: { traceId: string; spanId?: string }) {
   const { data: trace, isLoading, error } = useTrace(traceId);
+  const navigate = useNavigate();
   if (isLoading) return <p className="text-sm text-gray-400">Loading trace…</p>;
   if (error || !trace) return <p className="text-sm text-rose-400">{errorMessage(error)}</p>;
   return (
@@ -292,6 +294,9 @@ function OpenTrace({ traceId, spanId }: { traceId: string; spanId?: string }) {
         <span className="text-gray-500">
           · {trace.spans.length} spans · {trace.durationMs} ms
         </span>
+        <div className="ml-auto">
+          <ReplayControl traceId={trace.traceId} onReplayed={(run) => navigate(`/testing?run=${run.id}`)} />
+        </div>
       </div>
       <TraceWaterfall key={`${traceId}|${spanId}`} trace={trace} initialSpanId={spanId} />
       <TraceLogs traceId={trace.traceId} start={trace.start} />
