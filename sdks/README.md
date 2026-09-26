@@ -82,3 +82,17 @@ OTEL_EXPORTER_OTLP_HEADERS=x-servicedna-key=sdna_ik_...
 OTEL_SERVICE_NAME=checkout
 OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=prod
 ```
+
+## Releasing
+
+Bump the version in the SDK's manifest, merge, then push a tag — the
+[SDK release workflow](../.github/workflows/sdk-release.yml) tests and publishes it:
+
+| SDK | Version in | Tag | Published to |
+|---|---|---|---|
+| Node.js | `node/package.json` | `node-v0.1.0` | npm `@servicedna/node` |
+| Python | `python/pyproject.toml` | `python-v0.1.0` | PyPI `servicedna` |
+| Spring Boot | `java/servicedna-spring-boot-starter/pom.xml` | `java-v0.1.0` | Maven Central `io.github.varuns2903:servicedna-spring-boot-starter` |
+| Go | — (the tag is the version) | `sdks/go/v0.1.0` | the Go module proxy |
+
+The tag must match the version, or the release stops before publishing.
