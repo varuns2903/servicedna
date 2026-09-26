@@ -233,6 +233,31 @@ changes, instead of polling this endpoint.
 
 ---
 
+## Telemetry ingestion (OTLP)
+
+ServiceDNA accepts OpenTelemetry traces, authenticated by an [ingestion key](#ingestion-keys--apiv1organizationsorgidingestion-keys)
+in the `x-servicedna-key` header (or `Authorization: Bearer <key>`). Spans are stored in Grafana
+Tempo, one tenant per organization.
+
+| Protocol | Endpoint | Notes |
+|---|---|---|
+| OTLP/HTTP (protobuf) | `POST /api/v1/otlp/v1/traces` on the backend | Set `OTEL_EXPORTER_OTLP_ENDPOINT=<backend>/api/v1/otlp`. gzip supported; 16 MB per batch. Returns `401` for a bad key and `503` (retry) if trace storage is down |
+| OTLP/gRPC | `:4317` on the bundled collector | Forwarded to the endpoint above |
+| OTLP/HTTP | `:4318` on the bundled collector | Forwarded to the endpoint above |
+| Zipkin v2 JSON | `:9412/api/v2/spans` on the bundled collector | Forwarded to the endpoint above |
+
+Through the collector, a bad key surfaces only in the collector's logs (the data is dropped, not
+retried); send straight to the backend to see authentication errors at the client.
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:8080/api/v1/otlp
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_HEADERS=x-servicedna-key=sdna_...
+OTEL_SERVICE_NAME=checkout-service
+```
+
+---
+
 ## Public endpoints
 
 These require no authentication:
@@ -240,6 +265,7 @@ These require no authentication:
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/v1/public/organizations/{orgId}/status` | Public status page data (service health + active incidents) |
+| POST | `/api/v1/otlp/v1/traces` | OTLP trace ingestion — authenticated via an ingestion key, see [Telemetry ingestion](#telemetry-ingestion-otlp) |
 | POST | `/api/v1/ping` | Health-check ingestion — authenticated via an `X-API-Key` header (a service's own API key), not a user JWT |
 | POST | `/api/v1/webhooks/stripe` | Stripe webhook receiver — authenticated via Stripe's signature header |
 | GET | `/api/v1/auth/sso-config`, `/register`, `/login`, `/refresh`, `/logout`, `/verify-email`, `/resend-verification`, `/forgot-password`, `/reset-password` | See [Authentication](#authentication--apiv1auth) |

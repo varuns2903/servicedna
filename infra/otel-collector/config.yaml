@@ -1,0 +1,44 @@
+# Front door for telemetry that can't go straight to the backend's OTLP/HTTP endpoint: OTLP over
+# gRPC, and Zipkin. Each request's x-servicedna-key header is carried through to the backend,
+# which authenticates it; batches are split per key so organizations' spans never share a request.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  headers_setter:
+    headers:
+      - action: upsert
+        key: x-servicedna-key
+        from_context: x-servicedna-key
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        include_metadata: true
+      http:
+        endpoint: 0.0.0.0:4318
+        include_metadata: true
+  zipkin:
+    endpoint: 0.0.0.0:9411
+    include_metadata: true
+
+processors:
+  batch:
+    metadata_keys: [x-servicedna-key]
+    metadata_cardinality_limit: 1000
+
+exporters:
+  otlphttp/servicedna:
+    endpoint: ${env:SERVICEDNA_OTLP_ENDPOINT}
+    encoding: proto
+    auth:
+      authenticator: headers_setter
+
+service:
+  extensions: [health_check, headers_setter]
+  pipelines:
+    traces:
+      receivers: [otlp, zipkin]
+      processors: [batch]
+      exporters: [otlphttp/servicedna]

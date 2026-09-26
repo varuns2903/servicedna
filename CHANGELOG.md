@@ -36,6 +36,11 @@ All notable changes to this project are documented in this file. The format is b
 - Organization ingestion keys (Settings → Integrations): one `sdna_…` key per environment or
   collector for sending telemetry, stored hashed, shown once, revocable, and audit-logged.
 
+- OpenTelemetry trace ingestion: `POST /api/v1/otlp/v1/traces` accepts OTLP/HTTP protobuf
+  (gzip or plain) authenticated by an ingestion key, and docker-compose adds an OpenTelemetry
+  Collector for OTLP/gRPC (`:4317`), OTLP/HTTP (`:4318`) and Zipkin (`:9412`). Spans are stored in
+  Grafana Tempo with each organization as its own tenant.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent

@@ -60,6 +60,31 @@ services:
     ports:
       - "${ZIPKIN_PORT:-9411}:9411"
 
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: servicedna-tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./infra/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempodata:/var/tempo
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: servicedna-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    environment:
+      SERVICEDNA_OTLP_ENDPOINT: http://backend:8080/api/v1/otlp
+    depends_on:
+      - backend
+    ports:
+      - "${OTLP_GRPC_PORT:-4317}:4317"
+      - "${OTLP_HTTP_PORT:-4318}:4318"
+      - "${ZIPKIN_INGEST_PORT:-9412}:9411"
+
   backend:
     build: ./backend
     container_name: servicedna-backend
@@ -70,6 +95,8 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
+      tempo:
+        condition: service_started
     ports:
       - "${PORT:-8080}:8080"
     environment:
@@ -97,6 +124,7 @@ services:
       STRIPE_PRO_PRICE_ID: ${STRIPE_PRO_PRICE_ID:-}
       STRIPE_ENTERPRISE_PRICE_ID: ${STRIPE_ENTERPRISE_PRICE_ID:-}
       BILLING_ENFORCE_PLAN_LIMITS: ${BILLING_ENFORCE_PLAN_LIMITS:-true}
+      TRACE_STORE_OTLP_URL: ${TRACE_STORE_OTLP_URL:-http://tempo:4318}
 
   frontend:
     build:
@@ -113,3 +141,4 @@ services:
 
 volumes:
   pgdata:
+  tempodata:
