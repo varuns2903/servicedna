@@ -122,6 +122,20 @@ audit history the account is referenced from stay intact.
 
 ---
 
+## Ingestion Keys — `/api/v1/organizations/{orgId}/ingestion-keys`
+
+Organization-wide keys for sending telemetry (OTLP traces, pushed health checks) from SDKs,
+OpenTelemetry collectors and the ServiceDNA agent. Services identify themselves through their
+telemetry, so one key per environment or collector is enough. Only a hash is stored.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | List keys (name, prefix, last used, revoked) — never the key itself |
+| POST | `/` | Create a key (`name`); the response is the only time `key` is returned. `OWNER`/`ADMIN` only |
+| DELETE | `/{keyId}` | Revoke a key. `OWNER`/`ADMIN` only |
+
+---
+
 ## Incidents — `/api/v1/organizations/{orgId}/incidents`
 
 | Method | Path | Description |

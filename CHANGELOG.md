@@ -33,6 +33,9 @@ All notable changes to this project are documented in this file. The format is b
 - "Manage Billing Portal" opens a real Stripe Customer Portal session
   (`POST /billing/portal-session`) instead of a placeholder URL.
 
+- Organization ingestion keys (Settings → Integrations): one `sdna_…` key per environment or
+  collector for sending telemetry, stored hashed, shown once, revocable, and audit-logged.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
