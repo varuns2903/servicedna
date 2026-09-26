@@ -376,7 +376,7 @@ sdna.capture('order.total', total)
 Log lines emitted during the request are attached to their hop automatically via trace-id
 correlation (logback/log4j/winston/structlog bridges).
 
-### 5.6 Safety
+### 5.6 Safety — ✅ Done
 - Payload capture is **opt-in per request** (baggage flag) — never on for normal traffic
 - **Redaction rules** (`password`, `card`, `ssn`, custom JSONPaths) enforced in the Agent
   before data leaves the network; size caps on bodies

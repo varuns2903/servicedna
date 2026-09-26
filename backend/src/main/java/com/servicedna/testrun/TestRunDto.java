@@ -28,7 +28,9 @@ public final class TestRunDto {
       @Size(max = 255) String topic,
       @Size(max = 255) String key,
       Map<@Size(max = 128) String, @Size(max = 4096) String> headers,
-      @Size(max = 262144) String body) {}
+      @Size(max = 262144) String body,
+      /** Adds baggage sdna.test=1 so services can skip real side effects; on unless false. */
+      Boolean testMode) {}
 
   /** A run as the UI and CLI see it; {@code hops} is filled in once the trace has arrived. */
   public record Run(

@@ -143,6 +143,17 @@ Read from the trace store as the organization's tenant.
 
 A run completes when its trace stops growing (asynchronous consumers included), or after a minute.
 
+Runs are in **test mode** unless `testMode: false`: they carry baggage `sdna.test=1`, which
+services can honour to skip real side effects (charges, emails). Every run is audit-logged, and
+an organization can start at most 60 a minute. Production-like environments (`prod`,
+`production`, `live`, …) refuse test runs (`403 TEST_RUNS_DISABLED`) until an owner or admin
+allows them:
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/organizations/{orgId}/environments` | Each environment, whether it's production-like, and whether test runs are allowed |
+| PUT | `/api/v1/organizations/{orgId}/environments/{environment}` | `{"allowTestRuns": true}` — `OWNER`/`ADMIN`, audit-logged |
+
 ### Runner — `/api/v1/runner` *(authenticated by ingestion key or `RUNNER_SHARED_TOKEN`)*
 
 | Method | Path | Description |

@@ -29,19 +29,29 @@ public class TestRunService {
 
   /** How long a run may wait for a runner, or for the runner's result. */
   static final int PICKUP_TIMEOUT_SECONDS = 120;
+  static final int MAX_RUNS_PER_MINUTE = 60;
 
   private final TestRunRepository repository;
   private final ServiceRepository serviceRepository;
   private final OrganizationService organizationService;
   private final ObjectMapper json;
+  private final EnvironmentSettingsService environmentSettings;
+  private final org.springframework.context.ApplicationEventPublisher events;
   private final SecureRandom random = new SecureRandom();
 
   public TestRunService(
-      TestRunRepository repository, ServiceRepository serviceRepository, OrganizationService organizationService, ObjectMapper json) {
+      TestRunRepository repository,
+      ServiceRepository serviceRepository,
+      OrganizationService organizationService,
+      ObjectMapper json,
+      EnvironmentSettingsService environmentSettings,
+      org.springframework.context.ApplicationEventPublisher events) {
     this.repository = repository;
     this.serviceRepository = serviceRepository;
     this.organizationService = organizationService;
     this.json = json;
+    this.environmentSettings = environmentSettings;
+    this.events = events;
   }
 
   @Transactional
@@ -58,6 +68,13 @@ public class TestRunService {
     String environment = blankToNull(request.environment());
     if (environment == null && service != null) {
       environment = service.getEnvironment();
+    }
+    if (!environmentSettings.testRunsAllowed(organizationId, environment)) {
+      throw new ApiException(HttpStatus.FORBIDDEN, "TEST_RUNS_DISABLED",
+          "Test runs are off in " + environment + ". An owner or admin can allow them in Settings → Environments.");
+    }
+    if (repository.countByOrganizationIdAndCreatedAtAfter(organizationId, OffsetDateTime.now().minusMinutes(1)) >= MAX_RUNS_PER_MINUTE) {
+      throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "TEST_RUN_RATE_LIMITED", "At most " + MAX_RUNS_PER_MINUTE + " test runs a minute per organization.");
     }
 
     ObjectNode target = json.createObjectNode();
@@ -97,11 +114,16 @@ public class TestRunService {
     if (request.key() != null) {
       body.put("key", request.key());
     }
+    body.put("test", request.testMode() == null || request.testMode());
     byte[] traceId = new byte[16];
     random.nextBytes(traceId);
-    return repository.save(
+    TestRun run = repository.save(
         new TestRun(organizationId, environment, request.protocol(), service != null ? service.getId() : null,
             target.toString(), body.toString(), HexFormat.of().formatHex(traceId), userId));
+    // Test runs send real requests into real environments: every one is on the audit trail.
+    events.publishEvent(new com.servicedna.organization.event.AuditLogEvent(organizationId, userId, "TEST_RUN", "TestRun",
+        run.getId().toString(), request.protocol() + " " + describe(target) + (environment != null ? " in " + environment : ""), null));
+    return run;
   }
 
   @Transactional(readOnly = true)
@@ -184,6 +206,13 @@ public class TestRunService {
     } catch (IllegalArgumentException e) {
       return Optional.empty();
     }
+  }
+
+  private static String describe(ObjectNode target) {
+    if (target.hasNonNull("topic")) {
+      return target.get("topic").asText();
+    }
+    return target.path("service").asText() + " " + target.path("method").asText() + (target.hasNonNull("path") ? " " + target.get("path").asText() : "");
   }
 
   private static void requireService(Service service) {
