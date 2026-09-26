@@ -246,13 +246,17 @@ Tempo, one tenant per organization.
 | OTLP/HTTP | `:4318` on the bundled collector | Forwarded to the endpoint above |
 | Zipkin v2 JSON | `:9412/api/v2/spans` on the bundled collector | Forwarded to the endpoint above |
 
+Services register themselves from this telemetry: the first spans from a `service.name` (within
+its `deployment.environment`, if set) create the service, and `telemetry.sdk.language`,
+`service.version`, `cloud.region` and `servicedna.health.url` keep its details current.
+
 Through the collector, a bad key surfaces only in the collector's logs (the data is dropped, not
 retried); send straight to the backend to see authentication errors at the client.
 
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:8080/api/v1/otlp
 OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-OTEL_EXPORTER_OTLP_HEADERS=x-servicedna-key=sdna_...
+OTEL_EXPORTER_OTLP_HEADERS=x-servicedna-key=sdna_ik_...
 OTEL_SERVICE_NAME=checkout-service
 ```
 
@@ -266,6 +270,6 @@ These require no authentication:
 |---|---|---|
 | GET | `/api/v1/public/organizations/{orgId}/status` | Public status page data (service health + active incidents) |
 | POST | `/api/v1/otlp/v1/traces` | OTLP trace ingestion — authenticated via an ingestion key, see [Telemetry ingestion](#telemetry-ingestion-otlp) |
-| POST | `/api/v1/ping` | Health-check ingestion — authenticated via an `X-API-Key` header (a service's own API key), not a user JWT |
+| POST | `/api/v1/ping` | Health-check ingestion — authenticated via an `X-API-Key` header: either a service's own API key, or an organization ingestion key with `service` (and optional `environment`) in the body, which registers the service on first contact |
 | POST | `/api/v1/webhooks/stripe` | Stripe webhook receiver — authenticated via Stripe's signature header |
 | GET | `/api/v1/auth/sso-config`, `/register`, `/login`, `/refresh`, `/logout`, `/verify-email`, `/resend-verification`, `/forgot-password`, `/reset-password` | See [Authentication](#authentication--apiv1auth) |

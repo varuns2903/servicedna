@@ -31,8 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class IngestionKeyService {
 
-  public static final String KEY_PREFIX = "sdna_";
-  private static final int DISPLAY_PREFIX_LENGTH = 12;
+  /** Distinct from per-service API keys ("sdna_…") so the two are easy to tell apart. */
+  public static final String KEY_PREFIX = "sdna_ik_";
+  private static final int DISPLAY_PREFIX_LENGTH = 14;
   /** last_used_at is informational; writing it on every request would be a write per batch. */
   private static final Duration LAST_USED_RESOLUTION = Duration.ofMinutes(5);
 

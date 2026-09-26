@@ -61,8 +61,8 @@ class IngestionKeyTest {
   void keyIsShownOnceAndAuthenticatesToItsOrganization() throws Exception {
     JsonNode created = createKey(token, "prod collector");
     String raw = created.get("key").asText();
-    assertThat(raw).startsWith("sdna_");
-    assertThat(created.get("keyPrefix").asText()).isEqualTo(raw.substring(0, 12));
+    assertThat(raw).startsWith("sdna_ik_");
+    assertThat(created.get("keyPrefix").asText()).isEqualTo(raw.substring(0, 14));
 
     mockMvc
         .perform(get(keysPath()).header("Authorization", "Bearer " + token))

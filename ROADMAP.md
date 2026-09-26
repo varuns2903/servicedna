@@ -150,7 +150,7 @@ OTEL_EXPORTER_OTLP_HEADERS=x-servicedna-key=<key>
 **No code changes possible?** Supported fallbacks: service-mesh sidecar (Envoy/Istio) or eBPF
 auto-instrumentation (Grafana Beyla / Odigos) pointed at the ServiceDNA collector.
 
-### 2.3 Self-registration
+### 2.3 Self-registration — ✅ Done
 - A service's first signal registers it automatically: name, environment, language, version,
   host, and discovered health endpoint
 - Manual registration remains for services that can't run an SDK

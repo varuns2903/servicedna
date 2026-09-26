@@ -45,22 +45,40 @@ public class PlanLimitService {
    */
   @Transactional(propagation = Propagation.MANDATORY)
   public void checkCanAddService(UUID organizationId) {
-    if (!enforced) {
-      return;
-    }
-    PlanType plan =
-        subscriptionRepository
-            .findForUpdateByOrganizationId(organizationId)
-            .map(Subscription::getPlanType)
-            .orElse(PlanType.FREE);
-    Integer max = plan.getMaxServices();
-    if (max != null && serviceRepository.countByOrganizationId(organizationId) >= max) {
+    PlanType plan = lockedPlan(organizationId);
+    if (!allowsAnotherService(organizationId, plan)) {
+      Integer max = plan.getMaxServices();
       throw new ApiException(
           HttpStatus.FORBIDDEN,
           "PLAN_LIMIT_REACHED",
           "The " + displayName(plan) + " plan allows up to " + max
               + " services. Upgrade your plan to add more.");
     }
+  }
+
+  /**
+   * Like {@link #checkCanAddService} but returns false instead of throwing, for callers that skip
+   * rather than fail (a transactional method that throws marks the caller's transaction
+   * rollback-only even if the exception is caught).
+   */
+  @Transactional(propagation = Propagation.MANDATORY)
+  public boolean canAddService(UUID organizationId) {
+    return allowsAnotherService(organizationId, lockedPlan(organizationId));
+  }
+
+  private PlanType lockedPlan(UUID organizationId) {
+    return subscriptionRepository
+        .findForUpdateByOrganizationId(organizationId)
+        .map(Subscription::getPlanType)
+        .orElse(PlanType.FREE);
+  }
+
+  private boolean allowsAnotherService(UUID organizationId, PlanType plan) {
+    if (!enforced) {
+      return true;
+    }
+    Integer max = plan.getMaxServices();
+    return max == null || serviceRepository.countByOrganizationId(organizationId) < max;
   }
 
   @Transactional(readOnly = true)

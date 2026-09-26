@@ -15,6 +15,13 @@ export interface ServiceDto {
   // so the credential isn't re-exposed to every org member on every read.
   apiKey: string | null;
   dependencyIds: string[];
+  /** From telemetry's deployment.environment; null for services registered without one. */
+  environment: string | null;
+  language: string | null;
+  version: string | null;
+  /** MANUAL: registered by a person. TELEMETRY: registered from its own telemetry. */
+  source: 'MANUAL' | 'TELEMETRY';
+  lastTelemetryAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -33,13 +33,23 @@ All notable changes to this project are documented in this file. The format is b
 - "Manage Billing Portal" opens a real Stripe Customer Portal session
   (`POST /billing/portal-session`) instead of a placeholder URL.
 
-- Organization ingestion keys (Settings → Integrations): one `sdna_…` key per environment or
+- Organization ingestion keys (Settings → Integrations): one `sdna_ik_…` key per environment or
   collector for sending telemetry, stored hashed, shown once, revocable, and audit-logged.
 
 - OpenTelemetry trace ingestion: `POST /api/v1/otlp/v1/traces` accepts OTLP/HTTP protobuf
   (gzip or plain) authenticated by an ingestion key, and docker-compose adds an OpenTelemetry
   Collector for OTLP/gRPC (`:4317`), OTLP/HTTP (`:4318`) and Zipkin (`:9412`). Spans are stored in
   Grafana Tempo with each organization as its own tenant.
+
+- Services register themselves from their telemetry. The first spans (or organization-key ping)
+  from a service create it, keyed by `service.name` within `deployment.environment`; later
+  telemetry keeps its language, version, health URL and last-seen time current. A manually
+  registered service of the same name without an environment is adopted rather than duplicated.
+  Plan limits apply: past the limit a service isn't registered, but its spans are still stored.
+- `POST /api/v1/ping` accepts an organization ingestion key with a `service` (and optional
+  `environment`) in the body, so SDK heartbeats need no per-service key.
+- Services list and details show environment, language/version, and whether a service was
+  registered via telemetry, with an environment filter.
 
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)

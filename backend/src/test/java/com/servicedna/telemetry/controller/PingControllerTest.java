@@ -70,7 +70,7 @@ class PingControllerTest {
 
     @Test
     void shouldProcessPingAndUpdateStatus() throws Exception {
-        PingRequest req = new PingRequest(ServiceStatus.HEALTHY, 45, "OK");
+        PingRequest req = new PingRequest(ServiceStatus.HEALTHY, 45, "OK", null, null);
 
         mockMvc.perform(post("/api/v1/ping")
                 .header("X-API-Key", apiKey)
@@ -88,7 +88,7 @@ class PingControllerTest {
 
     @Test
     void shouldRejectInvalidApiKey() throws Exception {
-        PingRequest req = new PingRequest(ServiceStatus.HEALTHY, 45, "OK");
+        PingRequest req = new PingRequest(ServiceStatus.HEALTHY, 45, "OK", null, null);
 
         mockMvc.perform(post("/api/v1/ping")
                 .header("X-API-Key", "invalid-key")

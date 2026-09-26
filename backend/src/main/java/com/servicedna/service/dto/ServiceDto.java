@@ -1,5 +1,6 @@
 package com.servicedna.service.dto;
 
+import com.servicedna.service.domain.ServiceSource;
 import com.servicedna.service.domain.ServiceStatus;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -17,5 +18,10 @@ public record ServiceDto(
     ServiceStatus status,
     String apiKey,
     List<UUID> dependencyIds,
+    String environment,
+    String language,
+    String version,
+    ServiceSource source,
+    OffsetDateTime lastTelemetryAt,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {}

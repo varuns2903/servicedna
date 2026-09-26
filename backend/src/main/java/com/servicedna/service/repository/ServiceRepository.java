@@ -19,5 +19,11 @@ public interface ServiceRepository extends JpaRepository<Service, UUID> {
 
   Optional<Service> findByApiKey(String apiKey);
 
+  /** A null environment matches services registered without one. */
+  Optional<Service> findByOrganizationIdAndNameAndEnvironment(
+      UUID organizationId, String name, String environment);
+
+  Optional<Service> findByOrganizationIdAndNameAndEnvironmentIsNull(UUID organizationId, String name);
+
   List<Service> findByHealthCheckUrlIsNotNull();
 }
