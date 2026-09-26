@@ -11,7 +11,7 @@ import {
   useRemoveMember,
 } from '@/hooks/useOrganizations';
 import { useUser } from '@/hooks/useUser';
-import { useSubscription, useCreateCheckoutSession } from '@/hooks/useBilling';
+import { useSubscription, useCreateCheckoutSession, usePlanUsage, useCreatePortalSession } from '@/hooks/useBilling';
 import {
   useChangePassword,
   useRequestEmailChange,
@@ -201,6 +201,15 @@ export function SettingsView() {
   // Billing Tab state
   const { data: subscription, isLoading: loadingSubscription } = useSubscription(currentOrgId || undefined);
   const createCheckout = useCreateCheckoutSession();
+  const { data: usage } = usePlanUsage(currentOrgId || undefined);
+  const createPortal = useCreatePortalSession();
+  const overLimit = usage?.maxServices != null && usage.serviceCount >= usage.maxServices;
+
+  const openBillingPortal = () => {
+    if (currentOrgId) {
+      createPortal.mutate(currentOrgId, { onSuccess: (data) => { window.location.href = data.url; } });
+    }
+  };
 
   const handleUpgrade = (plan: PlanType) => {
     if (currentOrgId) {
@@ -502,11 +511,33 @@ export function SettingsView() {
                         <span className="text-sm text-gray-400">Status: {subscription?.status || 'ACTIVE'}</span>
                       </div>
                     )}
+                    {usage && (
+                      <p className="mt-2 text-sm text-gray-400">
+                        {usage.maxServices != null
+                          ? `${usage.serviceCount} / ${usage.maxServices} services`
+                          : `${usage.serviceCount} services (unlimited)`}
+                        {' · '}
+                        {usage.pingRetentionDays} day{usage.pingRetentionDays === 1 ? '' : 's'} of health-check history
+                      </p>
+                    )}
                   </div>
-                  <Button variant="outline" onClick={() => window.open('https://billing.stripe.com/p/session/test_abc123', '_blank')}>
-                    Manage Billing Portal
-                  </Button>
+                  {subscription?.planType !== 'FREE' && (
+                    <Button variant="outline" onClick={openBillingPortal} disabled={createPortal.isPending}>
+                      {createPortal.isPending ? 'Opening...' : 'Manage Billing Portal'}
+                    </Button>
+                  )}
                 </div>
+                {overLimit && (
+                  <p className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-300">
+                    You've reached your plan's service limit. Existing services keep working; upgrade to add more.
+                  </p>
+                )}
+                {createPortal.isError && (
+                  <p className="mt-4 text-sm text-rose-400">
+                    {(axios.isAxiosError(createPortal.error) && createPortal.error.response?.data?.message) ||
+                      'Could not open the billing portal.'}
+                  </p>
+                )}
               </CardContent>
             </Card>
 

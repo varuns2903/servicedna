@@ -25,6 +25,14 @@ All notable changes to this project are documented in this file. The format is b
   the deepest failing dependency — the likely root cause. The incident resolves only once every
   affected service has recovered; partial recoveries appear on the timeline.
 
+- Plan limits are enforced: Free allows 3 services and keeps 1 day of health-check history, Pro 50
+  services and 30 days, Enterprise is unlimited (capped by `PING_RETENTION_DAYS`). Creating a
+  service over the limit returns `403 PLAN_LIMIT_REACHED`; organizations already over it keep
+  their services. `GET /billing/usage` reports plan, usage and limits, shown on the billing page.
+  `BILLING_ENFORCE_PLAN_LIMITS=false` turns limits off for self-hosted deployments.
+- "Manage Billing Portal" opens a real Stripe Customer Portal session
+  (`POST /billing/portal-session`) instead of a placeholder URL.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
@@ -35,6 +43,9 @@ All notable changes to this project are documented in this file. The format is b
   include a `serviceName` field.
 
 ### Fixed
+- Stripe checkout redirected to `http://localhost:5173` whatever `FRONTEND_URL` was set to.
+- `docker-compose.yml` never passed the `STRIPE_*` variables to the backend, so billing couldn't
+  work when running everything in Docker.
 - Services page and Alerts page crashed when a service had alert rules (`Cannot read properties
   of undefined (reading 'replace')`): the frontend expected a different alert-rule shape than the
   API returns. Creating rules from the UI failed for the same reason.

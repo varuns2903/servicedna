@@ -1,5 +1,6 @@
 package com.servicedna.telemetry.repository;
 
+import com.servicedna.billing.domain.PlanType;
 import org.springframework.data.domain.Pageable;
 import com.servicedna.telemetry.domain.ServicePing;
 import java.time.OffsetDateTime;
@@ -22,4 +23,12 @@ public interface ServicePingRepository extends JpaRepository<ServicePing, UUID> 
   @Modifying(clearAutomatically = true)
   @Query("delete from ServicePing p where p.createdAt < :cutoff")
   int deleteByCreatedAtBefore(OffsetDateTime cutoff);
+
+  /** Deletes pings older than the cutoff for services in organizations on the given plan. */
+  @Modifying(clearAutomatically = true)
+  @Query(
+      "delete from ServicePing p where p.createdAt < :cutoff and p.service.id in"
+          + " (select s.id from Service s, Subscription sub"
+          + " where sub.organization = s.organization and sub.planType = :plan)")
+  int deleteForPlanOlderThan(PlanType plan, OffsetDateTime cutoff);
 }

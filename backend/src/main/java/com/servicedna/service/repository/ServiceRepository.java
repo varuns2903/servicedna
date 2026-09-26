@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 public interface ServiceRepository extends JpaRepository<Service, UUID> {
   List<Service> findByOrganizationId(UUID organizationId);
 
+  long countByOrganizationId(UUID organizationId);
+
   Optional<Service> findByOrganizationIdAndId(UUID organizationId, UUID id);
 
   boolean existsByOrganizationIdAndName(UUID organizationId, String name);

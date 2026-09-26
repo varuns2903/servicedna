@@ -1,5 +1,8 @@
 package com.servicedna.billing.controller;
 
+import com.servicedna.billing.dto.PlanUsageDto;
+import com.servicedna.billing.service.PlanLimitService;
+import com.servicedna.organization.service.OrganizationService;
 import com.servicedna.auth.security.CustomUserDetails;
 import com.servicedna.billing.dto.CheckoutSessionRequest;
 import com.servicedna.billing.dto.CheckoutSessionResponse;
@@ -21,9 +24,30 @@ import org.springframework.web.bind.annotation.RestController;
 public class BillingController {
 
   private final BillingService billingService;
+  private final PlanLimitService planLimitService;
+  private final OrganizationService organizationService;
 
-  public BillingController(BillingService billingService) {
+  public BillingController(
+      BillingService billingService,
+      PlanLimitService planLimitService,
+      OrganizationService organizationService) {
     this.billingService = billingService;
+    this.planLimitService = planLimitService;
+    this.organizationService = organizationService;
+  }
+
+  @GetMapping("/usage")
+  public ResponseEntity<PlanUsageDto> getUsage(
+      @PathVariable UUID orgId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+    organizationService.validateUserAccess(orgId, userDetails.getUser().getId());
+    return ResponseEntity.ok(planLimitService.usage(orgId));
+  }
+
+  @PostMapping("/portal-session")
+  public ResponseEntity<CheckoutSessionResponse> createPortalSession(
+      @PathVariable UUID orgId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+    return ResponseEntity.ok(
+        billingService.createPortalSession(orgId, userDetails.getUser().getId()));
   }
 
   @GetMapping("/subscription")

@@ -30,6 +30,9 @@ public class BillingService {
   @Value("${stripe.price-id.enterprise}")
   private String enterprisePriceId;
 
+  @Value("${frontend.url}")
+  private String frontendUrl;
+
   public BillingService(
       SubscriptionRepository subscriptionRepository, OrganizationService organizationService) {
     this.subscriptionRepository = subscriptionRepository;
@@ -77,9 +80,8 @@ public class BillingService {
 
     String priceId = planType == PlanType.PRO ? proPriceId : enterprisePriceId;
 
-    // Note: For a production app, the success and cancel URLs should point to the frontend domain.
-    String successUrl = "http://localhost:5173/dashboard?session_id={CHECKOUT_SESSION_ID}";
-    String cancelUrl = "http://localhost:5173/dashboard";
+    String successUrl = frontendUrl + "/settings?tab=billing&session_id={CHECKOUT_SESSION_ID}";
+    String cancelUrl = frontendUrl + "/settings?tab=billing";
 
     try {
       SessionCreateParams.Builder paramsBuilder =
@@ -102,6 +104,44 @@ public class BillingService {
     } catch (StripeException e) {
       throw new ApiException(
           HttpStatus.INTERNAL_SERVER_ERROR, "STRIPE_ERROR", "Failed to create checkout session");
+    }
+  }
+
+  /**
+   * A Stripe Customer Portal session where the owner manages payment methods, invoices and
+   * cancellation. Only organizations that have checked out at least once have a Stripe customer.
+   */
+  @Transactional(readOnly = true)
+  public CheckoutSessionResponse createPortalSession(UUID organizationId, UUID userId) {
+    OrganizationMember member = organizationService.validateUserAccess(organizationId, userId);
+    if (member.getRole() != OrganizationRole.OWNER) {
+      throw new ApiException(
+          HttpStatus.FORBIDDEN, "ACCESS_DENIED", "Only organization owners can manage billing");
+    }
+
+    String customerId =
+        subscriptionRepository
+            .findByOrganizationId(organizationId)
+            .map(Subscription::getStripeCustomerId)
+            .orElse(null);
+    if (customerId == null) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST,
+          "NO_BILLING_ACCOUNT",
+          "This organization has no billing account yet. Upgrade to a paid plan first.");
+    }
+
+    try {
+      com.stripe.model.billingportal.Session session =
+          com.stripe.model.billingportal.Session.create(
+              com.stripe.param.billingportal.SessionCreateParams.builder()
+                  .setCustomer(customerId)
+                  .setReturnUrl(frontendUrl + "/settings?tab=billing")
+                  .build());
+      return new CheckoutSessionResponse(session.getUrl());
+    } catch (StripeException e) {
+      throw new ApiException(
+          HttpStatus.BAD_GATEWAY, "STRIPE_ERROR", "Failed to create billing portal session");
     }
   }
 }

@@ -79,7 +79,7 @@ The UI originally promised these; implement them for real:
   `CONSECUTIVE_FAILURES` (count)
 - Evaluated by a scheduled evaluator (every 30 s) against recent pings, not the Kafka consumer — thresholds can be crossed without any status change (later: against trace metrics)
 
-### 1.3 Plan limits enforced
+### 1.3 Plan limits enforced — ✅ Done
 Billing shows "Free: 3 services max", but nothing enforces it.
 - One `PlanLimits` source of truth (Free 3 / Pro 50 / Enterprise unlimited)
 - Enforced in service create **and** CSV import → `403 PLAN_LIMIT_REACHED`

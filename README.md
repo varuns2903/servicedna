@@ -302,6 +302,7 @@ servicedna/
 | `JWT_REFRESH_EXPIRATION_MS` | Refresh token TTL in ms | `2592000000` (30 days) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Outbound mail for verification/reset/notification emails (optional — logs instead of sending if unset) | — |
 | `MAIL_FROM` | From-address for outbound email | — |
+| `BILLING_ENFORCE_PLAN_LIMITS` | Enforce plan limits (Free: 3 services, 1 day of ping history; Pro: 50, 30 days; Enterprise: unlimited). Set `false` for a self-hosted deployment that doesn't sell plans | `true` |
 | `STRIPE_API_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe secret key and webhook signing secret | — |
 | `STRIPE_PRO_PRICE_ID` / `STRIPE_ENTERPRISE_PRICE_ID` | Stripe Price IDs for paid tiers | — |
 | `PING_RETENTION_DAYS` | Days of health-check ping history kept before pruning | `90` |
