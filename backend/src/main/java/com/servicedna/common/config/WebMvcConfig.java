@@ -23,7 +23,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(rateLimitInterceptor).addPathPatterns("/api/**");
+    // Telemetry ingestion is authenticated by ingestion key and arrives in batches from a few
+    // collectors; a per-IP request limit would throttle a whole environment's telemetry.
+    registry
+        .addInterceptor(rateLimitInterceptor)
+        .addPathPatterns("/api/**")
+        .excludePathPatterns("/api/v1/otlp/**");
   }
 
   @Override

@@ -173,7 +173,7 @@ cd servicedna
 docker-compose up -d
 ```
 
-This starts **PostgreSQL**, **Redis**, **Kafka** (with Zookeeper), and **Zipkin**.
+This starts **PostgreSQL**, **Redis**, **Kafka** (with Zookeeper), **Zipkin**, **Grafana Tempo** (trace storage), and an **OpenTelemetry Collector** that receives your services' traces on `:4317` (OTLP/gRPC), `:4318` (OTLP/HTTP) and `:9412` (Zipkin).
 
 ### 3. Configure the Backend
 
@@ -292,6 +292,7 @@ servicedna/
 | `SPRING_DATA_REDIS_HOST` | Redis host | `localhost` |
 | `SPRING_DATA_REDIS_PORT` | Redis port | `6380` |
 | `SPRING_KAFKA_BOOTSTRAP_SERVERS` | Kafka brokers | `localhost:9092` |
+| `TRACE_STORE_OTLP_URL` | OTLP/HTTP base URL of Grafana Tempo, where ingested traces are stored (one tenant per organization); empty disables trace storage | — (`http://tempo:4318` in docker-compose) |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins | `http://localhost:5173,http://localhost:3000` |
 | `FRONTEND_URL` | Base URL used in email links and OAuth redirects | — |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth App credentials | — |

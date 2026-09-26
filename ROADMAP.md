@@ -96,7 +96,7 @@ Billing shows "Free: 3 services max", but nothing enforces it.
 This phase is the foundation for everything after it: once services emit telemetry through a
 ServiceDNA SDK, the graph, flows, and testing features light up without extra setup.
 
-### 2.1 OTLP ingestion in ServiceDNA
+### 2.1 OTLP ingestion in ServiceDNA — ✅ Done
 - Accept **OTLP** (gRPC + HTTP) and **Zipkin** spans
 - Authenticated with an **org ingestion key**; service identity comes from OTel resource
   attributes (`service.name`, `deployment.environment`)
