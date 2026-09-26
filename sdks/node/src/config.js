@@ -28,8 +28,18 @@ function resolveConfig(options = {}, env = process.env, cwd = process.cwd()) {
       env.SERVICEDNA_LOCAL_HEALTH_URL ??
       (port ? `http://127.0.0.1:${port}${env.SERVICEDNA_HEALTH_PATH ?? '/health'}` : undefined),
     heartbeatMs: Number(options.heartbeatMs ?? env.SERVICEDNA_HEARTBEAT_MS ?? 15000),
+    // Logs go to ServiceDNA next to traces (pino and bunyan automatically, console.* unless
+    // SERVICEDNA_LOGS_CONSOLE=false); SERVICEDNA_LOGS=false turns log export off.
+    logs: flag(options.logs ?? env.SERVICEDNA_LOGS, true),
+    consoleLogs: flag(options.consoleLogs ?? env.SERVICEDNA_LOGS_CONSOLE, true),
     degradedThresholdMs: Number(options.degradedThresholdMs ?? env.SERVICEDNA_DEGRADED_MS ?? 2000),
   };
+}
+
+function flag(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  return !/^(0|false|no|off)$/i.test(String(value));
 }
 
 function readPackageJson(cwd) {

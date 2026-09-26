@@ -29,11 +29,23 @@ class ServiceDnaEnvironmentPostProcessorTest {
         .containsEntry("otel.exporter.otlp.traces.endpoint", "http://sdna:8080/api/v1/otlp/v1/traces")
         .containsEntry("otel.exporter.otlp.traces.protocol", "http/protobuf")
         .containsEntry("otel.exporter.otlp.traces.headers", "x-servicedna-key=sdna_ik_x")
+        .containsEntry("otel.logs.exporter", "otlp")
+        .containsEntry("otel.exporter.otlp.logs.endpoint", "http://sdna:8080/api/v1/otlp/v1/logs")
+        .containsEntry("otel.exporter.otlp.logs.headers", "x-servicedna-key=sdna_ik_x")
         .containsEntry(
             "otel.resource.attributes",
             "deployment.environment.name=prod,servicedna.health.url=http://orders:8080/actuator/health")
         .doesNotContainKey("otel.service.name") // OpenTelemetry defaults to spring.application.name
         .doesNotContainKey("otel.sdk.disabled");
+  }
+
+  @Test
+  void logsCanBeTurnedOff() {
+    Map<String, Object> props = ServiceDnaEnvironmentPostProcessor.otelProperties(new MockEnvironment()
+        .withProperty("servicedna.url", "https://sdna.example.com")
+        .withProperty("servicedna.key", "sdna_ik_x")
+        .withProperty("servicedna.logs", "false"));
+    assertThat(props).containsEntry("otel.logs.exporter", "none").doesNotContainKey("otel.exporter.otlp.logs.endpoint");
   }
 
   @Test

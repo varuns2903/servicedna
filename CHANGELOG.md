@@ -7,6 +7,23 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Logs. `POST /api/v1/otlp/v1/logs` ingests OTLP logs (stored in Grafana Loki, one tenant per
+  organization; the bundled collector and the agent forward OTLP/gRPC logs, and the agent masks
+  them like spans). The SDKs send logs by default — Node.js console/pino/bunyan, Python logging
+  (uvicorn included), Go slog and log, Spring Boot Logback — tagged with the active trace.
+  `/logs` searches them by service, environment, level, text or attribute (or LogQL), each line
+  linking to its trace; traces in the explorer and Test Studio runs show the logs written while
+  handling them. `docker-compose.yml` gains Loki and `LOG_STORE_URL`.
+- Trace explorer (`/traces`): search every trace by service, operation, environment, status,
+  latency, any attribute (`orderId=o-17`, `http.response.status_code>=500`) or text inside
+  captured bodies — or write TraceQL. Results show the matching spans and which services erred;
+  opening one shows its waterfall at the span that matched, with captured bodies laid out.
+  Searches live in the URL, so they can be shared. API: `GET /traces/explore`,
+  `/traces/attributes`, `/traces/attributes/values`.
+- SDKs: capture on error. With `SERVICEDNA_CAPTURE_ON_ERROR=true` (Spring Boot:
+  `servicedna.capture-on-error`), request and response bodies are held per request and recorded
+  only when it fails (5xx or an unhandled exception; in Node.js any span ending in error, including
+  failed Kafka consumers), masked and marked `sdna.captured_on_error`. Off by default.
 - Test Studio (`/testing`): compose an HTTP, GraphQL, gRPC or Kafka request from a service's
   catalog (body templated from its request schema), send it through the environment's runner and
   watch each hop arrive with what it received and returned. One click turns a run into
@@ -131,6 +148,10 @@ All notable changes to this project are documented in this file. The format is b
   and exits non-zero on failure.
 
 ### Changed
+- Trace search results mark a trace as an error when any of its spans failed, not only when the
+  search asked for errors.
+- Spring Boot SDK: body capture writes responses straight through, keeping a capped copy,
+  instead of buffering the whole response.
 - Test run hops are returned in call order (callers before what they call) rather than by start
   time, which clock skew between hosts could scramble.
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)

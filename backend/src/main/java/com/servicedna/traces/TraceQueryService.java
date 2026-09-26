@@ -80,10 +80,91 @@ public class TraceQueryService {
               t.path("rootTraceName").asText(null),
               Instant.ofEpochSecond(0, t.path("startTimeUnixNano").asLong()),
               t.path("durationMs").asLong(),
-              errorsOnly));
+              errorsOnly || errorCount(t) > 0));
     }
     result.sort(Comparator.comparing(TraceDto.Summary::start).reversed());
     return result;
+  }
+
+  /** Traces with a span matching the filters (or raw TraceQL), newest first. */
+  public TraceDto.Explore explore(
+      UUID organizationId, TraceQl.Filters filters, String traceql, Instant from, Instant to, int limit, UUID userId) {
+    organizationService.validateUserAccess(organizationId, userId);
+    String selector = traceql != null && !traceql.isBlank() ? traceql.trim() : TraceQl.query(filters);
+    String query = selector.contains("select(") ? selector
+        : selector + " | select(name, resource.service.name, status, span.http.response.status_code, span.sdna.request.body, span.sdna.response.body)";
+    Instant end = to != null ? to : Instant.now();
+    Instant start = from != null ? from : end.minus(Duration.ofHours(1));
+    if (!start.isBefore(end)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_RANGE", "The time range is empty.");
+    }
+    if (Duration.between(start, end).toDays() > 7) {
+      start = end.minus(Duration.ofDays(7));
+    }
+    JsonNode body = get(organizationId, "/api/search?q=" + encode(query) + "&limit=" + Math.max(1, Math.min(limit, 200)) + "&spss=5"
+        + "&start=" + start.getEpochSecond() + "&end=" + (end.getEpochSecond() + 1));
+
+    List<TraceDto.Found> found = new ArrayList<>();
+    for (JsonNode t : body.path("traces")) {
+      Map<String, TraceDto.ServiceStats> services = new LinkedHashMap<>();
+      t.path("serviceStats").fields().forEachRemaining(e ->
+          services.put(e.getKey(), new TraceDto.ServiceStats(e.getValue().path("spanCount").asInt(), e.getValue().path("errorCount").asInt())));
+      List<TraceDto.MatchedSpan> spans = new ArrayList<>();
+      int matched = 0;
+      for (JsonNode set : t.path("spanSets")) {
+        matched += set.path("matched").asInt();
+        for (JsonNode sp : set.path("spans")) {
+          Map<String, String> attrs = attributes(sp.path("attributes"));
+          String service = attrs.remove("service.name");
+          String status = attrs.remove("status");
+          spans.add(new TraceDto.MatchedSpan(
+              sp.path("spanID").asText(), service, sp.path("name").asText(null),
+              Instant.ofEpochSecond(0, sp.path("startTimeUnixNano").asLong()),
+              Math.round(sp.path("durationNanos").asLong() / 10_000.0) / 100.0,
+              "error".equals(status), attrs));
+        }
+      }
+      found.add(new TraceDto.Found(
+          t.path("traceID").asText(), t.path("rootServiceName").asText(null), t.path("rootTraceName").asText(null),
+          Instant.ofEpochSecond(0, t.path("startTimeUnixNano").asLong()), t.path("durationMs").asLong(),
+          errorCount(t), services, matched, spans));
+    }
+    found.sort(Comparator.comparing(TraceDto.Found::start).reversed());
+    return new TraceDto.Explore(selector, found);
+  }
+
+  /** Attribute names seen recently, for filter suggestions: span ones plain, resource ones prefixed. */
+  public List<String> attributeNames(UUID organizationId, UUID userId) {
+    organizationService.validateUserAccess(organizationId, userId);
+    List<String> names = new ArrayList<>();
+    for (JsonNode scope : get(organizationId, "/api/v2/search/tags").path("scopes")) {
+      String prefix = "resource".equals(scope.path("name").asText()) ? "resource." : "";
+      if ("intrinsic".equals(scope.path("name").asText())) {
+        continue;
+      }
+      scope.path("tags").forEach(tag -> names.add(prefix + tag.asText()));
+    }
+    return names.stream().distinct().sorted().toList();
+  }
+
+  /** Recent values of one attribute (as {@link #attributeNames} names it). */
+  public List<String> attributeValues(UUID organizationId, String name, UUID userId) {
+    organizationService.validateUserAccess(organizationId, userId);
+    if (!name.matches("[A-Za-z_][\\w.\\-]*")) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_FILTER", "Not an attribute name: " + name);
+    }
+    String scoped = name.startsWith("resource.") || name.startsWith("span.") ? name : "span." + name;
+    List<String> values = new ArrayList<>();
+    get(organizationId, "/api/v2/search/tag/" + encode(scoped) + "/values").path("tagValues").forEach(v -> values.add(v.path("value").asText()));
+    return values.stream().distinct().sorted().limit(200).toList();
+  }
+
+  private static int errorCount(JsonNode trace) {
+    int errors = 0;
+    for (JsonNode stats : trace.path("serviceStats")) {
+      errors += stats.path("errorCount").asInt();
+    }
+    return errors;
   }
 
   public TraceDto.Trace trace(UUID organizationId, String traceId, UUID userId) {
@@ -149,6 +230,10 @@ public class TraceQueryService {
               HttpResponse.BodyHandlers.ofString());
       if (res.statusCode() == 404) {
         throw new ApiException(HttpStatus.NOT_FOUND, "TRACE_NOT_FOUND", "Trace not found.");
+      }
+      if (res.statusCode() == 400) {
+        // Tempo's parse error, e.g. for hand-written TraceQL.
+        throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_QUERY", res.body().strip());
       }
       if (res.statusCode() >= 300) {
         throw new ApiException(HttpStatus.BAD_GATEWAY, "TRACE_STORE_ERROR", "Trace store returned HTTP " + res.statusCode());

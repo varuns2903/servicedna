@@ -21,14 +21,17 @@ processors:
   # Deployment/StatefulSet/DaemonSet so they still register as services.
   transform/k8s-service-name:
     error_mode: ignore
-    trace_statements:
+    trace_statements: &name-from-workload
       - context: resource
         statements:
           - set(attributes["service.name"], attributes["k8s.deployment.name"]) where (attributes["service.name"] == nil or IsMatch(attributes["service.name"], "^unknown_service")) and attributes["k8s.deployment.name"] != nil
           - set(attributes["service.name"], attributes["k8s.statefulset.name"]) where (attributes["service.name"] == nil or IsMatch(attributes["service.name"], "^unknown_service")) and attributes["k8s.statefulset.name"] != nil
           - set(attributes["service.name"], attributes["k8s.daemonset.name"]) where (attributes["service.name"] == nil or IsMatch(attributes["service.name"], "^unknown_service")) and attributes["k8s.daemonset.name"] != nil
+    log_statements: *name-from-workload
 
 service:
   pipelines:
     traces:
+      processors: [memory_limiter, k8sattributes, transform/k8s-service-name, resource/environment, transform/mask, batch]
+    logs:
       processors: [memory_limiter, k8sattributes, transform/k8s-service-name, resource/environment, transform/mask, batch]

@@ -70,6 +70,16 @@ services:
     ports:
       - "${TEMPO_PORT:-3200}:3200"
 
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: servicedna-loki
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./infra/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - lokidata:/loki
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.111.0
     container_name: servicedna-otel-collector
@@ -96,6 +106,8 @@ services:
       kafka:
         condition: service_healthy
       tempo:
+        condition: service_started
+      loki:
         condition: service_started
     ports:
       - "${PORT:-8080}:8080"
@@ -126,6 +138,7 @@ services:
       BILLING_ENFORCE_PLAN_LIMITS: ${BILLING_ENFORCE_PLAN_LIMITS:-true}
       TRACE_STORE_OTLP_URL: ${TRACE_STORE_OTLP_URL:-http://tempo:4318}
       TRACE_STORE_QUERY_URL: ${TRACE_STORE_QUERY_URL:-http://tempo:3200}
+      LOG_STORE_URL: ${LOG_STORE_URL:-http://loki:3100}
       RUNNER_SHARED_TOKEN: ${RUNNER_SHARED_TOKEN:-}
 
   # Test Studio runner for single-host setups, serving every organization on this ServiceDNA
@@ -159,3 +172,4 @@ services:
 volumes:
   pgdata:
   tempodata:
+  lokidata:

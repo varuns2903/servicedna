@@ -30,6 +30,10 @@ class ServiceDnaCaptureFilterTest {
   };
 
   private SpanData run(boolean capture) throws Exception {
+    return run(capture, new ServiceDnaCaptureFilter(), app);
+  }
+
+  private SpanData run(boolean capture, ServiceDnaCaptureFilter filter, FilterChain chain) throws Exception {
     MockHttpServletRequest request = new MockHttpServletRequest("POST", "/quotes");
     request.setContent("{\"symbol\":\"AAPL\",\"password\":\"x\"}".getBytes(StandardCharsets.UTF_8));
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -39,11 +43,15 @@ class ServiceDnaCaptureFilterTest {
       context = context.with(Baggage.builder().put("sdna.capture", "1").build());
     }
     try (Scope ignored = context.makeCurrent()) {
-      new ServiceDnaCaptureFilter().doFilter(request, response, app);
+      filter.doFilter(request, response, chain);
+    } catch (IllegalStateException expected) {
+      // the app's own failure
     } finally {
       span.end();
     }
-    assertThat(response.getContentAsString()).isEqualTo("{\"price\":136.0,\"apiKey\":\"k\"}");
+    if (chain == app) {
+      assertThat(response.getContentAsString()).isEqualTo("{\"price\":136.0,\"apiKey\":\"k\"}");
+    }
     return exporter.getFinishedSpanItems().get(exporter.getFinishedSpanItems().size() - 1);
   }
 
@@ -62,5 +70,31 @@ class ServiceDnaCaptureFilterTest {
     SpanData span = run(false);
     assertThat(span.getAttributes().get(AttributeKey.stringKey("sdna.request.body"))).isNull();
     assertThat(span.getAttributes().get(AttributeKey.stringKey("sdna.capture.seen"))).isNull();
+  }
+
+  @Test
+  void withCaptureOnErrorOnlyFailedRequestsCarryTheirBodies() throws Exception {
+    ServiceDnaCaptureFilter filter = new ServiceDnaCaptureFilter(true);
+    SpanData ok = run(false, filter, app);
+    assertThat(ok.getAttributes().get(AttributeKey.stringKey("sdna.request.body"))).isNull();
+    assertThat(ok.getAttributes().get(AttributeKey.booleanKey("sdna.captured_on_error"))).isNull();
+
+    SpanData failed = run(false, filter, (req, res) -> {
+      req.getInputStream().readAllBytes();
+      ((jakarta.servlet.http.HttpServletResponse) res).setStatus(503);
+      res.getWriter().write("{\"error\":\"quote feed down\"}");
+    });
+    assertThat(failed.getAttributes().get(AttributeKey.stringKey("sdna.request.body")))
+        .isEqualTo("{\"symbol\":\"AAPL\",\"password\":\"[masked]\"}");
+    assertThat(failed.getAttributes().get(AttributeKey.stringKey("sdna.response.body"))).isEqualTo("{\"error\":\"quote feed down\"}");
+    assertThat(failed.getAttributes().get(AttributeKey.booleanKey("sdna.captured_on_error"))).isTrue();
+    assertThat(failed.getAttributes().get(AttributeKey.booleanKey("sdna.captured"))).isNull();
+
+    SpanData thrown = run(false, filter, (req, res) -> {
+      req.getInputStream().readAllBytes();
+      throw new IllegalStateException("bug");
+    });
+    assertThat(thrown.getAttributes().get(AttributeKey.stringKey("sdna.request.body"))).contains("AAPL");
+    assertThat(thrown.getAttributes().get(AttributeKey.booleanKey("sdna.captured_on_error"))).isTrue();
   }
 }

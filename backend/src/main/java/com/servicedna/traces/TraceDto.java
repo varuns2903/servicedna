@@ -28,4 +28,23 @@ public final class TraceDto {
       List<Event> events) {}
 
   public record Event(String name, Instant time, Map<String, String> attributes) {}
+
+  /** Explorer results, with the TraceQL they came from (to refine by hand, or use in Grafana). */
+  public record Explore(String query, List<Found> traces) {}
+
+  /** A trace with the spans that matched and every service's span and error counts. */
+  public record Found(
+      String traceId,
+      String rootService,
+      String rootOperation,
+      Instant start,
+      long durationMs,
+      int errors,
+      Map<String, ServiceStats> services,
+      int matched,
+      List<MatchedSpan> spans) {}
+
+  public record ServiceStats(int spans, int errors) {}
+
+  public record MatchedSpan(String spanId, String service, String name, Instant start, double durationMs, boolean error, Map<String, String> attributes) {}
 }

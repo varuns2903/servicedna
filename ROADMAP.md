@@ -396,12 +396,12 @@ correlation (logback/log4j/winston/structlog bridges).
 
 ## Phase 6 — Bug analysis
 
-### 6.1 Error-only payload capture in prod
+### 6.1 Error-only payload capture in prod — ✅ Done (SDKs; tail sampling is the collector's job)
 The SDK buffers request/response bodies in memory for the duration of a request and attaches
 them **only if the span ends in error**. Successful traffic ships no payloads; every failure
 arrives with full context. Tail sampling keeps 100% of errors and test runs.
 
-### 6.2 Trace & log explorer
+### 6.2 Trace & log explorer — ✅ Done
 Kibana-style search across traces and correlated logs: by service, operation, status, latency,
 environment, time range, and attributes.
 

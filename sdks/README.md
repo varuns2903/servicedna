@@ -11,6 +11,21 @@ registers itself, sends traces, and reports health heartbeats.
 | Go | [`github.com/varuns2903/servicedna/sdks/go`](go/) | ✅ |
 | Java / Spring Boot | [`io.github.varuns2903:servicedna-spring-boot-starter`](java/) | ✅ |
 
+## Logs
+
+Each SDK sends the service's logs to ServiceDNA next to its traces, tagged with the trace and span
+of the request that wrote them — so a trace shows its logs, and a log line links to its trace. Your
+output doesn't change.
+
+| Language | What's sent |
+|---|---|
+| Node.js | `console.*`, pino, bunyan (`SERVICEDNA_LOGS_CONSOLE=false` leaves console out) |
+| Python | the `logging` module, including uvicorn's startup and error logs (not access lines) |
+| Go | `log/slog`'s default logger (use `slog.InfoContext(ctx, …)` for the trace link) and the `log` package |
+| Spring Boot | Logback / Log4j |
+
+`SERVICEDNA_LOGS=false` (Spring Boot: `servicedna.logs=false`) turns log export off.
+
 ## Test runs: capturing each hop's data
 
 When ServiceDNA's Test Studio sends a request, it adds the baggage entry `sdna.capture=1`. For
@@ -18,7 +33,16 @@ those requests only, each SDK records the body the service received and the body
 the server span (`sdna.request.body`, `sdna.response.body`), so the run shows every hop's input
 and output. Fields named like credentials (password, token, secret, API key, cookie, session,
 card…) are masked, and bodies are capped at `SERVICEDNA_CAPTURE_MAX_BYTES` (16 KiB). Ordinary
-traffic is never captured.
+traffic is never captured — unless you turn on capture on error.
+
+### Capture on error (production)
+
+Set `SERVICEDNA_CAPTURE_ON_ERROR=true` (Spring Boot: `servicedna.capture-on-error=true`) and every
+request's bodies are held in memory until it finishes, then recorded **only if it failed** — a 5xx
+or an unhandled exception (in Node.js, any span that ends in error, including a Kafka message whose
+handler threw). Successful traffic ships no payloads; each failure arrives with what caused it,
+masked the same way and marked `sdna.captured_on_error`. It's off by default: turn it on where
+sending masked request data to ServiceDNA is acceptable.
 
 Values computed inside a function can be added to the run too — outside a test run it's a no-op:
 

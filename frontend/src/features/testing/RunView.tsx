@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronDown, ChevronRight, Loader2, Plus, XCircle } from 
 import { Badge } from '@/components/ui/Badge';
 import { FINISHED, type Hop, type TestRun } from '@/api/testing.api';
 import { prettyJson } from './requests';
+import { TraceLogs } from '@/features/logs/TraceLogs';
 
 const STATUS_TEXT: Record<TestRun['status'], string> = {
   QUEUED: 'Waiting for a runner',
@@ -112,6 +113,8 @@ export function RunView({ run, onAssertHop }: { run: TestRun; onAssertHop?: (hop
           </ul>
         )}
       </section>
+
+      {hops.length > 0 && <TraceLogs traceId={run.traceId} start={run.createdAt} live={!finished} />}
     </div>
   );
 }

@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "fastapi", "httpx"]
+test = ["pytest", "fastapi", "httpx", "uvicorn"]
 
 [project.urls]
 Source = "https://github.com/varuns2903/servicedna/tree/main/sdks/python"

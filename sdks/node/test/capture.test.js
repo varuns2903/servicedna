@@ -23,8 +23,10 @@ function server() {
       let body = '';
       req.on('data', (c) => (body += c));
       req.on('end', () => {
+        const received = JSON.parse(body || '{}');
+        res.statusCode = received.fail ? 500 : 200;
         res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify({ received: JSON.parse(body || '{}'), token: 'abc' }));
+        res.end(JSON.stringify(received.fail ? { error: 'out of stock' } : { received, token: 'abc' }));
       });
     });
     s.listen(0, '127.0.0.1', () => resolve(s));
@@ -72,6 +74,29 @@ test('leaves ordinary requests alone', async () => {
   assert.ok(span);
   assert.strictEqual(span.attributes['sdna.request.body'], undefined);
   assert.strictEqual(span.attributes['sdna.response.body'], undefined);
+});
+
+test('with capture on error, only failed requests carry their bodies', async (t) => {
+  process.env.SERVICEDNA_CAPTURE_ON_ERROR = 'true';
+  t.after(() => delete process.env.SERVICEDNA_CAPTURE_ON_ERROR);
+  const s = await server();
+
+  exporter.reset();
+  await send(s.address().port, {}, { userId: 'u-3' });
+  await new Promise((r) => setTimeout(r, 50));
+  const ok = serverSpan();
+  assert.strictEqual(ok.attributes['sdna.request.body'], undefined);
+  assert.strictEqual(ok.attributes['sdna.captured_on_error'], undefined);
+
+  exporter.reset();
+  await send(s.address().port, {}, { userId: 'u-4', fail: true, password: 'x' });
+  await new Promise((r) => setTimeout(r, 50));
+  s.close();
+  const failed = serverSpan();
+  assert.deepStrictEqual(JSON.parse(failed.attributes['sdna.request.body']), { userId: 'u-4', fail: true, password: '[masked]' });
+  assert.deepStrictEqual(JSON.parse(failed.attributes['sdna.response.body']), { error: 'out of stock' });
+  assert.strictEqual(failed.attributes['sdna.captured_on_error'], true);
+  assert.strictEqual(failed.attributes['sdna.captured'], undefined);
 });
 
 test('redact truncates and leaves non-JSON text alone', () => {

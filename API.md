@@ -124,6 +124,14 @@ audit history the account is referenced from stay intact.
 | GET | `/?windowMinutes=60[&entryNode=&entryOperation=]` | Operation-level calls (nodes are service/database/host/topic operations). With an entry, only what that operation triggers downstream. Each call has protocol, calls/min, error rate, p50 and p95 |
 | GET | `/entry-points?windowMinutes=60` | Operations nothing instrumented calls (entered from outside), busiest first |
 
+### Logs — `/api/v1/organizations/{orgId}/logs`
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | Log search, newest first. Optional filters: `service`, `environment`, `level` (`debug`/`info`/`warn`/`error`), `text` (case-insensitive), `traceId` (a trace's logs), repeated `attribute` (`orderId=o-17`, `status>=500`), `from`/`to` (ISO; default the last hour, at most 30 days), `limit` (≤ 1000). `q` is raw LogQL and overrides the filters. Returns the LogQL used and entries with time, service, environment, level, message, trace/span ids and attributes |
+
+Malformed LogQL returns `400 INVALID_QUERY`.
+
 ### Traces — `/api/v1/organizations/{orgId}/traces`
 
 Read from the trace store as the organization's tenant.
@@ -132,6 +140,11 @@ Read from the trace store as the organization's tenant.
 |---|---|---|
 | GET | `/?service=&operation=[&calleeService=&calleeOperation=][&errorsOnly=][&windowMinutes=][&limit=]` | Recent traces through an operation, or where it called the callee's operation (TraceQL `{caller} >> {callee}`) |
 | GET | `/{traceId}` | The trace as spans ordered by start: service, name, kind, timing, status, attributes, events |
+| GET | `/explore` | Explorer search. Optional filters: `service`, `operation`, `environment`, `status` (`error`/`ok`), `minDurationMs`, `maxDurationMs`, repeated `attribute` (`orderId=o-17`, `http.response.status_code>=500`, `=~` for regex; unscoped keys match span or resource attributes), `text` (inside captured bodies), `from`/`to` (ISO; default the last hour, at most 7 days), `limit` (≤ 200). `q` is raw TraceQL and overrides the filters. Returns the TraceQL used and each trace with its matching spans and per-service span/error counts |
+| GET | `/attributes` | Attribute names seen recently (resource ones prefixed `resource.`), for filter suggestions |
+| GET | `/attributes/values?name=` | Recent values of one attribute |
+
+Malformed TraceQL returns `400 INVALID_QUERY` with the trace store's parse error.
 
 ### Test runs — `/api/v1/organizations/{orgId}/test-runs`
 
@@ -308,13 +321,14 @@ changes, instead of polling this endpoint.
 
 ## Telemetry ingestion (OTLP)
 
-ServiceDNA accepts OpenTelemetry traces, authenticated by an [ingestion key](#ingestion-keys--apiv1organizationsorgidingestion-keys)
+ServiceDNA accepts OpenTelemetry traces and logs, authenticated by an [ingestion key](#ingestion-keys--apiv1organizationsorgidingestion-keys)
 in the `x-servicedna-key` header (or `Authorization: Bearer <key>`). Spans are stored in Grafana
-Tempo, one tenant per organization.
+Tempo and logs in Grafana Loki, one tenant per organization.
 
 | Protocol | Endpoint | Notes |
 |---|---|---|
 | OTLP/HTTP (protobuf) | `POST /api/v1/otlp/v1/traces` on the backend | Set `OTEL_EXPORTER_OTLP_ENDPOINT=<backend>/api/v1/otlp`. gzip supported; 16 MB per batch. Returns `401` for a bad key and `503` (retry) if trace storage is down |
+| OTLP/HTTP logs (protobuf) | `POST /api/v1/otlp/v1/logs` on the backend | Same key, encoding and limits; `503` (retry) if log storage is down. Records keep their trace and span ids |
 | OTLP/gRPC | `:4317` on the bundled collector | Forwarded to the endpoint above |
 | OTLP/HTTP | `:4318` on the bundled collector | Forwarded to the endpoint above |
 | Zipkin v2 JSON | `:9412/api/v2/spans` on the bundled collector | Forwarded to the endpoint above |
@@ -344,6 +358,7 @@ These require no authentication:
 | GET | `/api/v1/public/organizations/{orgId}/status` | Public status page data (service health + active incidents) |
 | POST | `/api/v1/runner/claim`, `/api/v1/runner/runs/{id}/result` | Test Studio runners — authenticated by ingestion key or `RUNNER_SHARED_TOKEN` |
 | POST | `/api/v1/otlp/v1/traces` | OTLP trace ingestion — authenticated via an ingestion key, see [Telemetry ingestion](#telemetry-ingestion-otlp) |
+| POST | `/api/v1/otlp/v1/logs` | OTLP log ingestion, likewise |
 | POST | `/api/v1/ping` | Health-check ingestion — authenticated via an `X-API-Key` header: either a service's own API key, or an organization ingestion key with `service` (and optional `environment`) in the body, which registers the service on first contact |
 | POST | `/api/v1/webhooks/stripe` | Stripe webhook receiver — authenticated via Stripe's signature header |
 | GET | `/api/v1/auth/sso-config`, `/register`, `/login`, `/refresh`, `/logout`, `/verify-email`, `/resend-verification`, `/forgot-password`, `/reset-password` | See [Authentication](#authentication--apiv1auth) |

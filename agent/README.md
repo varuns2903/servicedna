@@ -7,6 +7,8 @@ cluster — and forwards its telemetry to ServiceDNA:
   (`:9411`) to the agent; the agent holds the environment's ingestion key.
 - **Environment stamped on the way through.** Telemetry that doesn't say which environment it
   came from gets the agent's `SERVICEDNA_ENV`, so services register under the right one.
+- **Traces and logs.** Both arrive on the same OTLP ports; logs keep their trace ids, so they show
+  up on the requests that wrote them. Masking applies to log attributes and messages too.
 - **Sensitive data masked inside your network.** Attributes named like passwords, tokens, API keys,
   cookies or sessions are dropped, and card numbers in any value become `[card]`, before anything
   leaves. Extend the patterns in [`collector.yaml`](helm/servicedna-agent/files/collector.yaml).
@@ -27,7 +29,7 @@ helm install servicedna-agent ./agent/helm/servicedna-agent \
 Use `--set servicedna.existingSecret.name=<secret>` (and `.key=<field>`) to take the key from an
 existing Secret.
 
-On Kubernetes the agent also tags every span with its pod, deployment, namespace and node, and a
+On Kubernetes the agent also tags every span and log with its pod, deployment, namespace and node, and a
 workload that never set `OTEL_SERVICE_NAME` (so reports `unknown_service:…`) is registered under
 its Deployment, StatefulSet or DaemonSet name. This needs read access to pods and workloads, which
 the chart grants; turn it off with `--set kubernetesMetadata.enabled=false`.

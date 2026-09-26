@@ -1,5 +1,5 @@
 # Front door for telemetry that can't go straight to the backend's OTLP/HTTP endpoint: OTLP over
-# gRPC, and Zipkin. Each request's x-servicedna-key header is carried through to the backend,
+# gRPC (traces and logs), and Zipkin. Each request's x-servicedna-key header is carried through to the backend,
 # which authenticates it; batches are split per key so organizations' spans never share a request.
 extensions:
   health_check:
@@ -40,5 +40,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp, zipkin]
+      processors: [batch]
+      exporters: [otlphttp/servicedna]
+    logs:
+      receivers: [otlp]
       processors: [batch]
       exporters: [otlphttp/servicedna]

@@ -8,8 +8,8 @@ const PALETTE = ['#10b981', '#38bdf8', '#a78bfa', '#f59e0b', '#f472b6', '#34d399
  * (middleware, handlers) are hidden by default so the hops between services stand out; their
  * children are re-attached to the nearest visible ancestor.
  */
-export function TraceWaterfall({ trace }: { trace: Trace }) {
-  const [selected, setSelected] = useState<TraceSpan | null>(null);
+export function TraceWaterfall({ trace, initialSpanId }: { trace: Trace; initialSpanId?: string }) {
+  const [selected, setSelected] = useState<TraceSpan | null>(() => trace.spans.find((s) => s.spanId === initialSpanId) ?? null);
   const [hideInternal, setHideInternal] = useState(true);
   const start = new Date(trace.start).getTime();
   const total = Math.max(trace.durationMs, 1);
@@ -79,7 +79,18 @@ export function TraceWaterfall({ trace }: { trace: Trace }) {
   );
 }
 
+const BODIES = ['sdna.request.body', 'sdna.response.body'];
+
+function pretty(text: string) {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return text;
+  }
+}
+
 function SpanDetails({ span }: { span: TraceSpan }) {
+  const bodies = BODIES.filter((k) => span.attributes[k]);
   return (
     <div className="rounded-md border border-charcoal-700 bg-charcoal-800 p-2 text-[11px]">
       <div className="mb-1 flex items-center gap-2">
@@ -89,9 +100,20 @@ function SpanDetails({ span }: { span: TraceSpan }) {
         </span>
         {span.error && <span className="text-rose-400">error{span.statusMessage ? `: ${span.statusMessage}` : ''}</span>}
       </div>
+      {bodies.length > 0 && (
+        <div className="mb-2 space-y-1">
+          {span.attributes['sdna.captured_on_error'] && <div className="text-amber-300">Bodies captured because this request failed</div>}
+          {bodies.map((k) => (
+            <div key={k}>
+              <div className="text-gray-500">{k === 'sdna.request.body' ? 'Received' : 'Returned'}</div>
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-charcoal-900 p-1.5 font-mono text-gray-200">{pretty(span.attributes[k])}</pre>
+            </div>
+          ))}
+        </div>
+      )}
       <table className="w-full">
         <tbody>
-          {Object.entries(span.attributes).map(([k, v]) => (
+          {Object.entries(span.attributes).filter(([k]) => !BODIES.includes(k)).map(([k, v]) => (
             <tr key={k} className="align-top">
               <td className="w-1/3 pr-2 text-gray-500">{k}</td>
               <td className="break-all font-mono text-gray-200">{v}</td>

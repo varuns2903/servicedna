@@ -17,6 +17,8 @@ import { ServiceDetails } from '@/features/services/ServiceDetails';
 import { ConnectService } from '@/features/onboarding/ConnectService';
 import { FlowsView } from '@/features/flows/FlowsView';
 import { TestStudio } from '@/features/testing/TestStudio';
+import { TraceExplorer } from '@/features/traces/TraceExplorer';
+import { LogExplorer } from '@/features/logs/LogExplorer';
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { DependencyGraph } from '@/features/map/DependencyGraph';
 import { IncidentList } from '@/features/incidents/IncidentList';
@@ -105,6 +107,26 @@ function App() {
               <ProtectedRoute>
                 <AppShell>
                   <FlowsView />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/traces"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <TraceExplorer />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/logs"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <LogExplorer />
                 </AppShell>
               </ProtectedRoute>
             }

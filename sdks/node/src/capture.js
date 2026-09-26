@@ -1,16 +1,35 @@
 'use strict';
 
 const http = require('node:http');
-const { context, propagation, trace } = require('@opentelemetry/api');
+const { context, propagation, trace, SpanStatusCode } = require('@opentelemetry/api');
 
 /**
- * Request/response body capture for ServiceDNA test runs. Only requests carrying the baggage entry
- * `sdna.capture=1` (set by the ServiceDNA runner) are captured; everything else is untouched.
- * Captured bodies are masked (credential-like JSON fields) and truncated before they're recorded
- * as span attributes.
+ * Request/response body capture for ServiceDNA. Requests carrying the baggage entry
+ * `sdna.capture=1` (test runs) are always captured. With SERVICEDNA_CAPTURE_ON_ERROR=true, every
+ * other request's bodies are held in memory until its span ends and recorded only if it failed —
+ * successful traffic ships no payloads. Captured bodies are masked (credential-like JSON fields)
+ * and truncated before they're recorded as span attributes.
  */
 const MAX_BYTES = Number(process.env.SERVICEDNA_CAPTURE_MAX_BYTES ?? 16384);
 const SENSITIVE = /pass(word|wd)?|secret|token|api[-_.]?key|authorization|cookie|session|card|cvv|ssn/i;
+
+function captureOnError() {
+  return /^(1|true|yes)$/i.test(process.env.SERVICEDNA_CAPTURE_ON_ERROR ?? '');
+}
+
+/** Records attributes when the span ends, only if it ends in error. */
+function attachOnError(span, attributes) {
+  const end = span.end;
+  span.end = function (...args) {
+    if (this.status?.code === SpanStatusCode.ERROR) {
+      for (const [key, value] of Object.entries(attributes())) {
+        if (value) this.setAttribute(key, redact(value));
+      }
+      this.setAttribute('sdna.captured_on_error', true);
+    }
+    return end.apply(this, args);
+  };
+}
 
 function captureRequested(ctx = context.active()) {
   return propagation.getBaggage(ctx)?.getEntry('sdna.capture')?.value === '1';
@@ -72,7 +91,17 @@ function watchWrites(res, done) {
 /** instrumentation-http hooks: servers record the request received and response sent; clients the reverse. */
 const httpHooks = {
   requestHook(span, request) {
-    if (!captureRequested()) return;
+    const requested = captureRequested();
+    if (!requested) {
+      // Servers only: the caller's own server span carries its side if it fails too.
+      if (captureOnError() && request instanceof http.IncomingMessage) {
+        const body = collector();
+        watchData(request, (chunk) => body.add(chunk));
+        span.__sdnaRequestBody = body;
+        span.__sdnaOnError = true;
+      }
+      return;
+    }
     if (request instanceof http.IncomingMessage) {
       const body = collector();
       watchData(request, (chunk) => body.add(chunk));
@@ -86,6 +115,12 @@ const httpHooks = {
   responseHook(span, response) {
     if (response instanceof http.ServerResponse) {
       if (!span.__sdnaRequestBody) return;
+      if (span.__sdnaOnError) {
+        let responseText = '';
+        watchWrites(response, (text) => (responseText = text));
+        attachOnError(span, () => ({ 'sdna.request.body': span.__sdnaRequestBody.text(), 'sdna.response.body': responseText }));
+        return;
+      }
       watchWrites(response, (text) => {
         const requestText = span.__sdnaRequestBody.text();
         if (requestText) span.setAttribute('sdna.request.body', redact(requestText));
@@ -113,9 +148,14 @@ const kafkaHooks = {
   // The consumer's context comes from the message: its own baggage header says if it's a capture run.
   consumerHook(span, { message }) {
     const baggage = message?.headers?.baggage;
-    if (baggage && /(^|,)\s*sdna\.capture=1\s*(,|$)/.test(String(baggage)) && message.value != null) {
+    if (message?.value == null) return;
+    if (baggage && /(^|,)\s*sdna\.capture=1\s*(,|$)/.test(String(baggage))) {
       span.setAttribute('sdna.request.body', redact(String(message.value)));
       span.setAttribute('sdna.captured', true);
+    } else if (captureOnError()) {
+      // The message that made the handler throw.
+      const value = String(message.value);
+      attachOnError(span, () => ({ 'sdna.request.body': value }));
     }
   },
 };
@@ -133,4 +173,4 @@ function capture(name, value) {
   span.setAttribute(`sdna.capture.${name}`, redact(text ?? String(value)));
 }
 
-module.exports = { httpHooks, kafkaHooks, capture, redact, captureRequested };
+module.exports = { httpHooks, kafkaHooks, capture, redact, captureRequested, captureOnError };
