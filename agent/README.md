@@ -25,7 +25,14 @@ helm install servicedna-agent ./agent/helm/servicedna-agent \
 ```
 
 Use `--set servicedna.existingSecret.name=<secret>` (and `.key=<field>`) to take the key from an
-existing Secret. Then, in your workloads:
+existing Secret.
+
+On Kubernetes the agent also tags every span with its pod, deployment, namespace and node, and a
+workload that never set `OTEL_SERVICE_NAME` (so reports `unknown_service:…`) is registered under
+its Deployment, StatefulSet or DaemonSet name. This needs read access to pods and workloads, which
+the chart grants; turn it off with `--set kubernetesMetadata.enabled=false`.
+
+Then, in your workloads:
 
 ```yaml
 env:
@@ -43,6 +50,20 @@ SERVICEDNA_URL=https://servicedna.example.com SERVICEDNA_KEY=sdna_ik_... SERVICE
 ```
 
 Services then send to `http://<agent-host>:4318`.
+
+## Service meshes
+
+A mesh's sidecars can report every hop without touching application code. Point their tracing at
+the agent:
+
+- **Istio**: `meshConfig.extensionProviders` with an `opentelemetry` provider at
+  `<agent>.<namespace>.svc.cluster.local:4317`, enabled with a `Telemetry` resource
+- **Linkerd**: install `linkerd-jaeger` with its collector exporting OTLP to the agent, or set the
+  proxy's trace collector to `<agent>:4317`
+- **Envoy** (standalone): the `envoy.tracers.opentelemetry` tracer with a gRPC cluster at the agent
+
+Sidecar spans carry the mesh's service names, so services register and the graph fills in from
+mesh traffic alone; application instrumentation adds operations and inner spans on top.
 
 ## Coming next
 

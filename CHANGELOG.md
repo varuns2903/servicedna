@@ -90,6 +90,11 @@ All notable changes to this project are documented in this file. The format is b
   the graph exists before any traffic. `GET /services/{id}/operations` merges the catalog with
   operations seen in traffic.
 
+- The Kubernetes agent tags spans with pod, deployment, namespace and node, and registers
+  workloads that report `unknown_service` under their Deployment/StatefulSet/DaemonSet name
+  (read-only RBAC included; `kubernetesMetadata.enabled=false` turns it off). The agent README
+  covers sending Istio, Linkerd and Envoy traces to it.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent

@@ -209,7 +209,7 @@ Gives `repositoryUrl` a real purpose:
 - Scan repos for OpenAPI, `.proto`, AsyncAPI, GraphQL schemas, and service URLs in config / env
 - Produces a graph **before any traffic exists** and an API catalog used by Phase 5
 
-### 3.4 Other discovery sources
+### 3.4 Other discovery sources — ✅ Done (k8s metadata + workload naming in the agent; mesh tracing documented)
 - Kubernetes / Docker labels and service names
 - Service mesh telemetry (Istio/Linkerd) when present
 

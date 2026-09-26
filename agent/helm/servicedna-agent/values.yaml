@@ -13,6 +13,11 @@ image:
   tag: "0.111.0"
   pullPolicy: IfNotPresent
 
+# Tag spans with Kubernetes metadata and name workloads that don't set OTEL_SERVICE_NAME after
+# their Deployment/StatefulSet/DaemonSet. Needs read access to pods and workloads (RBAC included).
+kubernetesMetadata:
+  enabled: true
+
 replicaCount: 1
 
 service:

@@ -14,14 +14,24 @@ spec:
       labels:
         {{- include "servicedna-agent.selectorLabels" . | nindent 8 }}
       annotations:
-        checksum/config: {{ .Files.Get "files/collector.yaml" | sha256sum }}
+        checksum/config: {{ printf "%s%s" (.Files.Get "files/collector.yaml") (.Files.Get "files/collector-kubernetes.yaml") | sha256sum }}
     spec:
+      {{- if .Values.kubernetesMetadata.enabled }}
+      serviceAccountName: {{ include "servicedna-agent.fullname" . }}
+      {{- end }}
       containers:
         - name: agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: ["--config=/etc/servicedna-agent/collector.yaml"]
+          args:
+            - --config=/etc/servicedna-agent/collector.yaml
+            {{- if .Values.kubernetesMetadata.enabled }}
+            - --config=/etc/servicedna-agent/collector-kubernetes.yaml
+            {{- end }}
           env:
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
             - name: SERVICEDNA_URL
               value: {{ required "servicedna.url is required" .Values.servicedna.url | quote }}
             - name: SERVICEDNA_ENV
