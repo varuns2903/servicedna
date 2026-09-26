@@ -70,6 +70,16 @@ services:
     ports:
       - "${TEMPO_PORT:-3200}:3200"
 
+  # Local email inbox: catches everything the backend sends (verification, reset, invites).
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: servicedna-mailpit
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
+
   loki:
     image: grafana/loki:3.3.2
     container_name: servicedna-loki
@@ -127,12 +137,11 @@ services:
       OIDC_ISSUER_URI: ${OIDC_ISSUER_URI:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      # Without SMTP, print verification/reset emails to the log (local development only).
-      MAIL_LOG_UNSENT: ${MAIL_LOG_UNSENT:-true}
+      # Defaults to the bundled Mailpit: every email lands in its inbox at http://localhost:8025.
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-dev}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-dev}
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_PRO_PRICE_ID: ${STRIPE_PRO_PRICE_ID:-}

@@ -20,13 +20,10 @@ public class MailService {
 
   private final JavaMailSender mailSender;
   private final String fromAddress;
-  private final boolean logUnsentContent;
 
-  public MailService(JavaMailSender mailSender, @Value("${mail.from}") String fromAddress,
-      @Value("${mail.log-unsent:false}") boolean logUnsentContent) {
+  public MailService(JavaMailSender mailSender, @Value("${mail.from}") String fromAddress) {
     this.mailSender = mailSender;
     this.fromAddress = fromAddress;
-    this.logUnsentContent = logUnsentContent;
   }
 
   public void send(String to, String subject, String body) {
@@ -39,12 +36,8 @@ public class MailService {
     try {
       mailSender.send(message);
     } catch (MailException e) {
-      if (logUnsentContent) {
-        // Local development only (MAIL_LOG_UNSENT=true): emails carry sign-in and reset links.
-        log.warn("Could not send email to {} ({}). Content:\nSubject: {}\n{}", to, e.getMessage(), subject, body);
-      } else {
-        log.warn("Could not send email \"{}\" to {} (SMTP not configured or unreachable): {}", subject, to, e.getMessage());
-      }
+      // Never the content: emails carry sign-in and reset links. Locally, read them in Mailpit.
+      log.warn("Could not send an email (SMTP not configured or unreachable): {}", e.getMessage());
     }
   }
 }

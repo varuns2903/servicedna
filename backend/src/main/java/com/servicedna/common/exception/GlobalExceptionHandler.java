@@ -95,7 +95,8 @@ public class GlobalExceptionHandler {
       return error(status, code, detail != null ? detail : ex.getMessage(), request);
     }
 
-    log.error("Unexpected error occurred while processing request: {}", request.getRequestURI().replaceAll("[\r\n]", "_"), ex);
+    // The stack trace says where; the request path is user input and stays out of the log.
+    log.error("Unexpected error while processing a request", ex);
     ErrorResponse errorResponse =
         new ErrorResponse(
             OffsetDateTime.now(),
