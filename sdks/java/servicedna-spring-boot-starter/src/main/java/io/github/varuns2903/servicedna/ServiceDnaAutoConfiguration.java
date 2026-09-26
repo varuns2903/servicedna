@@ -44,6 +44,22 @@ public class ServiceDnaAutoConfiguration {
             (sampler, config) -> new HealthCheckDroppingSampler(sampler, healthPath));
   }
 
+  /** Body capture for test runs, in servlet (Spring MVC) applications. */
+  @org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
+  @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(
+      type = org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
+  @org.springframework.boot.autoconfigure.condition.ConditionalOnClass(
+      name = "org.springframework.web.util.ContentCachingRequestWrapper")
+  static class CaptureConfiguration {
+    @Bean
+    org.springframework.boot.web.servlet.FilterRegistrationBean<ServiceDnaCaptureFilter> serviceDnaCaptureFilter() {
+      var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(new ServiceDnaCaptureFilter());
+      // Inside OpenTelemetry's server filter, so its span and extracted baggage are current.
+      registration.setOrder(org.springframework.core.Ordered.LOWEST_PRECEDENCE - 100);
+      return registration;
+    }
+  }
+
   @Bean(destroyMethod = "stop")
   ServiceDnaHeartbeat serviceDnaHeartbeat(Environment env) {
     return new ServiceDnaHeartbeat(

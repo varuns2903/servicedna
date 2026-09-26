@@ -30,5 +30,10 @@
     "type": "git",
     "url": "https://github.com/varuns2903/servicedna.git",
     "directory": "sdks/node"
+  },
+  "devDependencies": {
+    "@opentelemetry/instrumentation": "^0.222.0",
+    "@opentelemetry/instrumentation-http": "^0.222.0",
+    "@opentelemetry/sdk-trace-node": "^2.11.0"
   }
 }
