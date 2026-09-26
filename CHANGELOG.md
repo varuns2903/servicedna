@@ -51,6 +51,12 @@ All notable changes to this project are documented in this file. The format is b
 - Services list and details show environment, language/version, and whether a service was
   registered via telemetry, with an environment filter.
 
+- SDKs that connect a service with one dependency and two environment variables
+  (`SERVICEDNA_URL`, `SERVICEDNA_KEY`): `@servicedna/node`, `servicedna` for Python
+  (`servicedna-run`), a Go module with `net/http` wrappers, and a Spring Boot starter. Each wraps
+  OpenTelemetry, registers the service with its environment/language/version, sends traces, and
+  reports health heartbeats. See `sdks/`.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
