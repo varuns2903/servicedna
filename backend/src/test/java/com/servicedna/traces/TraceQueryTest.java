@@ -47,7 +47,21 @@ class TraceQueryTest {
       String uri = URLDecoder.decode(exchange.getRequestURI().toString(), StandardCharsets.UTF_8);
       requests.add(exchange.getRequestHeaders().getFirst("X-Scope-OrgID") + " " + uri);
       String body;
-      if (uri.startsWith("/api/search")) {
+      if (uri.startsWith("/api/search") && uri.contains("select(")) {
+        body = """
+            {"traces":[{"traceID":"4bf92f3577b34da6a3ce929d0e0e4736","rootServiceName":"api-gateway",
+              "rootTraceName":"POST /api/orders","startTimeUnixNano":"1760000000000000000","durationMs":42,
+              "spanSets":[{"matched":1,"spans":[{"spanID":"abb5aa2c4cfa8e05","name":"POST /orders",
+                "startTimeUnixNano":"1760000000010000000","durationNanos":"3816065","attributes":[
+                  {"key":"service.name","value":{"stringValue":"order-service"}},
+                  {"key":"status","value":{"stringValue":"error"}},
+                  {"key":"sdna.request.body","value":{"stringValue":"{\\"orderId\\":\\"o-17\\"}"}}]}]}],
+              "serviceStats":{"api-gateway":{"spanCount":7,"errorCount":1},"order-service":{"spanCount":4,"errorCount":2}}}]}""";
+      } else if (uri.startsWith("/api/v2/search/tags")) {
+        body = """
+            {"scopes":[{"name":"span","tags":["http.route","orderId"]},{"name":"resource","tags":["service.name"]},
+              {"name":"intrinsic","tags":["duration"]}]}""";
+      } else if (uri.startsWith("/api/search")) {
         body = """
             {"traces":[{"traceID":"4bf92f3577b34da6a3ce929d0e0e4736","rootServiceName":"api-gateway",
               "rootTraceName":"POST /api/orders","startTimeUnixNano":"1760000000000000000","durationMs":42}]}""";
@@ -143,5 +157,57 @@ class TraceQueryTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errorCode").value("INVALID_TRACE_ID"));
     assertThat(requests).isEmpty();
+  }
+
+  @Test
+  void exploreTurnsFiltersIntoTraceQlAndReturnsMatchedSpans() throws Exception {
+    JsonNode result = objectMapper.readTree(mockMvc.perform(get("/api/v1/organizations/" + orgId + "/traces/explore")
+            .header("Authorization", "Bearer " + token)
+            .param("service", "order-service").param("environment", "dev").param("status", "error")
+            .param("minDurationMs", "100")
+            .param("attribute", "http.response.status_code>=500", "orderId = o-17")
+            .param("text", "o-17.x"))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+    assertThat(result.get("query").asText()).isEqualTo(
+        "{ resource.service.name = \"order-service\""
+            + " && (resource.deployment.environment.name = \"dev\" || resource.deployment.environment = \"dev\")"
+            + " && status = error && duration >= 100ms && .http.response.status_code >= 500 && .orderId = \"o-17\""
+            + " && (span.sdna.request.body =~ \".*o-17\\\\.x.*\" || span.sdna.response.body =~ \".*o-17\\\\.x.*\") }");
+    assertThat(requests.get(0)).startsWith(orgId + " /api/search?q=" + result.get("query").asText() + " | select(");
+
+    JsonNode trace = result.get("traces").get(0);
+    assertThat(trace.get("errors").asInt()).isEqualTo(3);
+    assertThat(trace.get("services").get("order-service").get("errors").asInt()).isEqualTo(2);
+    assertThat(trace.get("matched").asInt()).isEqualTo(1);
+    JsonNode span = trace.get("spans").get(0);
+    assertThat(span.get("service").asText()).isEqualTo("order-service");
+    assertThat(span.get("name").asText()).isEqualTo("POST /orders");
+    assertThat(span.get("error").asBoolean()).isTrue();
+    assertThat(span.get("durationMs").asDouble()).isEqualTo(3.82);
+    assertThat(span.get("attributes").get("sdna.request.body").asText()).isEqualTo("{\"orderId\":\"o-17\"}");
+  }
+
+  @Test
+  void rawTraceQlIsPassedThroughAndBadFiltersAreRejected() throws Exception {
+    mockMvc.perform(get("/api/v1/organizations/" + orgId + "/traces/explore").header("Authorization", "Bearer " + token)
+            .param("q", "{ span.http.route = \"/api/orders\" } | select(span.foo)"))
+        .andExpect(status().isOk());
+    assertThat(requests.get(0)).contains("?q={ span.http.route = \"/api/orders\" } | select(span.foo)&");
+
+    mockMvc.perform(get("/api/v1/organizations/" + orgId + "/traces/explore").header("Authorization", "Bearer " + token)
+            .param("attribute", "orderId o-17"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errorCode").value("INVALID_FILTER"));
+  }
+
+  @Test
+  void attributeNamesAreListedForSuggestions() throws Exception {
+    mockMvc.perform(get("/api/v1/organizations/" + orgId + "/traces/attributes").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0]").value("http.route"))
+        .andExpect(jsonPath("$[1]").value("orderId"))
+        .andExpect(jsonPath("$[2]").value("resource.service.name"))
+        .andExpect(jsonPath("$.length()").value(3));
   }
 }

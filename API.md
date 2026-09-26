@@ -132,6 +132,11 @@ Read from the trace store as the organization's tenant.
 |---|---|---|
 | GET | `/?service=&operation=[&calleeService=&calleeOperation=][&errorsOnly=][&windowMinutes=][&limit=]` | Recent traces through an operation, or where it called the callee's operation (TraceQL `{caller} >> {callee}`) |
 | GET | `/{traceId}` | The trace as spans ordered by start: service, name, kind, timing, status, attributes, events |
+| GET | `/explore` | Explorer search. Optional filters: `service`, `operation`, `environment`, `status` (`error`/`ok`), `minDurationMs`, `maxDurationMs`, repeated `attribute` (`orderId=o-17`, `http.response.status_code>=500`, `=~` for regex; unscoped keys match span or resource attributes), `text` (inside captured bodies), `from`/`to` (ISO; default the last hour, at most 7 days), `limit` (≤ 200). `q` is raw TraceQL and overrides the filters. Returns the TraceQL used and each trace with its matching spans and per-service span/error counts |
+| GET | `/attributes` | Attribute names seen recently (resource ones prefixed `resource.`), for filter suggestions |
+| GET | `/attributes/values?name=` | Recent values of one attribute |
+
+Malformed TraceQL returns `400 INVALID_QUERY` with the trace store's parse error.
 
 ### Test runs — `/api/v1/organizations/{orgId}/test-runs`
 

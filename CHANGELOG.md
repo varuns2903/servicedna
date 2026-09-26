@@ -7,6 +7,12 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Trace explorer (`/traces`): search every trace by service, operation, environment, status,
+  latency, any attribute (`orderId=o-17`, `http.response.status_code>=500`) or text inside
+  captured bodies — or write TraceQL. Results show the matching spans and which services erred;
+  opening one shows its waterfall at the span that matched, with captured bodies laid out.
+  Searches live in the URL, so they can be shared. API: `GET /traces/explore`,
+  `/traces/attributes`, `/traces/attributes/values`.
 - SDKs: capture on error. With `SERVICEDNA_CAPTURE_ON_ERROR=true` (Spring Boot:
   `servicedna.capture-on-error`), request and response bodies are held per request and recorded
   only when it fails (5xx or an unhandled exception; in Node.js any span ending in error, including
@@ -135,6 +141,8 @@ All notable changes to this project are documented in this file. The format is b
   and exits non-zero on failure.
 
 ### Changed
+- Trace search results mark a trace as an error when any of its spans failed, not only when the
+  search asked for errors.
 - Spring Boot SDK: body capture writes responses straight through, keeping a capped copy,
   instead of buffering the whole response.
 - Test run hops are returned in call order (callers before what they call) rather than by start
