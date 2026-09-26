@@ -43,7 +43,8 @@ class TestRunCompletionTest {
         span("2", "1", "gateway", "POST", "CLIENT", Map.of()),
         span("3", "2", "orders", "POST /orders", "SERVER", Map.of("sdna.request.body", "{}")),
         span("4", "3", "orders", "compute total", "INTERNAL", Map.of("sdna.capture.order.total", "59")),
-        span("5", "3", "orders", "INSERT orders", "CLIENT", Map.of("db.statement", "INSERT INTO orders VALUES (?)"))));
+        span("5", "3", "orders", "INSERT orders", "CLIENT", Map.of("db.system", "postgresql", "db.statement", "INSERT INTO orders VALUES (?)")),
+        span("6", "3", "orders", "dns.lookup", "CLIENT", Map.of())));
 
     List<TestRunDto.Hop> hops = TestRunViews.hops(trace);
 

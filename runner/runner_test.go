@@ -14,6 +14,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
+	v1alphagrpc "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 )
 
 func testJob() Job {
@@ -101,5 +102,26 @@ func TestGRPCCallsAMethodDiscoveredByReflection(t *testing.T) {
 	job.Target.Method = "grpc.health.v1.Health/Nope"
 	if res := (&Runner{}).execute(context.Background(), job); res.Sent || !strings.Contains(res.Error, "has no method Nope") {
 		t.Fatalf("unknown method: %+v", res)
+	}
+}
+
+// Servers that only register reflection v1alpha (Python's grpcio-reflection) still work.
+func TestGRPCFallsBackToReflectionV1Alpha(t *testing.T) {
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := grpc.NewServer()
+	healthpb.RegisterHealthServer(srv, health.NewServer())
+	v1alphagrpc.RegisterServerReflectionServer(srv, reflection.NewServer(reflection.ServerOptions{Services: srv}))
+	go srv.Serve(lis)
+	defer srv.Stop()
+
+	job := testJob()
+	job.Protocol = "GRPC"
+	job.Target.Service, job.Target.Method, job.Target.Address = "health", "grpc.health.v1.Health/Check", lis.Addr().String()
+	res := (&Runner{}).execute(context.Background(), job)
+	if !res.Sent || res.Body != `{"status":"SERVING"}` {
+		t.Fatalf("result %+v", res)
 	}
 }

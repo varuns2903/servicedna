@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/codes"
 	reflectionpb "google.golang.org/grpc/reflection/grpc_reflection_v1"
+	reflectionv1alpha "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -69,31 +70,19 @@ func resolveMethod(ctx context.Context, conn *grpc.ClientConn, name string) (pro
 	if !ok {
 		return nil, fmt.Errorf("gRPC method %q isn't package.Service/Method", name)
 	}
-	stream, err := reflectionpb.NewServerReflectionClient(conn).ServerReflectionInfo(ctx)
+	fetch, err := reflectionFetcher(ctx, conn)
 	if err != nil {
-		return nil, fmt.Errorf("server reflection unavailable: %w", err)
+		return nil, err
 	}
-	defer stream.CloseSend()
-
 	files := map[string]*descriptorpb.FileDescriptorProto{}
-	request := &reflectionpb.ServerReflectionRequest{MessageRequest: &reflectionpb.ServerReflectionRequest_FileContainingSymbol{FileContainingSymbol: service}}
-	pending := []*reflectionpb.ServerReflectionRequest{request}
-	for len(pending) > 0 {
-		if err := stream.Send(pending[0]); err != nil {
-			return nil, err
-		}
-		pending = pending[1:]
-		res, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
+	queue := []fileQuery{{symbol: service}}
+	for len(queue) > 0 {
+		raws, err := fetch(queue[0])
+		queue = queue[1:]
 		if err != nil {
 			return nil, err
 		}
-		if e := res.GetErrorResponse(); e != nil {
-			return nil, fmt.Errorf("server reflection: %s", e.GetErrorMessage())
-		}
-		for _, raw := range res.GetFileDescriptorResponse().GetFileDescriptorProto() {
+		for _, raw := range raws {
 			fd := &descriptorpb.FileDescriptorProto{}
 			if err := proto.Unmarshal(raw, fd); err != nil {
 				return nil, err
@@ -105,7 +94,7 @@ func resolveMethod(ctx context.Context, conn *grpc.ClientConn, name string) (pro
 			// Every import comes from the server too, so the descriptors resolve on their own.
 			for _, dep := range fd.GetDependency() {
 				if _, seen := files[dep]; !seen {
-					pending = append(pending, &reflectionpb.ServerReflectionRequest{MessageRequest: &reflectionpb.ServerReflectionRequest_FileByFilename{FileByFilename: dep}})
+					queue = append(queue, fileQuery{filename: dep})
 				}
 			}
 		}
@@ -134,4 +123,67 @@ func resolveMethod(ctx context.Context, conn *grpc.ClientConn, name string) (pro
 		return nil, fmt.Errorf("%s is streaming; test runs support unary methods", name)
 	}
 	return md, nil
+}
+
+type fileQuery struct{ symbol, filename string }
+
+// reflectionFetcher speaks server reflection v1, falling back to v1alpha — still the only version
+// some servers (e.g. Python's grpcio-reflection) register.
+func reflectionFetcher(ctx context.Context, conn *grpc.ClientConn) (func(fileQuery) ([][]byte, error), error) {
+	v1, err := reflectionpb.NewServerReflectionClient(conn).ServerReflectionInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("server reflection unavailable: %w", err)
+	}
+	fetchV1 := func(q fileQuery) ([][]byte, error) {
+		req := &reflectionpb.ServerReflectionRequest{MessageRequest: &reflectionpb.ServerReflectionRequest_FileContainingSymbol{FileContainingSymbol: q.symbol}}
+		if q.filename != "" {
+			req.MessageRequest = &reflectionpb.ServerReflectionRequest_FileByFilename{FileByFilename: q.filename}
+		}
+		if err := v1.Send(req); err != nil {
+			return nil, err
+		}
+		res, err := v1.Recv()
+		if err != nil {
+			return nil, err
+		}
+		if e := res.GetErrorResponse(); e != nil {
+			return nil, fmt.Errorf("server reflection: %s", e.GetErrorMessage())
+		}
+		return res.GetFileDescriptorResponse().GetFileDescriptorProto(), nil
+	}
+	// Probe v1 with the first real query; fall back if the server doesn't implement it.
+	first := true
+	return func(q fileQuery) ([][]byte, error) {
+		if !first {
+			return fetchV1(q)
+		}
+		first = false
+		raws, err := fetchV1(q)
+		if status.Code(err) != codes.Unimplemented {
+			return raws, err
+		}
+		alpha, err := reflectionv1alpha.NewServerReflectionClient(conn).ServerReflectionInfo(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("server reflection unavailable: %w", err)
+		}
+		fetchAlpha := func(q fileQuery) ([][]byte, error) {
+			req := &reflectionv1alpha.ServerReflectionRequest{MessageRequest: &reflectionv1alpha.ServerReflectionRequest_FileContainingSymbol{FileContainingSymbol: q.symbol}}
+			if q.filename != "" {
+				req.MessageRequest = &reflectionv1alpha.ServerReflectionRequest_FileByFilename{FileByFilename: q.filename}
+			}
+			if err := alpha.Send(req); err != nil {
+				return nil, err
+			}
+			res, err := alpha.Recv()
+			if err != nil {
+				return nil, err
+			}
+			if e := res.GetErrorResponse(); e != nil {
+				return nil, fmt.Errorf("server reflection: %s", e.GetErrorMessage())
+			}
+			return res.GetFileDescriptorResponse().GetFileDescriptorProto(), nil
+		}
+		fetchV1 = fetchAlpha
+		return fetchAlpha(q)
+	}, nil
 }

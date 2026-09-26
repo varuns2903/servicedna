@@ -60,7 +60,9 @@ public class TestRunViews {
     List<TestRunDto.Hop> hops = new ArrayList<>();
     for (TraceDto.Span s : trace.spans()) {
       boolean inbound = "SERVER".equals(s.kind()) || "CONSUMER".equals(s.kind());
-      boolean unanswered = ("CLIENT".equals(s.kind()) || "PRODUCER".equals(s.kind())) && !answered.contains(s.spanId());
+      boolean unanswered = ("CLIENT".equals(s.kind()) || "PRODUCER".equals(s.kind()))
+          && !answered.contains(s.spanId())
+          && isCall(s.attributes());
       if (!inbound && !unanswered) {
         continue;
       }
@@ -101,6 +103,16 @@ public class TestRunViews {
         }
       }
     }
+  }
+
+  /** A network call worth showing (not, say, a DNS lookup): HTTP, RPC, database or messaging. */
+  private static boolean isCall(Map<String, String> a) {
+    for (String key : List.of("http.request.method", "http.method", "rpc.system", "db.system", "db.system.name", "messaging.system")) {
+      if (a.containsKey(key)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static Integer httpStatus(Map<String, String> a) {
