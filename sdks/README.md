@@ -29,8 +29,9 @@ Values computed inside a function can be added to the run too — outside a test
 | Go | `servicedna.Capture(ctx, "order.total", total)` |
 | Spring Boot | `ServiceDna.capture("order.total", total)` |
 
-Body capture covers HTTP servers (and HTTP clients in Node.js); FastAPI/Starlette in Python and
-Spring MVC in Java.
+Body capture covers HTTP servers (and HTTP clients and Kafka producers/consumers in Node.js);
+FastAPI/Starlette in Python and Spring MVC in Java. gRPC hops show up with status and timing but
+not yet their messages.
 
 Already using OpenTelemetry? No SDK is needed — point your exporter at ServiceDNA:
 

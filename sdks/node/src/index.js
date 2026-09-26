@@ -6,7 +6,7 @@ const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto'
 const { resourceFromAttributes } = require('@opentelemetry/resources');
 const { resolveConfig } = require('./config');
 const { startHeartbeat } = require('./heartbeat');
-const { httpHooks, capture } = require('./capture');
+const { httpHooks, kafkaHooks, capture } = require('./capture');
 
 let running;
 
@@ -43,8 +43,14 @@ function start(options = {}) {
     }),
     instrumentations: [
       getNodeAutoInstrumentations({
-        // File-system spans are noise for service-to-service tracing.
+        // File-system, DNS and raw-socket spans are noise for service-to-service tracing.
         '@opentelemetry/instrumentation-fs': { enabled: false },
+        '@opentelemetry/instrumentation-dns': { enabled: false },
+        '@opentelemetry/instrumentation-net': { enabled: false },
+        '@opentelemetry/instrumentation-kafkajs': {
+          producerHook: kafkaHooks.producerHook,
+          consumerHook: kafkaHooks.consumerHook,
+        },
         // Health probes (ServiceDNA's and the heartbeat's) aren't traffic worth tracing.
         '@opentelemetry/instrumentation-http': {
           ignoreIncomingRequestHook: (req) => Boolean(healthPath) && req.url?.split('?')[0] === healthPath,

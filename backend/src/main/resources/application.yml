@@ -120,6 +120,11 @@ trace-store:
   # Tempo's HTTP API, for reading traces back (queried with X-Scope-OrgID = organization).
   query-url: ${TRACE_STORE_QUERY_URL:}
 
+runner:
+  # Token for the runner bundled with a self-hosted ServiceDNA, which serves every organization.
+  # Runners in customer networks use an organization ingestion key instead. Empty disables it.
+  shared-token: ${RUNNER_SHARED_TOKEN:}
+
 billing:
   # Self-hosted deployments that don't sell plans can turn plan limits (service count, ping
   # retention) off entirely.

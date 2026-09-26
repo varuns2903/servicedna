@@ -103,6 +103,23 @@ const httpHooks = {
   },
 };
 
+/** instrumentation-kafkajs hooks: the message a service published or consumed during a capture run. */
+const kafkaHooks = {
+  producerHook(span, { message }) {
+    if (captureRequested() && message?.value != null) {
+      span.setAttribute('sdna.request.body', redact(String(message.value)));
+    }
+  },
+  // The consumer's context comes from the message: its own baggage header says if it's a capture run.
+  consumerHook(span, { message }) {
+    const baggage = message?.headers?.baggage;
+    if (baggage && /(^|,)\s*sdna\.capture=1\s*(,|$)/.test(String(baggage)) && message.value != null) {
+      span.setAttribute('sdna.request.body', redact(String(message.value)));
+      span.setAttribute('sdna.captured', true);
+    }
+  },
+};
+
 /**
  * Records a value computed inside the service on the current span, for test runs:
  *   capture('order.total', total)
@@ -116,4 +133,4 @@ function capture(name, value) {
   span.setAttribute(`sdna.capture.${name}`, redact(text ?? String(value)));
 }
 
-module.exports = { httpHooks, capture, redact, captureRequested };
+module.exports = { httpHooks, kafkaHooks, capture, redact, captureRequested };

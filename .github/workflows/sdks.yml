@@ -3,10 +3,10 @@ name: SDKs
 on:
   push:
     branches: ["main"]
-    paths: ["sdks/**", "cli/**", ".github/workflows/sdks.yml"]
+    paths: ["sdks/**", "cli/**", "runner/**", ".github/workflows/sdks.yml"]
   pull_request:
     branches: ["main"]
-    paths: ["sdks/**", "cli/**", ".github/workflows/sdks.yml"]
+    paths: ["sdks/**", "cli/**", "runner/**", ".github/workflows/sdks.yml"]
 
 concurrency:
   group: sdks-${{ github.ref }}
@@ -88,5 +88,20 @@ jobs:
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
+      - run: go vet ./...
+      - run: go test ./...
+
+  runner:
+    name: Test Studio runner
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: runner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: runner/go.mod
+          cache-dependency-path: runner/go.sum
       - run: go vet ./...
       - run: go test ./...

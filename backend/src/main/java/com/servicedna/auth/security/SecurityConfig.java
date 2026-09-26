@@ -52,6 +52,7 @@ public class SecurityConfig {
                         "/api/v1/auth/logout",
                         "/api/v1/ping",
                         "/api/v1/otlp/**",
+                        "/api/v1/runner/**",
                         "/api/v1/webhooks/stripe",
                         "/ws/**",
                         "/api/v1/public/**")
