@@ -1,0 +1,93 @@
+# Publishes an SDK when its tag is pushed — the tag's version must match the package's:
+#   node-v0.1.0    → npm @servicedna/node          (secret NPM_TOKEN)
+#   python-v0.1.0  → PyPI servicedna               (PyPI trusted publishing, environment "pypi")
+#   java-v0.1.0    → Maven Central io.github.varuns2903:servicedna-spring-boot-starter
+#                    (secrets CENTRAL_USERNAME, CENTRAL_PASSWORD, GPG_PRIVATE_KEY, GPG_PASSPHRASE)
+# The Go SDK needs no workflow: a tag like sdks/go/v0.1.0 is all the Go module proxy needs.
+name: SDK release
+
+on:
+  push:
+    tags: ["node-v*", "python-v*", "java-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    if: startsWith(github.ref_name, 'node-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    defaults:
+      run:
+        working-directory: sdks/node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Tag matches package.json
+        run: test "node-v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - run: npm ci
+      - run: npm test
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  python:
+    if: startsWith(github.ref_name, 'python-v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write # PyPI trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tag matches pyproject.toml
+        working-directory: sdks/python
+        run: |
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "python-v$version" = "$GITHUB_REF_NAME"
+      - name: Test and build
+        working-directory: sdks/python
+        run: |
+          pip install -e '.[test]' build
+          pytest -q
+          python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdks/python/dist
+
+  java:
+    if: startsWith(github.ref_name, 'java-v')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+      - name: Tag matches the pom
+        run: |
+          version=$(./mvnw -q -pl servicedna-spring-boot-starter help:evaluate -Dexpression=project.version -DforceStdout)
+          test "java-v$version" = "$GITHUB_REF_NAME"
+      - name: Test, sign and publish
+        run: ./mvnw -B -P release -pl servicedna-spring-boot-starter deploy
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

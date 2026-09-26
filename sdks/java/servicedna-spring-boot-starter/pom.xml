@@ -17,6 +17,20 @@
     </license>
   </licenses>
 
+  <developers>
+    <developer>
+      <id>varuns2903</id>
+      <name>varuns2903</name>
+      <url>https://github.com/varuns2903</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <url>https://github.com/varuns2903/servicedna</url>
+    <connection>scm:git:https://github.com/varuns2903/servicedna.git</connection>
+    <developerConnection>scm:git:git@github.com:varuns2903/servicedna.git</developerConnection>
+  </scm>
+
   <properties>
     <java.version>17</java.version>
     <maven.compiler.release>17</maven.compiler.release>
@@ -93,4 +107,69 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  <!-- `-P release deploy` publishes to Maven Central: sources, javadoc and GPG signatures, as
+       Central requires. Credentials come from the build's settings (server id "central"). -->
+  <profiles>
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.3.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals><goal>jar-no-fork</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.11.2</version>
+            <configuration>
+              <doclint>none</doclint>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals><goal>jar</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.2.7</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals><goal>sign</goal></goals>
+                <configuration>
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.8.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>true</autoPublish>
+              <waitUntil>validated</waitUntil>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
