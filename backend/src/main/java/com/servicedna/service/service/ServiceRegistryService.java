@@ -171,7 +171,14 @@ public class ServiceRegistryService {
               null));
     }
 
-    service.setLastTelemetryAt(OffsetDateTime.now());
+    // The services list is cached; refresh it when a service is first heard from (or again after a
+    // silence) so "connected" and "last seen" show up promptly, without evicting on every batch.
+    OffsetDateTime now = OffsetDateTime.now();
+    OffsetDateTime previous = service.getLastTelemetryAt();
+    if (previous == null || previous.isBefore(now.minusMinutes(5))) {
+      changed = true;
+    }
+    service.setLastTelemetryAt(now);
     service = serviceRepository.saveAndFlush(service);
     if (changed) {
       evictServiceCachesAfterCommit();

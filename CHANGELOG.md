@@ -62,6 +62,11 @@ All notable changes to this project are documented in this file. The format is b
   environment, masks credentials and card numbers inside your network, and forwards to ServiceDNA
   over an outbound connection.
 
+- "Connect a service" onboarding (`/connect`, linked from Services): create an ingestion key,
+  copy a ready-to-run snippet for Node.js, Python, Go, Spring Boot, plain OpenTelemetry or the
+  agent (URL, key and environment filled in), and the page waits live until the service's first
+  telemetry arrives, then links to it.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent

@@ -7,13 +7,14 @@ import {
 } from '@/api/services.api';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 
-export function useServices() {
+export function useServices(options: { refetchInterval?: number | false } = {}) {
   const selectedOrganizationId = useOrganizationStore((state) => state.selectedOrganizationId);
 
   return useQuery({
     queryKey: ['organizations', selectedOrganizationId, 'services'],
     queryFn: () => ServicesApi.getServices(selectedOrganizationId!),
     enabled: !!selectedOrganizationId,
+    refetchInterval: options.refetchInterval,
   });
 }
 

@@ -14,6 +14,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Dashboard } from '@/features/dashboard/Dashboard';
 import { ServiceList } from '@/features/services/ServiceList';
 import { ServiceDetails } from '@/features/services/ServiceDetails';
+import { ConnectService } from '@/features/onboarding/ConnectService';
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { DependencyGraph } from '@/features/map/DependencyGraph';
 import { IncidentList } from '@/features/incidents/IncidentList';
@@ -92,6 +93,16 @@ function App() {
               <ProtectedRoute>
                 <AppShell>
                   <ServiceList />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/connect"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <ConnectService />
                 </AppShell>
               </ProtectedRoute>
             }
