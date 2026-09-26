@@ -49,6 +49,8 @@ export interface AlertRuleDto {
   windowMinutes: number | null;
   /** Threshold rules only: whether the threshold is currently exceeded. */
   breached: boolean;
+  /** "CATALOG" when the service's servicedna.yaml manages the rule (edit it there); null for rules made here. */
+  managedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }

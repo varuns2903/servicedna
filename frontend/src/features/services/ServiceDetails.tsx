@@ -122,6 +122,10 @@ export function ServiceDetails() {
         <h1 className="text-2xl font-semibold text-white">{service.name}</h1>
         <StatusIndicator status={service.status} size="sm" />
         {service.environment && <Badge variant="info">{service.environment}</Badge>}
+        {service.tier && (
+          <Badge variant={service.tier === 'critical' ? 'danger' : service.tier === 'high' ? 'warning' : 'default'}>{service.tier}</Badge>
+        )}
+        {service.owner && <span className="text-sm text-gray-400">owned by {service.owner}</span>}
       </div>
       {(service.language || service.lastTelemetryAt) && (
         <p className="-mt-4 text-sm text-gray-500">

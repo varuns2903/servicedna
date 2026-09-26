@@ -418,7 +418,7 @@ domain ID instead — `orderId=o-17`, `paymentId=…` — across spans, logs, an
 
 ## Phase 7 — Service catalog as code & GitHub
 
-### 7.1 `servicedna.yaml` in each repo
+### 7.1 `servicedna.yaml` in each repo — ✅ Done
 ```yaml
 service: order-service
 owner: team-checkout

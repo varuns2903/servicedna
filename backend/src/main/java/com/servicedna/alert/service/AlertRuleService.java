@@ -57,6 +57,26 @@ public class AlertRuleService {
                     new ApiException(
                         HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
 
+    AlertRule rule = alertRuleRepository.save(build(organization, service, request));
+    return mapToDto(rule);
+  }
+
+  /**
+   * Replaces the rules servicedna.yaml manages for a service (managed_by = CATALOG) with the ones
+   * it now declares; rules made by hand are left alone.
+   */
+  @Transactional
+  public List<AlertRuleDto> replaceCatalogRules(Service service, List<CreateAlertRuleRequest> requests) {
+    List<AlertRule> rules = requests.stream().map(r -> build(service.getOrganization(), service, r)).toList();
+    alertRuleRepository.deleteAll(alertRuleRepository.findByServiceIdAndManagedBy(service.getId(), CATALOG));
+    alertRuleRepository.flush();
+    rules.forEach(r -> r.setManagedBy(CATALOG));
+    return alertRuleRepository.saveAll(rules).stream().map(this::mapToDto).toList();
+  }
+
+  public static final String CATALOG = "CATALOG";
+
+  private AlertRule build(Organization organization, Service service, CreateAlertRuleRequest request) {
     boolean hasWebhook = request.webhookUrl() != null && !request.webhookUrl().isBlank();
     if (!hasWebhook && request.incidentSeverity() == null) {
       throw new ApiException(
@@ -73,8 +93,7 @@ public class AlertRuleService {
 
     validateThreshold(request);
 
-    AlertRule rule =
-        new AlertRule(
+    return new AlertRule(
             UUID.randomUUID(),
             organization,
             service,
@@ -84,9 +103,6 @@ public class AlertRuleService {
             request.incidentSeverity(),
             request.condition().isThreshold() ? request.threshold() : null,
             request.condition().usesWindow() ? request.windowMinutes() : null);
-
-    rule = alertRuleRepository.save(rule);
-    return mapToDto(rule);
   }
 
   @Transactional(readOnly = true)
@@ -146,6 +162,7 @@ public class AlertRuleService {
         rule.getThreshold(),
         rule.getWindowMinutes(),
         rule.isBreached(),
+        rule.getManagedBy(),
         rule.getCreatedAt(),
         rule.getUpdatedAt());
   }

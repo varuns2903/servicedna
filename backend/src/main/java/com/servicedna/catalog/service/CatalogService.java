@@ -2,6 +2,7 @@ package com.servicedna.catalog.service;
 
 import com.servicedna.catalog.domain.ServiceOperation;
 import com.servicedna.catalog.dto.CatalogDto;
+import com.servicedna.alert.service.AlertRuleService;
 import com.servicedna.catalog.repository.ServiceOperationRepository;
 import com.servicedna.common.exception.ApiException;
 import com.servicedna.graph.domain.Protocol;
@@ -34,18 +35,21 @@ public class CatalogService {
   private final ServiceRepository serviceRepository;
   private final ServiceRegistryService serviceRegistryService;
   private final OrganizationService organizationService;
+  private final AlertRuleService alertRuleService;
 
   public CatalogService(
       ServiceOperationRepository operationRepository,
       ObservedCallRepository observedCallRepository,
       ServiceRepository serviceRepository,
       ServiceRegistryService serviceRegistryService,
-      OrganizationService organizationService) {
+      OrganizationService organizationService,
+      AlertRuleService alertRuleService) {
     this.operationRepository = operationRepository;
     this.observedCallRepository = observedCallRepository;
     this.serviceRepository = serviceRepository;
     this.serviceRegistryService = serviceRegistryService;
     this.organizationService = organizationService;
+    this.alertRuleService = alertRuleService;
   }
 
   /**
@@ -94,7 +98,36 @@ public class CatalogService {
         unknown.add(name);
       }
     }
-    return new CatalogDto.ScanResult(serviceId, unique.size(), added, unknown);
+    List<String> updated = new ArrayList<>();
+    Integer alertRules = null;
+    if (request.metadata() != null || request.alerts() != null) {
+      Service service = serviceRepository.findById(serviceId).orElseThrow();
+      CatalogDto.Metadata m = request.metadata();
+      if (m != null) {
+        set(updated, "description", m.description(), service::setDescription);
+        set(updated, "owner", m.owner(), service::setOwner);
+        set(updated, "tier", m.tier(), service::setTier);
+        set(updated, "healthUrl", m.healthUrl(), service::setHealthCheckUrl);
+        set(updated, "repositoryUrl", m.repositoryUrl(), service::setRepositoryUrl);
+        if (m.slo() != null) {
+          service.setSloTargetPercentage(m.slo());
+          updated.add("slo");
+        }
+        serviceRepository.save(service);
+        serviceRegistryService.evictServiceCachesAfterCommit();
+      }
+      if (request.alerts() != null) {
+        alertRules = alertRuleService.replaceCatalogRules(service, request.alerts()).size();
+      }
+    }
+    return new CatalogDto.ScanResult(serviceId, unique.size(), added, unknown, updated, alertRules);
+  }
+
+  private static void set(List<String> updated, String field, String value, java.util.function.Consumer<String> setter) {
+    if (value != null && !value.isBlank()) {
+      setter.accept(value.trim());
+      updated.add(field);
+    }
   }
 
   /** The service's operations from its specs, merged with the ones traffic shows callers using. */

@@ -252,3 +252,79 @@ cases:
 		t.Fatalf("reorder: %s", got)
 	}
 }
+
+func TestServicednaYamlIsSentWithTheScan(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "servicedna.yaml", `service: orders
+owner: team-checkout
+tier: critical
+slo: 99.95
+health: http://orders:4004/health
+dependencies: [payments, fraud]
+alerts:
+  - condition: status_down
+    open_incident: critical
+  - condition: LATENCY_ABOVE
+    threshold: 800
+    window_minutes: 5
+    webhook: https://hooks.example.com/x
+    integration: slack
+`)
+	var sent []scanRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/services"):
+			json.NewEncoder(w).Encode([]Service{{Name: "orders"}, {Name: "payments"}})
+		case strings.HasSuffix(r.URL.Path, "/catalog/scan"):
+			var req scanRequest
+			json.NewDecoder(r.Body).Decode(&req)
+			sent = append(sent, req)
+			two := 2
+			json.NewEncoder(w).Encode(scanResponse{DependenciesAdded: []string{"payments"}, DependenciesUnknown: []string{"fraud"}, Updated: []string{"owner"}, AlertRules: &two})
+		}
+	}))
+	defer srv.Close()
+	t.Setenv("SDNA_CONFIG", filepath.Join(t.TempDir(), "config.json"))
+
+	if err := cmdScan(newClient(&Config{URL: srv.URL, Token: "t", OrgID: "o1"}), []string{"--dir", dir}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent) != 1 {
+		t.Fatalf("sent %+v", sent)
+	}
+	req := sent[0]
+	if req.Service != "orders" || strings.Join(req.Dependencies, ",") != "payments,fraud" {
+		t.Fatalf("request %+v", req)
+	}
+	if req.Metadata == nil || req.Metadata.Owner != "team-checkout" || req.Metadata.Tier != "critical" || *req.Metadata.SLO != 99.95 || req.Metadata.HealthURL != "http://orders:4004/health" {
+		t.Fatalf("metadata %+v", req.Metadata)
+	}
+	if len(req.Alerts) != 2 || req.Alerts[0].Condition != "STATUS_DOWN" || req.Alerts[0].IncidentSeverity != "CRITICAL" ||
+		req.Alerts[1].IntegrationType != "SLACK" || *req.Alerts[1].WindowMinutes != 5 {
+		t.Fatalf("alerts %+v", req.Alerts)
+	}
+}
+
+func TestServicednaYamlMistakesAreReported(t *testing.T) {
+	for content, want := range map[string]string{
+		"service: x\nteir: high\n":                          "field teir not found",
+		"service: x\ntier: urgent\n":                        "tier \"urgent\"",
+		"service: x\nhealth: /health\n":                     "full URL",
+		"service: x\nalerts:\n  - condition: STATUS_DOWN\n": "needs open_incident, webhook",
+	} {
+		dir := t.TempDir()
+		write(t, dir, "servicedna.yaml", content)
+		if _, _, err := loadManifest(dir); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: got %v, want %q", content, err, want)
+		}
+	}
+	dir := t.TempDir()
+	if m, _, err := loadManifest(dir); m != nil || err != nil {
+		t.Fatalf("no file: %v %v", m, err)
+	}
+	write(t, dir, "servicedna.yaml", manifestTemplate("orders"))
+	m, _, err := loadManifest(dir)
+	if err != nil || m.Service != "orders" || len(m.alerts()) != 1 || m.metadata().Tier != "medium" {
+		t.Fatalf("template doesn't load: %+v %v", m, err)
+	}
+}

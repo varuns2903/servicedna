@@ -17,5 +17,6 @@ public record AlertRuleDto(
     Double threshold,
     Integer windowMinutes,
     boolean breached,
+    String managedBy,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {}

@@ -274,10 +274,12 @@ export function ServiceList() {
                     <span className="flex items-center gap-2">
                       {service.name}
                       {service.environment && <Badge variant="info">{service.environment}</Badge>}
+                      {service.tier === 'critical' && <Badge variant="danger">critical</Badge>}
                     </span>
                     <span className="text-xs font-normal text-gray-500">
                       {[
                         service.description,
+                        service.owner,
                         service.language && `${service.language}${service.version ? ` ${service.version}` : ''}`,
                         service.source === 'TELEMETRY' && 'registered via telemetry',
                       ]

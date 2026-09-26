@@ -23,5 +23,7 @@ public record ServiceDto(
     String version,
     ServiceSource source,
     OffsetDateTime lastTelemetryAt,
+    String owner,
+    String tier,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {}
