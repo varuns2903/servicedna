@@ -63,13 +63,15 @@ only start when a human creates an incident.
 - De-duplicate: one open incident per service per condition; repeat events append to its timeline
 - ~~Affected services pre-filled from the dependency graph~~ → moved to **1.1b**
 
-### 1.1b Group cascading failures into one incident
+### 1.1b Group cascading failures into one incident — ✅ Done
 Found while testing 1.1: when payment-service goes down, order-service (which depends on it) goes
 down too and gets its own incident — two incidents for one root cause.
 - When a service's dependency (declared, later observed — Phase 3) already has an open alert
   incident, add the service to that incident instead of opening a new one
 - Resolve the grouped incident only once every affected service has recovered
 - Timeline shows the cascade: "order-service DOWN — depends on payment-service"
+- Incident retitled after the likeliest root cause when a deeper dependency joins
+- Uses the declared graph today; switches to the observed graph once Phase 3 lands
 
 ### 1.2 Threshold alert conditions
 The UI originally promised these; implement them for real:

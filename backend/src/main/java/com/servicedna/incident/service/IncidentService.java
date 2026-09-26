@@ -27,6 +27,7 @@ import com.servicedna.organization.service.OrganizationService;
 import com.servicedna.service.domain.Service;
 import com.servicedna.service.domain.ServiceStatus;
 import com.servicedna.service.repository.ServiceRepository;
+import com.servicedna.service.service.DependencyGraphService;
 import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
 import com.servicedna.webhook.service.WebhookNotificationService;
@@ -59,6 +60,7 @@ public class IncidentService {
   private final WebhookNotificationService webhookNotificationService;
   private final ApplicationEventPublisher eventPublisher;
   private final MeterRegistry meterRegistry;
+  private final DependencyGraphService dependencyGraphService;
   private final String frontendUrl;
 
   public IncidentService(
@@ -75,7 +77,8 @@ public class IncidentService {
       WebhookNotificationService webhookNotificationService,
       ApplicationEventPublisher eventPublisher,
       MeterRegistry meterRegistry,
-      @Value("${frontend.url}") String frontendUrl) {
+      @Value("${frontend.url}") String frontendUrl,
+      DependencyGraphService dependencyGraphService) {
     this.incidentRepository = incidentRepository;
     this.incidentEventRepository = incidentEventRepository;
     this.postMortemRepository = postMortemRepository;
@@ -90,6 +93,7 @@ public class IncidentService {
     this.eventPublisher = eventPublisher;
     this.meterRegistry = meterRegistry;
     this.frontendUrl = frontendUrl;
+    this.dependencyGraphService = dependencyGraphService;
   }
 
   @Transactional
@@ -147,10 +151,18 @@ public class IncidentService {
   }
 
   /**
-   * Opens an incident for a service whose alert rule asked for one — or, if an alert already
-   * opened one that's still unresolved, adds to it, so a service has at most one open alert
-   * incident however many rules and repeat alerts fire. Severity only ever rises, and on-call is
-   * paged when it reaches CRITICAL/MAJOR.
+   * Opens an incident for a service whose alert rule asked for one, or folds the alert into an
+   * existing one, so one outage produces one incident:
+   *
+   * <ul>
+   *   <li>If the service is already affected by an open alert incident, that incident is updated.
+   *   <li>Otherwise, if a service it depends on (or that depends on it) is affected by one, the
+   *       service joins that incident — a cascading failure shares its root cause's incident,
+   *       whichever of the two reported first.
+   *   <li>Otherwise a new incident opens.
+   * </ul>
+   *
+   * Severity only ever rises, and on-call is paged when it reaches CRITICAL/MAJOR.
    */
   @Transactional
   @org.springframework.cache.annotation.CacheEvict(
@@ -164,29 +176,39 @@ public class IncidentService {
       ServiceStatus newStatus,
       IncidentSeverity severity) {
     String change = serviceName + " changed status from " + oldStatus + " to " + newStatus;
-    String title = serviceName + " is " + newStatus;
 
-    Optional<Incident> open =
-        incidentRepository.findFirstByTriggeredByServiceIdAndStatusNot(
-            serviceId, IncidentStatus.RESOLVED);
-    if (open.isPresent()) {
-      Incident incident = open.get();
-      incident.setTitle(title);
+    Optional<Incident> affecting = openAlertIncidentAffecting(serviceId);
+    if (affecting.isPresent()) {
+      Incident incident = affecting.get();
+      if (serviceId.equals(incident.getTriggeredByServiceId())) {
+        incident.setTitle(serviceName + " is " + newStatus);
+      }
       recordEvent(incident, IncidentEventType.ALERT_TRIGGERED, change, null);
-      // IncidentSeverity is declared most severe first.
-      if (severity.ordinal() < incident.getSeverity().ordinal()) {
-        IncidentSeverity previous = incident.getSeverity();
-        incident.setSeverity(severity);
+      return saveAlertUpdate(incident, severity, organizationId);
+    }
+
+    Service service = findService(organizationId, serviceId);
+    Optional<RelatedIncident> related = findRelatedAlertIncident(organizationId, service);
+    if (related.isPresent()) {
+      Incident incident = related.get().incident();
+      incident.getAffectedServices().add(service);
+      recordEvent(
+          incident,
+          IncidentEventType.ALERT_TRIGGERED,
+          change + " (" + related.get().relation() + ")",
+          null);
+      // The incident's current root depends on the newcomer, so the newcomer is the likelier
+      // cause: title the incident after it.
+      if (related.get().isDependencyOfRoot()) {
+        incident.setTriggeredByServiceId(serviceId);
+        incident.setTitle(serviceName + " is " + newStatus);
         recordEvent(
             incident,
-            IncidentEventType.SEVERITY_CHANGED,
-            "Severity raised from " + previous + " to " + severity,
+            IncidentEventType.ALERT_TRIGGERED,
+            "Likely root cause is now " + serviceName,
             null);
-        notifyOnCallIfSevere(incident);
       }
-      incident = incidentRepository.save(incident);
-      eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
-      return mapToDto(incident);
+      return saveAlertUpdate(incident, severity, organizationId);
     }
 
     Organization organization =
@@ -196,20 +218,12 @@ public class IncidentService {
                 () ->
                     new ApiException(
                         HttpStatus.NOT_FOUND, "ORG_NOT_FOUND", "Organization not found"));
-    Service service =
-        serviceRepository
-            .findByOrganizationIdAndId(organizationId, serviceId)
-            .orElseThrow(
-                () ->
-                    new ApiException(
-                        HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
-
     Incident incident =
         new Incident(
             UUID.randomUUID(),
             organization,
             null,
-            title,
+            serviceName + " is " + newStatus,
             "Opened automatically by an alert rule: " + change + ".",
             severity);
     incident.setTriggeredByServiceId(serviceId);
@@ -220,24 +234,47 @@ public class IncidentService {
     return mapToDto(incident);
   }
 
-  /** Resolves the service's open alert incident, if any, once the service is healthy again. */
+  /**
+   * Records a service's recovery on the alert incident affecting it, and resolves the incident
+   * once every affected service is healthy again.
+   */
   @Transactional
   @org.springframework.cache.annotation.CacheEvict(
       value = "publicStatus",
       key = "#organizationId.toString()")
   public Optional<IncidentDto> resolveAlertIncident(
       UUID organizationId, UUID serviceId, String serviceName) {
-    return incidentRepository
-        .findFirstByTriggeredByServiceIdAndStatusNot(serviceId, IncidentStatus.RESOLVED)
+    return openAlertIncidentAffecting(serviceId)
         .map(
             incident -> {
+              // The recovering service's own row may not be refreshed in this persistence
+              // context yet; the event that brought us here already says it's healthy.
+              List<String> stillUnhealthy =
+                  incident.getAffectedServices().stream()
+                      .filter(s -> !s.getId().equals(serviceId))
+                      .filter(s -> s.getStatus() != ServiceStatus.HEALTHY)
+                      .map(Service::getName)
+                      .sorted()
+                      .toList();
+              if (!stillUnhealthy.isEmpty()) {
+                recordEvent(
+                    incident,
+                    IncidentEventType.SERVICE_RECOVERED,
+                    serviceName + " recovered; still waiting on " + String.join(", ", stillUnhealthy),
+                    null);
+                eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+                return mapToDto(incident);
+              }
+
               incident.setStatus(IncidentStatus.RESOLVED);
               incident.setResolvedAt(OffsetDateTime.now());
               incident = incidentRepository.save(incident);
               recordEvent(
                   incident,
                   IncidentEventType.STATUS_CHANGED,
-                  "Resolved automatically: " + serviceName + " recovered",
+                  incident.getAffectedServices().size() == 1
+                      ? "Resolved automatically: " + serviceName + " recovered"
+                      : "Resolved automatically: all affected services recovered",
                   null);
               eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
               webhookNotificationService.notify(
@@ -246,6 +283,66 @@ public class IncidentService {
                   frontendUrl + "/incidents/" + incident.getId());
               return mapToDto(incident);
             });
+  }
+
+  private Optional<Incident> openAlertIncidentAffecting(UUID serviceId) {
+    return incidentRepository
+        .findOpenAlertIncidentsAffecting(serviceId, IncidentStatus.RESOLVED)
+        .stream()
+        .findFirst();
+  }
+
+  private record RelatedIncident(Incident incident, String relation, boolean isDependencyOfRoot) {}
+
+  /** The newest open alert incident affecting something this service depends on, or vice versa. */
+  private Optional<RelatedIncident> findRelatedAlertIncident(UUID organizationId, Service service) {
+    DependencyGraphService.Relations relations =
+        dependencyGraphService.relationsOf(organizationId, service.getId());
+    List<Incident> open =
+        incidentRepository
+            .findByOrganizationIdAndTriggeredByServiceIdIsNotNullAndStatusNotOrderByCreatedAtDesc(
+                organizationId, IncidentStatus.RESOLVED);
+    for (Incident incident : open) {
+      for (Service affected : incident.getAffectedServices()) {
+        if (relations.dependencies().contains(affected.getId())) {
+          return Optional.of(
+              new RelatedIncident(incident, "depends on " + affected.getName(), false));
+        }
+        if (relations.dependents().contains(affected.getId())) {
+          boolean rootDependsOnIt =
+              relations.dependents().contains(incident.getTriggeredByServiceId());
+          return Optional.of(
+              new RelatedIncident(
+                  incident, affected.getName() + " depends on it", rootDependsOnIt));
+        }
+      }
+    }
+    return Optional.empty();
+  }
+
+  private IncidentDto saveAlertUpdate(
+      Incident incident, IncidentSeverity severity, UUID organizationId) {
+    // IncidentSeverity is declared most severe first.
+    if (severity.ordinal() < incident.getSeverity().ordinal()) {
+      IncidentSeverity previous = incident.getSeverity();
+      incident.setSeverity(severity);
+      recordEvent(
+          incident,
+          IncidentEventType.SEVERITY_CHANGED,
+          "Severity raised from " + previous + " to " + severity,
+          null);
+      notifyOnCallIfSevere(incident);
+    }
+    incident = incidentRepository.save(incident);
+    eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+    return mapToDto(incident);
+  }
+
+  private Service findService(UUID organizationId, UUID serviceId) {
+    return serviceRepository
+        .findByOrganizationIdAndId(organizationId, serviceId)
+        .orElseThrow(
+            () -> new ApiException(HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
   }
 
   /** Fan-out for a newly opened incident; {@code creator} is null when an alert opened it. */

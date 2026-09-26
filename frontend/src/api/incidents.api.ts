@@ -56,7 +56,8 @@ export type IncidentEventType =
   | 'ESCALATED'
   | 'POST_MORTEM_UPDATED'
   | 'ALERT_TRIGGERED'
-  | 'SEVERITY_CHANGED';
+  | 'SEVERITY_CHANGED'
+  | 'SERVICE_RECOVERED';
 
 export interface IncidentEventDto {
   id: string;

@@ -163,7 +163,9 @@ Alert evaluation runs asynchronously off a Kafka consumer: when a service's stat
 rule matching the new status posts to its webhook (suppressed while the service is in an active
 maintenance window). Rules with an `incidentSeverity` also open an incident: a service has at most
 one open alert-opened incident — repeat alerts add to its timeline and can raise (never lower) its
-severity — and it resolves automatically when the service reports healthy again. CRITICAL/MAJOR
+severity. Cascading failures share one incident: a service joins the open alert incident of
+anything it depends on, or that depends on it, and the incident is retitled after the likeliest
+root cause. It resolves automatically once every affected service is healthy again. CRITICAL/MAJOR
 alert incidents page on-call and escalate like any other incident.
 
 ---
