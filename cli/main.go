@@ -29,7 +29,7 @@ Usage:
   sdna keys list                           ingestion keys
   sdna keys create <name>                  create an ingestion key (shown once)
   sdna init [--env ENV] [--no-install]     connect the project in this directory
-  sdna scan [--service NAME] [--env ENV]   send this repo's API specs and configured dependencies
+  sdna scan [--service NAME] [--env ENV]   send this repo's servicedna.yaml, API specs and configured dependencies
             [--dry-run]                    (OpenAPI, .proto, AsyncAPI, compose/.env/k8s URLs)
   sdna test run <flow.yaml|dir>...         run test flows (or --collection NAME); exits 1 on failure
             [--env ENV] [--timeout 5m]
@@ -275,6 +275,12 @@ func cmdInit(c *Client, args []string) error {
 	}
 	fmt.Println("✓ wrote .env.servicedna (contains a secret — keep it out of version control)")
 	ensureGitignored(abs, ".env.servicedna")
+	if m, _, _ := loadManifest(abs); m == nil {
+		if err := os.WriteFile(filepath.Join(abs, "servicedna.yaml"), []byte(manifestTemplate(stack.Service)), 0o644); err != nil {
+			return err
+		}
+		fmt.Println("✓ wrote servicedna.yaml — owner, tier, SLO and alerts, applied by `sdna scan` (commit it)")
+	}
 
 	if len(stack.Install) > 0 && !*noInstall {
 		fmt.Printf("→ %s\n", strings.Join(stack.Install, " "))
@@ -375,10 +381,12 @@ func deref(s *string) string {
 }
 
 type scanRequest struct {
-	Service      string      `json:"service"`
-	Environment  string      `json:"environment,omitempty"`
-	Operations   []Operation `json:"operations"`
-	Dependencies []string    `json:"dependencies"`
+	Service      string        `json:"service"`
+	Environment  string        `json:"environment,omitempty"`
+	Operations   []Operation   `json:"operations"`
+	Dependencies []string      `json:"dependencies"`
+	Metadata     *scanMetadata `json:"metadata,omitempty"`
+	Alerts       []alertRule   `json:"alerts,omitempty"`
 }
 
 type scanResponse struct {
@@ -386,6 +394,8 @@ type scanResponse struct {
 	Operations          int      `json:"operations"`
 	DependenciesAdded   []string `json:"dependenciesAdded"`
 	DependenciesUnknown []string `json:"dependenciesUnknown"`
+	Updated             []string `json:"updated"`
+	AlertRules          *int     `json:"alertRules"`
 }
 
 func cmdScan(c *Client, args []string) error {
@@ -404,6 +414,13 @@ func cmdScan(c *Client, args []string) error {
 	result, err := scanDir(abs)
 	if err != nil {
 		return err
+	}
+	manifest, manifestFile, err := loadManifest(abs)
+	if err != nil {
+		return err
+	}
+	if *service == "" && manifest != nil && manifest.Service != "" {
+		*service = manifest.Service
 	}
 	if *service == "" {
 		if stack, ok := detectStack(abs); ok {
@@ -446,6 +463,12 @@ func cmdScan(c *Client, args []string) error {
 	if len(result.Operations) > 0 {
 		main.Operations = result.Operations
 	}
+	if manifest != nil {
+		// Declared dependencies are sent as written; ServiceDNA reports the ones it doesn't know.
+		main.Dependencies = nonNil(unique(append(main.Dependencies, manifest.Dependencies...)))
+		main.Metadata = manifest.metadata()
+		main.Alerts = manifest.alerts()
+	}
 	requests := []scanRequest{main}
 	var ignored []string
 	ignored = append(ignored, other...)
@@ -469,11 +492,14 @@ func cmdScan(c *Client, args []string) error {
 
 	// A repository with nothing about itself (only a compose file for other services, say) isn't a
 	// service: don't register one named after it.
-	if len(requests[0].Operations) == 0 && len(requests[0].Dependencies) == 0 {
+	if manifest == nil && len(requests[0].Operations) == 0 && len(requests[0].Dependencies) == 0 {
 		requests = requests[1:]
 	}
 
 	fmt.Printf("→ scanned %s: %d operations from %d files\n", abs, len(result.Operations), len(result.Files))
+	if manifest != nil {
+		fmt.Printf("→ %s: catalog entry for %s\n", manifestFile, *service)
+	}
 	if *dryRun {
 		out, _ := json.MarshalIndent(requests, "", "  ")
 		fmt.Println(string(out))
@@ -491,7 +517,16 @@ func cmdScan(c *Client, args []string) error {
 		if len(res.DependenciesAdded) > 0 {
 			line += " · depends on " + strings.Join(res.DependenciesAdded, ", ")
 		}
+		if len(res.Updated) > 0 {
+			line += " · set " + strings.Join(res.Updated, ", ")
+		}
+		if res.AlertRules != nil {
+			line += fmt.Sprintf(" · %d alert %s", *res.AlertRules, plural(*res.AlertRules, "rule", "rules"))
+		}
 		fmt.Println(line)
+		if len(res.DependenciesUnknown) > 0 && req.Service == *service && manifest != nil {
+			fmt.Printf("  (declared dependencies that aren't registered yet: %s)\n", strings.Join(res.DependenciesUnknown, ", "))
+		}
 	}
 	if ignored = unique(ignored); len(ignored) > 0 {
 		fmt.Printf("  (hosts that aren't registered services, not declared: %s)\n", strings.Join(ignored, ", "))
@@ -504,6 +539,13 @@ func nonNil(s []string) []string {
 		return []string{}
 	}
 	return s
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 func unique(s []string) []string {

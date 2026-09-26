@@ -205,7 +205,8 @@ public class ServiceRegistryService {
     return changed;
   }
 
-  private void evictServiceCachesAfterCommit() {
+  /** Clears the cached service views once the current transaction commits (for changes made outside this class). */
+  public void evictServiceCachesAfterCommit() {
     Runnable evict =
         () -> {
           for (String name : new String[] {"services", "publicStatus"}) {
@@ -514,6 +515,8 @@ public class ServiceRegistryService {
         service.getVersion(),
         service.getSource(),
         service.getLastTelemetryAt(),
+        service.getOwner(),
+        service.getTier(),
         service.getCreatedAt(),
         service.getUpdatedAt());
   }
@@ -539,6 +542,8 @@ public class ServiceRegistryService {
         service.getVersion(),
         service.getSource(),
         service.getLastTelemetryAt(),
+        service.getOwner(),
+        service.getTier(),
         service.getCreatedAt(),
         service.getUpdatedAt());
   }

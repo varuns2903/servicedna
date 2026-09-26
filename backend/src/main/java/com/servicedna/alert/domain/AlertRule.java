@@ -97,6 +97,18 @@ public class AlertRule {
     return windowMinutes;
   }
 
+  /** "CATALOG" when servicedna.yaml manages this rule (it's replaced on each scan); null when made by hand. */
+  @Column(name = "managed_by", length = 16)
+  private String managedBy;
+
+  public String getManagedBy() {
+    return managedBy;
+  }
+
+  public void setManagedBy(String managedBy) {
+    this.managedBy = managedBy;
+  }
+
   public boolean isBreached() {
     return breached;
   }

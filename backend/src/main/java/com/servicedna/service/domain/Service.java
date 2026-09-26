@@ -149,6 +149,30 @@ public class Service {
     return description;
   }
 
+  /** Team or person responsible, from servicedna.yaml. */
+  @Column(name = "owner")
+  private String owner;
+
+  /** critical, high, medium or low, from servicedna.yaml. */
+  @Column(name = "tier", length = 16)
+  private String tier;
+
+  public String getOwner() {
+    return owner;
+  }
+
+  public void setOwner(String owner) {
+    this.owner = owner;
+  }
+
+  public String getTier() {
+    return tier;
+  }
+
+  public void setTier(String tier) {
+    this.tier = tier;
+  }
+
   public void setDescription(String description) {
     this.description = description;
   }

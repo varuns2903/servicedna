@@ -114,7 +114,7 @@ audit history the account is referenced from stay intact.
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/v1/organizations/{orgId}/catalog/scan` | What `sdna scan` found in a repository: `service`, optional `environment`, `operations` (protocol, name, source, description, requestSchema — replaces the service's catalog; `null` keeps it) and `dependencies` (service names, added as declared edges; unknown names are reported back). Registers the service if it's new |
+| POST | `/api/v1/organizations/{orgId}/catalog/scan` | What `sdna scan` found in a repository: `service`, optional `environment`, `operations` (protocol, name, source, description, requestSchema — replaces the service's catalog; `null` keeps it) and `dependencies` (service names, added as declared edges; unknown names are reported back). From `servicedna.yaml`: `metadata` (`description`, `owner`, `tier` — critical/high/medium/low —, `slo`, `healthUrl`, `repositoryUrl`; unset fields are left alone) and `alerts` (alert rule bodies; they replace the rules the file set before, marked `managedBy: CATALOG`, and leave hand-made rules alone; omitting `alerts` leaves them be). Registers the service if it's new; returns what was `updated` and how many `alertRules` the file manages |
 | GET | `/api/v1/organizations/{orgId}/services/{serviceId}/operations` | The service's operations from its specs merged with those callers used in the last 24 h (`observed`, `callsLast24h`), plus entry operations nothing instrumented calls (`callsLast24h` 0) |
 
 ### API flows — `/api/v1/organizations/{orgId}/flows`

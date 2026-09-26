@@ -173,4 +173,52 @@ class CatalogTest {
     }
     return objectMapper.readTree(mockMvc.perform(request).andReturn().getResponse().getContentAsString());
   }
+
+  @Test
+  void servicednaYamlSetsMetadataAndManagesItsAlertRules() throws Exception {
+    String orders = scan("orders", new CatalogDto.OperationSpec(Protocol.HTTP, "POST /orders", "OPENAPI", null, null)).get("serviceId").asText();
+    String rules = "/api/v1/organizations/" + orgId + "/services/" + orders + "/alert-rules";
+    call(post(rules).content("{\"condition\":\"STATUS_DEGRADED\",\"incidentSeverity\":\"MINOR\"}")); // made by hand
+    // Read first, so any cached view would be stale after the scan.
+    call(get("/api/v1/organizations/" + orgId + "/services/" + orders));
+    call(get("/api/v1/organizations/" + orgId + "/services"));
+
+    String yaml = """
+        {"service":"orders","dependencies":[],
+         "metadata":{"description":"Takes orders","owner":"team-checkout","tier":"critical","slo":99.95,
+                     "healthUrl":"http://orders:4004/health","repositoryUrl":"https://github.com/acme/orders"},
+         "alerts":[{"condition":"STATUS_DOWN","incidentSeverity":"CRITICAL"},
+                   {"condition":"LATENCY_ABOVE","threshold":800,"windowMinutes":5,"incidentSeverity":"MAJOR"}]}""";
+    JsonNode result = call(post("/api/v1/organizations/" + orgId + "/catalog/scan").content(yaml));
+    assertThat(texts(result.get("updated"))).containsExactly("description", "owner", "tier", "healthUrl", "repositoryUrl", "slo");
+    assertThat(result.get("alertRules").asInt()).isEqualTo(2);
+
+    JsonNode service = call(get("/api/v1/organizations/" + orgId + "/services/" + orders));
+    assertThat(service.get("owner").asText()).isEqualTo("team-checkout");
+    assertThat(service.get("tier").asText()).isEqualTo("critical");
+    assertThat(service.get("sloTargetPercentage").asDouble()).isEqualTo(99.95);
+    assertThat(service.get("healthCheckUrl").asText()).isEqualTo("http://orders:4004/health");
+    assertThat(call(get("/api/v1/organizations/" + orgId + "/services")).get(0).get("owner").asText()).isEqualTo("team-checkout");
+    assertThat(call(get(rules))).hasSize(3);
+
+    // Rescanning replaces the rules the file manages, and only those; no alerts key leaves them be.
+    call(post("/api/v1/organizations/" + orgId + "/catalog/scan").content(
+        "{\"service\":\"orders\",\"dependencies\":[],\"alerts\":[{\"condition\":\"STATUS_DOWN\",\"incidentSeverity\":\"MAJOR\"}]}"));
+    call(post("/api/v1/organizations/" + orgId + "/catalog/scan").content("{\"service\":\"orders\",\"dependencies\":[]}"));
+    List<String> now = new ArrayList<>();
+    call(get(rules)).forEach(r -> now.add(r.get("condition").asText() + " " + r.get("incidentSeverity").asText() + " " + r.path("managedBy").asText("-")));
+    assertThat(now).containsExactlyInAnyOrder("STATUS_DEGRADED MINOR -", "STATUS_DOWN MAJOR CATALOG");
+  }
+
+  @Test
+  void invalidMetadataAndRulesAreRejectedBeforeAnythingChanges() throws Exception {
+    mockMvc.perform(post("/api/v1/organizations/" + orgId + "/catalog/scan").contentType(MediaType.APPLICATION_JSON)
+            .header("Authorization", "Bearer " + token)
+            .content("{\"service\":\"orders\",\"dependencies\":[],\"metadata\":{\"tier\":\"urgent\",\"healthUrl\":\"/health\"}}"))
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+    mockMvc.perform(post("/api/v1/organizations/" + orgId + "/catalog/scan").contentType(MediaType.APPLICATION_JSON)
+            .header("Authorization", "Bearer " + token)
+            .content("{\"service\":\"orders\",\"dependencies\":[],\"alerts\":[{\"condition\":\"STATUS_DOWN\"}]}"))
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+  }
 }

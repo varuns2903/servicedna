@@ -22,6 +22,9 @@ export interface ServiceDto {
   /** MANUAL: registered by a person. TELEMETRY: registered from its own telemetry. */
   source: 'MANUAL' | 'TELEMETRY';
   lastTelemetryAt: string | null;
+  /** From servicedna.yaml. */
+  owner: string | null;
+  tier: 'critical' | 'high' | 'medium' | 'low' | null;
   createdAt: string;
   updatedAt: string;
 }

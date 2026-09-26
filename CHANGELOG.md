@@ -7,6 +7,11 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Catalog as code: a repository's `servicedna.yaml` declares its service's description, owner,
+  tier, SLO, health URL, repository, dependencies and alert rules; `sdna scan` applies it and
+  `sdna init` writes a starter. Alert rules it declares are managed by the file (replaced on each
+  scan, badged in the UI); hand-made rules are left alone. Services gain `owner` and `tier`,
+  shown in the service list and details.
 - Incidents show their traces: failing requests through the affected services while the incident
   was open, and traces attached as evidence with a note. Attaching snapshots the request's hops
   (so the post-mortem keeps the failure path after trace retention) and adds a timeline entry

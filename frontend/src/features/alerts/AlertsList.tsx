@@ -232,6 +232,11 @@ export function AlertsList() {
                       <h4 className="text-white font-medium">
                         {describeAlertRuleCondition(alert)}
                         {alert.breached && <span className="ml-2 text-xs font-normal text-rose-400">● breached</span>}
+                        {alert.managedBy === 'CATALOG' && (
+                          <span className="ml-2 rounded bg-charcoal-700 px-1.5 text-xs font-normal text-gray-300" title="Managed by the service's servicedna.yaml; edit it there">
+                            servicedna.yaml
+                          </span>
+                        )}
                       </h4>
                       <p className="text-sm text-gray-400">
                         {describeAlertRuleActions(alert)}

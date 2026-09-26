@@ -18,6 +18,8 @@ public interface AlertRuleRepository extends JpaRepository<AlertRule, UUID> {
 
   Optional<AlertRule> findByOrganizationIdAndId(UUID organizationId, UUID id);
 
+  List<AlertRule> findByServiceIdAndManagedBy(UUID serviceId, String managedBy);
+
   boolean existsByServiceIdAndBreachedTrue(UUID serviceId);
 
   /** Rules with their service and organization loaded, for evaluation outside a transaction. */
