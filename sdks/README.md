@@ -9,6 +9,7 @@ registers itself, sends traces, and reports health heartbeats.
 | Node.js | [`@servicedna/node`](node/) | ✅ |
 | Python | [`servicedna`](python/) | ✅ |
 | Go | [`github.com/varuns2903/servicedna/sdks/go`](go/) | ✅ |
+| Java / Spring Boot | [`io.github.varuns2903:servicedna-spring-boot-starter`](java/) | ✅ |
 
 Already using OpenTelemetry? No SDK is needed — point your exporter at ServiceDNA:
 
