@@ -10,6 +10,7 @@ from opentelemetry.instrumentation.distro import BaseDistro
 from opentelemetry.sdk._configuration import _OTelSDKConfigurator
 
 from . import bodies as _bodies
+from . import grpc_capture as _grpc_capture
 from . import config as _config
 from . import heartbeat
 
@@ -25,6 +26,8 @@ class ServiceDnaDistro(BaseDistro):
         if _bodies.instrument_fastapi():
             disabled = [d for d in os.environ.get("OTEL_PYTHON_DISABLED_INSTRUMENTATIONS", "").split(",") if d]
             os.environ["OTEL_PYTHON_DISABLED_INSTRUMENTATIONS"] = ",".join(disabled + ["fastapi"])
+        # gRPC request/response messages, for test runs (and failures with capture on error).
+        _grpc_capture.install()
         if cfg.logs:
             _bridge_uvicorn_logs()
         heartbeat.start(cfg)
