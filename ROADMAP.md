@@ -156,7 +156,7 @@ auto-instrumentation (Grafana Beyla / Odigos) pointed at the ServiceDNA collecto
 - Manual registration remains for services that can't run an SDK
 - Registered services are grouped by `deployment.environment` (dev / stage / prod)
 
-### 2.4 ServiceDNA Agent (collector + runner) per environment
+### 2.4 ServiceDNA Agent (collector + runner) per environment — ✅ Collector done (runner: Phase 5)
 One install per cluster/environment, like installing a Filebeat or a Kafka Connect worker:
 ```bash
 helm install servicedna-agent servicedna/agent --set key=$SERVICEDNA_KEY --set env=prod

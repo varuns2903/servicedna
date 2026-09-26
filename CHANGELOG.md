@@ -57,6 +57,11 @@ All notable changes to this project are documented in this file. The format is b
   OpenTelemetry, registers the service with its environment/language/version, sends traces, and
   reports health heartbeats. See `sdks/`.
 
+- ServiceDNA agent (`agent/`): an OpenTelemetry Collector for Docker hosts (compose) and
+  Kubernetes (Helm chart) that accepts OTLP and Zipkin from services without keys, stamps the
+  environment, masks credentials and card numbers inside your network, and forwards to ServiceDNA
+  over an outbound connection.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent

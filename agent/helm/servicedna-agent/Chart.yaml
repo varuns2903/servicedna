@@ -1,0 +1,7 @@
+apiVersion: v2
+name: servicedna-agent
+description: ServiceDNA agent — an OpenTelemetry Collector that forwards a cluster's telemetry to ServiceDNA, masking sensitive data on the way out.
+type: application
+version: 0.1.0
+appVersion: "0.111.0"
+home: https://github.com/varuns2903/servicedna
