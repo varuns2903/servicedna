@@ -8,10 +8,11 @@ import { StatusIndicator } from '@/components/status/StatusIndicator';
 import type { ServiceStatus } from '@/components/status/StatusIndicator';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Search, Plus, Download, Upload, Plug } from 'lucide-react';
+import { Search, Plus, Download, Upload, Plug, FolderGit2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { formatDistanceToNow } from 'date-fns';
 import { RegisterServiceModal } from './RegisterServiceModal';
+import { GitHubImportModal } from './GitHubImportModal';
 import { downloadCsv, parseCsv } from '@/utils/csv';
 
 export function ServiceList() {
@@ -20,6 +21,7 @@ export function ServiceList() {
   const createService = useCreateService();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRegisterOpen, setRegisterOpen] = useState(false);
+  const [isGitHubOpen, setGitHubOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ServiceStatus | 'ALL'>('ALL');
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
@@ -161,6 +163,10 @@ export function ServiceList() {
           <Button size="sm" variant="outline" onClick={() => setRegisterOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Register Manually
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setGitHubOpen(true)}>
+            <FolderGit2 className="mr-2 h-4 w-4" />
+            Import from GitHub
           </Button>
           <Button size="sm" onClick={() => navigate('/connect')}>
             <Plug className="mr-2 h-4 w-4" />
@@ -306,6 +312,7 @@ export function ServiceList() {
       )}
 
       <RegisterServiceModal open={isRegisterOpen} onClose={() => setRegisterOpen(false)} />
+      <GitHubImportModal open={isGitHubOpen} onClose={() => setGitHubOpen(false)} />
     </div>
   );
 }

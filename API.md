@@ -138,6 +138,16 @@ audit history the account is referenced from stay intact.
 | GET | `/?windowMinutes=60[&entryNode=&entryOperation=]` | Operation-level calls (nodes are service/database/host/topic operations). With an entry, only what that operation triggers downstream. Each call has protocol, calls/min, error rate, p50 and p95 |
 | GET | `/entry-points?windowMinutes=60` | Operations nothing instrumented calls (entered from outside), busiest first |
 
+### Import from GitHub — `/api/v1/organizations/{orgId}/github/import`
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/preview` | `{owner, token?}`: the GitHub organization's (or user's) repositories — up to 300 — with what each `servicedna.yaml` says (service, owner, tier), manifest errors, and whether the service is already registered |
+| POST | `/` | `{owner, token?, repositories: ["org/repo", …]}`: registers each repository's service from its `servicedna.yaml` (as `sdna scan` would), or from the repository's name, description and URL if it has none. Each repository succeeds or fails on its own |
+
+The GitHub token is used for the request only and never stored; for private repositories it
+needs read access to contents and metadata. Set `GITHUB_API_URL` for GitHub Enterprise.
+
 ### Follow a key — `/api/v1/organizations/{orgId}/follow`
 
 | Method | Path | Description |
