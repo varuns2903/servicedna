@@ -55,7 +55,7 @@ class TestRunTest {
 
   private JsonNode createHttpRun(String path) throws Exception {
     return call(post("/api/v1/organizations/" + orgId + "/test-runs").content(json(new TestRunDto.CreateRequest(
-        null, Protocol.HTTP, UUID.fromString(serviceId), "post", path, null, null, null, Map.of("x-test", "1"), "{\"userId\":\"u-1\"}"))));
+        null, Protocol.HTTP, UUID.fromString(serviceId), "post", path, null, null, null, Map.of("x-test", "1"), "{\"userId\":\"u-1\"}", null))));
   }
 
   @Test
@@ -72,7 +72,7 @@ class TestRunTest {
   @Test
   void pathsMustBeConcrete() throws Exception {
     mockMvc.perform(auth(post("/api/v1/organizations/" + orgId + "/test-runs")).content(json(new TestRunDto.CreateRequest(
-            null, Protocol.HTTP, UUID.fromString(serviceId), "GET", "/orders/{id}", null, null, null, null, null))))
+            null, Protocol.HTTP, UUID.fromString(serviceId), "GET", "/orders/{id}", null, null, null, null, null, null))))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errorCode").value("INVALID_TEST_RUN"));
   }
@@ -154,5 +154,33 @@ class TestRunTest {
 
   private JsonNode call(MockHttpServletRequestBuilder request) throws Exception {
     return objectMapper.readTree(mockMvc.perform(auth(request)).andReturn().getResponse().getContentAsString());
+  }
+
+  @Test
+  void testModeIsOnUnlessTurnedOff() throws Exception {
+    assertThat(createHttpRun("/orders").get("request").get("test").asBoolean()).isTrue();
+    JsonNode live = call(post("/api/v1/organizations/" + orgId + "/test-runs").content(json(new TestRunDto.CreateRequest(
+        null, Protocol.HTTP, UUID.fromString(serviceId), "POST", "/orders", null, null, null, null, "{}", false))));
+    assertThat(live.get("request").get("test").asBoolean()).isFalse();
+  }
+
+  @Test
+  void productionNeedsTestRunsSwitchedOn() throws Exception {
+    TestRunDto.CreateRequest toProd = new TestRunDto.CreateRequest(
+        "prod", Protocol.HTTP, UUID.fromString(serviceId), "POST", "/orders", null, null, null, null, "{}", null);
+    mockMvc.perform(auth(post("/api/v1/organizations/" + orgId + "/test-runs")).content(json(toProd)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.errorCode").value("TEST_RUNS_DISABLED"));
+
+    mockMvc.perform(auth(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/organizations/" + orgId + "/environments/prod"))
+            .content("{\"allowTestRuns\":true}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.productionLike").value(true));
+    mockMvc.perform(auth(post("/api/v1/organizations/" + orgId + "/test-runs")).content(json(toProd)))
+        .andExpect(status().isCreated());
+
+    JsonNode environments = call(get("/api/v1/organizations/" + orgId + "/environments"));
+    assertThat(environments.get(0).get("environment").asText()).isEqualTo("prod");
+    assertThat(environments.get(0).get("allowTestRuns").asBoolean()).isTrue();
   }
 }

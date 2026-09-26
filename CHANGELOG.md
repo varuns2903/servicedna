@@ -113,6 +113,10 @@ All notable changes to this project are documented in this file. The format is b
   service received and returned, plus `capture()` values. Runners authenticate with an ingestion
   key; the one bundled with ServiceDNA (`--profile runner`) with `RUNNER_SHARED_TOKEN`.
 
+- Test-run safety: runs are in test mode by default (baggage `sdna.test=1` for services to skip
+  real side effects); production-like environments refuse test runs until an owner or admin
+  allows them (`/environments`); every run is audit-logged; 60 runs a minute per organization.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent

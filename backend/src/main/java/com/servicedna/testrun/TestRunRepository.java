@@ -14,6 +14,8 @@ public interface TestRunRepository extends JpaRepository<TestRun, UUID> {
 
   Optional<TestRun> findByOrganizationIdAndId(UUID organizationId, UUID id);
 
+  long countByOrganizationIdAndCreatedAtAfter(UUID organizationId, OffsetDateTime after);
+
   List<TestRun> findByOrganizationIdOrderByCreatedAtDesc(UUID organizationId, Pageable pageable);
 
   /** Queued runs a runner may take: its organizations (all, for a shared runner) and environment. */
