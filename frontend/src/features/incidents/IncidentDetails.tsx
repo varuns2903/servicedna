@@ -14,6 +14,7 @@ import { ArrowLeft, Save, CheckCheck } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { IncidentStatus } from '@/api/incidents.api';
 import { IncidentTimeline } from './IncidentTimeline';
+import { IncidentTraces } from './IncidentTraces';
 
 export function IncidentDetails() {
   const { id } = useParams<{ id: string }>();
@@ -89,6 +90,8 @@ export function IncidentDetails() {
               <p className="text-gray-300 whitespace-pre-wrap">{incident.description}</p>
             </CardContent>
           </Card>
+
+          {currentOrgId && id && <IncidentTraces orgId={currentOrgId} incidentId={id} />}
 
           <Card>
             <CardHeader>

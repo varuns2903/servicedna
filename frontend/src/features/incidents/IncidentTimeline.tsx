@@ -1,7 +1,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { useIncidentEvents } from '@/hooks/useIncidents';
-import { FilePlus, RefreshCw, CheckCheck, ArrowUpCircle, FileText, BellRing, TrendingUp, HeartPulse } from 'lucide-react';
+import { FilePlus, RefreshCw, CheckCheck, ArrowUpCircle, FileText, BellRing, TrendingUp, HeartPulse, ScanSearch } from 'lucide-react';
 import type { IncidentEventType } from '@/api/incidents.api';
 
 interface IncidentTimelineProps {
@@ -18,6 +18,7 @@ const EVENT_ICON: Record<IncidentEventType, typeof FilePlus> = {
   ALERT_TRIGGERED: BellRing,
   SEVERITY_CHANGED: TrendingUp,
   SERVICE_RECOVERED: HeartPulse,
+  TRACE_ATTACHED: ScanSearch,
 };
 
 const EVENT_COLOR: Record<IncidentEventType, string> = {
@@ -29,6 +30,7 @@ const EVENT_COLOR: Record<IncidentEventType, string> = {
   ALERT_TRIGGERED: 'text-rose-400 bg-rose-500/10',
   SEVERITY_CHANGED: 'text-rose-400 bg-rose-500/10',
   SERVICE_RECOVERED: 'text-emerald-400 bg-emerald-500/10',
+  TRACE_ATTACHED: 'text-sky-400 bg-sky-500/10',
 };
 
 export function IncidentTimeline({ orgId, incidentId }: IncidentTimelineProps) {

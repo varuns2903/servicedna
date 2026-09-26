@@ -134,6 +134,9 @@ export interface CatalogOperation {
 }
 
 export const TestingApi = {
+  /** Re-sends the request a trace recorded (its entry request, or `spanId`'s) as a test run. */
+  replay: async (orgId: string, body: { traceId: string; spanId?: string; environment?: string | null }) =>
+    (await apiClient.post<TestRun>(`/organizations/${orgId}/test-runs/replay`, body)).data,
   run: async (orgId: string, request: TestRequest) =>
     (await apiClient.post<TestRun>(`/organizations/${orgId}/test-runs`, request)).data,
   runs: async (orgId: string, limit = 50) =>

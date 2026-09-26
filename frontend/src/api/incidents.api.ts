@@ -1,3 +1,5 @@
+import type { TraceExplore } from './traces.api';
+import type { Hop } from './testing.api';
 import { apiClient } from './client';
 
 export type IncidentStatus = 'INVESTIGATING' | 'IDENTIFIED' | 'MONITORING' | 'RESOLVED';
@@ -57,7 +59,8 @@ export type IncidentEventType =
   | 'POST_MORTEM_UPDATED'
   | 'ALERT_TRIGGERED'
   | 'SEVERITY_CHANGED'
-  | 'SERVICE_RECOVERED';
+  | 'SERVICE_RECOVERED'
+  | 'TRACE_ATTACHED';
 
 export interface IncidentEventDto {
   id: string;
@@ -67,7 +70,27 @@ export interface IncidentEventDto {
   createdAt: string;
 }
 
+/** A trace attached to an incident, with the hops snapshotted when it was attached. */
+export interface AttachedTrace {
+  id: string;
+  traceId: string;
+  note: string | null;
+  summary: string;
+  hops: Hop[];
+  attachedBy: string | null;
+  attachedAt: string;
+}
+
 export const IncidentsApi = {
+  failingTraces: async (orgId: string, incidentId: string) =>
+    (await apiClient.get<TraceExplore>(`/organizations/${orgId}/incidents/${incidentId}/failing-traces`)).data,
+  attachedTraces: async (orgId: string, incidentId: string) =>
+    (await apiClient.get<AttachedTrace[]>(`/organizations/${orgId}/incidents/${incidentId}/traces`)).data,
+  attachTrace: async (orgId: string, incidentId: string, traceId: string, note?: string) =>
+    (await apiClient.post<AttachedTrace>(`/organizations/${orgId}/incidents/${incidentId}/traces`, { traceId, note })).data,
+  detachTrace: async (orgId: string, incidentId: string, traceId: string) => {
+    await apiClient.delete(`/organizations/${orgId}/incidents/${incidentId}/traces/${traceId}`);
+  },
   create: async (orgId: string, data: CreateIncidentRequest) => {
     const res = await apiClient.post<IncidentDto>(`/organizations/${orgId}/incidents`, data);
     return res.data;

@@ -21,10 +21,19 @@ public class TestRunController {
 
   private final TestRunService testRunService;
   private final TestRunViews views;
+  private final TestRunReplay replay;
 
-  public TestRunController(TestRunService testRunService, TestRunViews views) {
+  public TestRunController(TestRunService testRunService, TestRunViews views, TestRunReplay replay) {
     this.testRunService = testRunService;
     this.views = views;
+    this.replay = replay;
+  }
+
+  /** Re-sends the request a trace recorded ({@code spanId}, or its entry request) as a test run. */
+  @PostMapping("/replay")
+  public ResponseEntity<TestRunDto.Run> replay(
+      @PathVariable UUID orgId, @RequestBody TestRunReplay.ReplayRequest request, @AuthenticationPrincipal CustomUserDetails user) {
+    return new ResponseEntity<>(views.summary(replay.replay(orgId, request, user.getUser().getId())), HttpStatus.CREATED);
   }
 
   @PostMapping

@@ -409,7 +409,7 @@ environment, time range, and attributes.
 When trace context is broken (custom thread pools, batch jobs, uninstrumented hops), follow a
 domain ID instead — `orderId=o-17`, `paymentId=…` — across spans, logs, and Kafka messages.
 
-### 6.4 Incident integration
+### 6.4 Incident integration — ✅ Done
 - Incident page shows failing traces from its time window and affected services
 - Attach a trace to an incident; the post-mortem timeline includes the hop-by-hop failure
 - **Replay** a captured failing request (in a non-prod environment) to reproduce the bug
