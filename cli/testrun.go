@@ -51,6 +51,7 @@ type suite struct {
 	Pending int    `json:"pending"`
 	Runs    []struct {
 		CaseName string `json:"caseName"`
+		TraceID  string `json:"traceId"`
 		Status   string `json:"status"`
 		Error    string `json:"error"`
 		Passed   *bool  `json:"passed"`
@@ -70,6 +71,7 @@ func cmdTest(c *Client, args []string) error {
 	env := fs.String("env", "", "environment to run in (overrides the files')")
 	collection := fs.String("collection", "", "run a saved collection by name")
 	timeout := fs.Duration("timeout", 5*time.Minute, "give up waiting after this long")
+	report := fs.String("report", "", "also write the results as Markdown to this file (for CI summaries and PR comments)")
 	if err := fs.Parse(reorder(args[1:])); err != nil {
 		return err
 	}
@@ -113,6 +115,14 @@ func cmdTest(c *Client, args []string) error {
 	}
 
 	failed := false
+	var finished []suite
+	defer func() {
+		if *report != "" {
+			if err := os.WriteFile(*report, []byte(markdownReport(finished, os.Getenv("SDNA_APP_URL"))), 0o644); err != nil {
+				fmt.Fprintf(os.Stderr, "writing %s: %v\n", *report, err)
+			}
+		}
+	}()
 	deadline := time.Now().Add(*timeout)
 	for _, start := range starts {
 		var s suite
@@ -143,6 +153,7 @@ func cmdTest(c *Client, args []string) error {
 			}
 		}
 		fmt.Printf("  %d passed, %d failed\n", s.Passed, s.Failed)
+		finished = append(finished, s)
 		failed = failed || s.Status != "PASSED"
 	}
 	if failed {
@@ -282,4 +293,42 @@ func nilIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+// markdownReport renders suite results for a CI job summary or PR comment. With appURL (the
+// ServiceDNA web app), each case links to its trace.
+func markdownReport(suites []suite, appURL string) string {
+	var b strings.Builder
+	passed, failed := 0, 0
+	for _, s := range suites {
+		passed += s.Passed
+		failed += s.Failed
+	}
+	icon := "✅"
+	if failed > 0 {
+		icon = "❌"
+	}
+	fmt.Fprintf(&b, "### %s ServiceDNA test flows — %d passed, %d failed\n\n", icon, passed, failed)
+	for _, s := range suites {
+		fmt.Fprintf(&b, "**%s**\n\n| | Case | Checks that failed |\n|---|---|---|\n", s.Name)
+		for _, run := range s.Runs {
+			mark := "✅"
+			if run.Passed == nil || !*run.Passed {
+				mark = "❌"
+			}
+			name := strings.ReplaceAll(run.CaseName, "|", "\\|")
+			if appURL != "" && run.TraceID != "" {
+				name = fmt.Sprintf("[%s](%s/traces?trace=%s)", name, strings.TrimRight(appURL, "/"), run.TraceID)
+			}
+			var problems []string
+			for _, r := range run.Results {
+				if !r.Passed {
+					problems = append(problems, strings.ReplaceAll(r.Description+" — "+r.Message, "|", "\\|"))
+				}
+			}
+			fmt.Fprintf(&b, "| %s | %s | %s |\n", mark, name, strings.Join(problems, "<br>"))
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
 }

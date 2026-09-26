@@ -1,0 +1,74 @@
+name: ServiceDNA
+description: >-
+  Keep ServiceDNA in step with a repository: on pushes to the default branch, apply its
+  servicedna.yaml and API specs (sdna scan); on pull requests, run its test flows through
+  ServiceDNA and report them in the job summary and a PR comment, failing the check on failure.
+branding:
+  icon: activity
+  color: green
+inputs:
+  url:
+    description: ServiceDNA API URL, e.g. https://servicedna.example.com
+    required: true
+  token:
+    description: An API token (sdna_pat_…) from Settings → Account — pass it from a secret
+    required: true
+  org:
+    description: Organization name or id
+    required: true
+  app-url:
+    description: ServiceDNA web app URL, to link each test case to its trace (defaults to url)
+    required: false
+  environment:
+    description: Environment the test flows run in (default: what each flow file says)
+    required: false
+  flows:
+    description: Flow files or directory
+    default: flows
+  scan:
+    description: "Run sdna scan: auto (pushes to the default branch), true or false"
+    default: auto
+  test:
+    description: "Run the test flows: auto (pull requests, when the flows exist), true or false"
+    default: auto
+  comment:
+    description: Post (and keep updating) a PR comment with the test results
+    default: "true"
+  working-directory:
+    description: The service's directory in the repository
+    default: .
+  cli-version:
+    description: Version of the sdna CLI to install (a git ref of the ServiceDNA repository)
+    default: main
+  github-token:
+    description: Token for the PR comment
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: "1.26"
+        cache: false
+    - name: Install sdna
+      shell: bash
+      run: |
+        GOBIN="$RUNNER_TEMP/sdna-bin" go install "github.com/varuns2903/servicedna/cli@${{ inputs.cli-version }}"
+        mv "$RUNNER_TEMP/sdna-bin/cli" "$RUNNER_TEMP/sdna-bin/sdna"
+        echo "$RUNNER_TEMP/sdna-bin" >> "$GITHUB_PATH"
+    - name: ServiceDNA
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ github.action_path }}/run.sh
+      env:
+        SDNA_URL: ${{ inputs.url }}
+        SDNA_TOKEN: ${{ inputs.token }}
+        SDNA_ORG: ${{ inputs.org }}
+        SDNA_APP_URL: ${{ inputs.app-url || inputs.url }}
+        SDNA_CONFIG: ${{ runner.temp }}/sdna-config.json
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        INPUT_FLOWS: ${{ inputs.flows }}
+        INPUT_SCAN: ${{ inputs.scan }}
+        INPUT_TEST: ${{ inputs.test }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        GH_TOKEN: ${{ inputs.github-token }}

@@ -23,6 +23,7 @@ const usage = `sdna — ServiceDNA from your terminal
 
 Usage:
   sdna login [--url URL] [--email EMAIL]   sign in (password is prompted, or SDNA_PASSWORD)
+  sdna login --token sdna_pat_…           sign in with an API token (SSO accounts)
   sdna orgs                                list your organizations
   sdna use <org name or id>                choose the organization other commands use
   sdna status                              services and open incidents
@@ -34,7 +35,8 @@ Usage:
   sdna test run <flow.yaml|dir>...         run test flows (or --collection NAME); exits 1 on failure
             [--env ENV] [--timeout 5m]
 
-Settings are stored in ~/.config/servicedna/config.json (override with SDNA_CONFIG).
+Settings are stored in ~/.config/servicedna/config.json (override with SDNA_CONFIG). In CI, set
+SDNA_URL, SDNA_TOKEN (an API token from Settings → Account) and SDNA_ORG instead of signing in.
 `
 
 func main() {
@@ -79,25 +81,37 @@ func cmdLogin(c *Client, args []string) error {
 	fs := flag.NewFlagSet("login", flag.ContinueOnError)
 	url := fs.String("url", orDefault(c.cfg.URL, "http://localhost:8080"), "ServiceDNA base URL")
 	email := fs.String("email", c.cfg.Email, "account email")
+	token := fs.String("token", "", "sign in with an API token (sdna_pat_…) instead of a password — for SSO accounts")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	c.cfg.URL = strings.TrimRight(*url, "/")
-	if *email == "" {
+	if *token != "" {
+		c.cfg.Token, c.cfg.RefreshToken = *token, ""
+		var me struct {
+			Email string `json:"email"`
+		}
+		if err := c.do(http.MethodGet, "/users/me", nil, &me); err != nil {
+			return fmt.Errorf("login failed: %w", err)
+		}
+		c.cfg.Email = me.Email
+	} else if *email == "" {
 		*email = prompt("Email: ")
 	}
-	password := os.Getenv("SDNA_PASSWORD")
-	if password == "" {
-		fmt.Print("Password: ")
-		raw, err := term.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Println()
-		if err != nil {
-			return err
+	if *token == "" {
+		password := os.Getenv("SDNA_PASSWORD")
+		if password == "" {
+			fmt.Print("Password: ")
+			raw, err := term.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Println()
+			if err != nil {
+				return err
+			}
+			password = string(raw)
 		}
-		password = string(raw)
-	}
-	if err := c.login(*email, password); err != nil {
-		return fmt.Errorf("login failed: %w", err)
+		if err := c.login(*email, password); err != nil {
+			return fmt.Errorf("login failed: %w", err)
+		}
 	}
 
 	var orgs []Organization
@@ -320,7 +334,7 @@ func ensureGitignored(dir, name string) {
 
 func requireLogin(c *Client) error {
 	if c.cfg.Token == "" {
-		return errors.New("not signed in; run `sdna login`")
+		return errors.New("not signed in; run `sdna login` (or set SDNA_TOKEN)")
 	}
 	return nil
 }
@@ -329,8 +343,22 @@ func requireOrg(c *Client) error {
 	if err := requireLogin(c); err != nil {
 		return err
 	}
+	if c.cfg.OrgID == "" && c.cfg.OrgName != "" {
+		// SDNA_ORG gave a name: find its id.
+		var orgs []Organization
+		if err := c.do(http.MethodGet, "/organizations", nil, &orgs); err != nil {
+			return err
+		}
+		for _, o := range orgs {
+			if strings.EqualFold(o.Name, c.cfg.OrgName) {
+				c.cfg.OrgID = o.ID
+				return nil
+			}
+		}
+		return fmt.Errorf("no organization named %q", c.cfg.OrgName)
+	}
 	if c.cfg.OrgID == "" {
-		return errors.New("no organization selected; run `sdna use <org>`")
+		return errors.New("no organization selected; run `sdna use <org>` (or set SDNA_ORG)")
 	}
 	return nil
 }
