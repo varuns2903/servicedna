@@ -9,7 +9,9 @@ export type AlertCondition =
   | 'STATUS_RECOVERED'
   | 'LATENCY_ABOVE'
   | 'ERROR_RATE_ABOVE'
-  | 'CONSECUTIVE_FAILURES';
+  | 'CONSECUTIVE_FAILURES'
+  /** The service started calling a service it doesn't declare as a dependency. */
+  | 'UNDECLARED_DEPENDENCY';
 export type IntegrationType = 'GENERIC' | 'SLACK' | 'DISCORD';
 
 export const ALERT_CONDITION_LABELS: Record<AlertCondition, string> = {
@@ -19,6 +21,7 @@ export const ALERT_CONDITION_LABELS: Record<AlertCondition, string> = {
   LATENCY_ABOVE: 'Latency Above',
   ERROR_RATE_ABOVE: 'Error Rate Above',
   CONSECUTIVE_FAILURES: 'Consecutive Failures',
+  UNDECLARED_DEPENDENCY: 'Calls an Undeclared Dependency',
 };
 
 export const THRESHOLD_UNITS: Partial<Record<AlertCondition, string>> = {

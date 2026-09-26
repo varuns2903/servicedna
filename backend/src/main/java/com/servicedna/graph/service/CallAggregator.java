@@ -3,6 +3,8 @@ package com.servicedna.graph.service;
 import com.servicedna.graph.domain.CallKey;
 import com.servicedna.graph.domain.CallStats;
 import com.servicedna.graph.domain.ObservedCall;
+import com.servicedna.graph.domain.TargetKind;
+import com.servicedna.graph.event.NewServiceEdgeEvent;
 import com.servicedna.graph.repository.ObservedCallRepository;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -38,9 +40,12 @@ public class CallAggregator {
   private final ReadWriteLock swapLock = new ReentrantReadWriteLock();
   private Map<BucketKey, CallStats> pending = new ConcurrentHashMap<>();
 
-  public CallAggregator(ObservedCallRepository repository, TransactionTemplate transactions) {
+  private final ServiceEdgeTracker edges;
+
+  public CallAggregator(ObservedCallRepository repository, TransactionTemplate transactions, ServiceEdgeTracker edges) {
     this.repository = repository;
     this.transactions = transactions;
+    this.edges = edges;
   }
 
   public void record(UUID organizationId, Instant at, CallKey key, long durationMs, boolean error) {
@@ -77,6 +82,16 @@ public class CallAggregator {
           log.warn("Dropping observed calls for {}: {}", k.key(), retryFailure.getMessage());
         }
       });
+    }
+    for (BucketKey bucket : batch.keySet()) {
+      CallKey key = bucket.key();
+      if (key.targetKind() == TargetKind.SERVICE && key.targetServiceId() != null) {
+        try {
+          edges.seen(new NewServiceEdgeEvent(bucket.organizationId(), key.sourceServiceId(), key.targetServiceId(), key.targetOperation(), key.protocol()));
+        } catch (RuntimeException e) {
+          log.warn("Couldn't record edge {} -> {}: {}", key.sourceServiceId(), key.targetServiceId(), e.getMessage());
+        }
+      }
     }
   }
 
