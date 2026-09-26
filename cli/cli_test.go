@@ -375,3 +375,23 @@ func TestCIRunsFromEnvironmentVariables(t *testing.T) {
 		t.Fatalf("org id: %+v", c)
 	}
 }
+
+func TestMarkdownReport(t *testing.T) {
+	var s suite
+	json.Unmarshal([]byte(`{"name":"Checkout","status":"FAILED","passed":1,"failed":1,"runs":[
+	  {"caseName":"pays","traceId":"aa","passed":true,"assertionResults":[{"description":"entry status eq 201","passed":true}]},
+	  {"caseName":"declines | big","traceId":"bb","passed":false,"assertionResults":[{"description":"entry status eq 402","passed":false,"message":"got 201"}]}]}`), &s)
+	out := markdownReport([]suite{s}, "https://sdna.example.com/")
+	for _, want := range []string{
+		"### ❌ ServiceDNA test flows — 1 passed, 1 failed",
+		"| ✅ | [pays](https://sdna.example.com/traces?trace=aa) |  |",
+		"| ❌ | [declines \\| big](https://sdna.example.com/traces?trace=bb) | entry status eq 402 — got 201 |",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+	if strings.Contains(markdownReport([]suite{s}, ""), "](") {
+		t.Fatal("no links without an app URL")
+	}
+}

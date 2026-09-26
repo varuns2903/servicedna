@@ -31,7 +31,10 @@ SDNA_ORG=Acme                # organization name or id
 sdna scan && sdna test run flows/
 ```
 
-Settings from the environment are never written to the config file.
+Settings from the environment are never written to the config file. `sdna test run --report
+results.md` also writes the results as Markdown (set `SDNA_APP_URL` to link each case to its trace).
+On GitHub, the [ServiceDNA Action](../integrations/github-action) does all of this, and comments on
+pull requests.
 
 ### servicedna.yaml
 

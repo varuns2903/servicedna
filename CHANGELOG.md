@@ -7,6 +7,10 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- GitHub Action (`integrations/github-action`): on pushes to the default branch it runs
+  `sdna scan`; on pull requests it runs the repository's test flows and reports them in the job
+  summary and a single, updated PR comment, failing the check when a case fails. `sdna test run
+  --report FILE` writes the Markdown it posts.
 - API tokens (`sdna_pat_…`): created in Settings → Account, they act as their user from the CLI
   (`sdna login --token`, for SSO accounts too) and CI (`SDNA_URL`, `SDNA_TOKEN`, `SDNA_ORG`, no
   login or config file). Only hashes are stored; tokens can expire, show when they were last
