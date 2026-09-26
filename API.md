@@ -110,6 +110,13 @@ audit history the account is referenced from stay intact.
 | POST | `/{serviceId}/api-key/regenerate` | Rotate a service's API key |
 | POST | `/{serviceId}/dependencies` | Add a "depends on" edge to another service |
 
+### API catalog
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/v1/organizations/{orgId}/catalog/scan` | What `sdna scan` found in a repository: `service`, optional `environment`, `operations` (protocol, name, source, description, requestSchema — replaces the service's catalog; `null` keeps it) and `dependencies` (service names, added as declared edges; unknown names are reported back). Registers the service if it's new |
+| GET | `/api/v1/organizations/{orgId}/services/{serviceId}/operations` | The service's operations from its specs merged with those callers used in the last 24 h (`observed`, `callsLast24h`) |
+
 ### Dependency graph — `/api/v1/organizations/{orgId}/graph`
 
 | Method | Path | Description |

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -105,5 +106,112 @@ func TestEnsureGitignored(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(dir, ".gitignore"))
 	if string(data) != "node_modules\n.env.servicedna\n" {
 		t.Fatalf("got %q", data)
+	}
+}
+
+func TestScanFindsSpecsAndReferences(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "openapi.yaml", `openapi: 3.0.0
+paths:
+  /orders:
+    post:
+      summary: Place an order
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Order'}
+  /orders/{id}:
+    get: {}
+components:
+  schemas:
+    Order: {type: object, properties: {userId: {type: string}}}
+`)
+	write(t, dir, "proto/payment.proto", `syntax = "proto3";
+package shop.payments;
+service Payment {
+  rpc Charge(ChargeRequest) returns (ChargeReply);
+}
+message ChargeRequest {
+  string order_id = 1;
+  double amount = 2;
+}
+`)
+	write(t, dir, "asyncapi.yaml", `asyncapi: 2.6.0
+channels:
+  order.created:
+    subscribe:
+      message: {payload: {type: object}}
+`)
+	write(t, dir, ".env", "PAYMENT_URL=http://payment-service:4005\nDB=postgres://orders-db:5432/x\n")
+	write(t, dir, "docker-compose.yml", `services:
+  gateway:
+    environment:
+      ORDERS: http://order-service:4004
+  order-service:
+    environment:
+      - USERS=http://user-service:4001
+`)
+	write(t, dir, "node_modules/x/openapi.yaml", "openapi: 3.0.0\npaths: {/ignored: {get: {}}}\n")
+
+	r, err := scanDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{}
+	for _, op := range r.Operations {
+		names = append(names, op.Protocol+" "+op.Name)
+	}
+	want := "HTTP GET /orders/{id},HTTP POST /orders,GRPC shop.payments.Payment/Charge,MESSAGING publish order.created"
+	got := strings.Join(sortedStrings(names), ",")
+	if got != strings.Join(sortedStrings(strings.Split(want, ",")), ",") {
+		t.Fatalf("operations: %s", got)
+	}
+	for _, op := range r.Operations {
+		if op.Name == "POST /orders" && !strings.Contains(op.RequestSchema, `"userId"`) {
+			t.Fatalf("OpenAPI $ref not resolved: %s", op.RequestSchema)
+		}
+		if op.Protocol == "GRPC" && !strings.Contains(op.RequestSchema, `"amount":{"type":"number"}`) {
+			t.Fatalf("proto schema: %s", op.RequestSchema)
+		}
+	}
+	if strings.Join(r.References, ",") != "payment-service" {
+		t.Fatalf("references: %v", r.References)
+	}
+	if strings.Join(r.ComposeReferences["gateway"], ",") != "order-service" || strings.Join(r.ComposeReferences["order-service"], ",") != "user-service" {
+		t.Fatalf("compose: %v", r.ComposeReferences)
+	}
+}
+
+func sortedStrings(s []string) []string {
+	out := append([]string(nil), s...)
+	sort.Strings(out)
+	return out
+}
+
+// A compose-only repository declares its services' dependencies without registering itself.
+func TestScanOfAComposeOnlyRepoDoesNotRegisterIt(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "docker-compose.yml", "services:\n  gateway:\n    environment:\n      ORDERS: http://orders:4004\n")
+	var sent []scanRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/services"):
+			json.NewEncoder(w).Encode([]Service{{Name: "gateway"}, {Name: "orders"}})
+		case strings.HasSuffix(r.URL.Path, "/catalog/scan"):
+			var req scanRequest
+			json.NewDecoder(r.Body).Decode(&req)
+			sent = append(sent, req)
+			json.NewEncoder(w).Encode(scanResponse{DependenciesAdded: req.Dependencies})
+		}
+	}))
+	defer srv.Close()
+	t.Setenv("SDNA_CONFIG", filepath.Join(t.TempDir(), "config.json"))
+
+	c := newClient(&Config{URL: srv.URL, Token: "t", OrgID: "o1"})
+	if err := cmdScan(c, []string{"--dir", dir}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent) != 1 || sent[0].Service != "gateway" || strings.Join(sent[0].Dependencies, ",") != "orders" {
+		t.Fatalf("sent %+v", sent)
 	}
 }

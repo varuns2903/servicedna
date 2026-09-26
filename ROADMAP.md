@@ -204,7 +204,7 @@ validated.
   dependency)
 - Optional alert when a new undeclared dependency appears
 
-### 3.3 Static discovery from repositories
+### 3.3 Static discovery from repositories — ✅ Done via `sdna scan` (GitHub App sync: Phase 7)
 Gives `repositoryUrl` a real purpose:
 - Scan repos for OpenAPI, `.proto`, AsyncAPI, GraphQL schemas, and service URLs in config / env
 - Produces a graph **before any traffic exists** and an API catalog used by Phase 5

@@ -3,6 +3,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -27,6 +29,8 @@ Usage:
   sdna keys list                           ingestion keys
   sdna keys create <name>                  create an ingestion key (shown once)
   sdna init [--env ENV] [--no-install]     connect the project in this directory
+  sdna scan [--service NAME] [--env ENV]   send this repo's API specs and configured dependencies
+            [--dry-run]                    (OpenAPI, .proto, AsyncAPI, compose/.env/k8s URLs)
 
 Settings are stored in ~/.config/servicedna/config.json (override with SDNA_CONFIG).
 `
@@ -61,6 +65,8 @@ func run(args []string) error {
 		return cmdKeys(client, args[1:])
 	case "init":
 		return cmdInit(client, args[1:])
+	case "scan":
+		return cmdScan(client, args[1:])
 	}
 	return fmt.Errorf("unknown command %q (see `sdna help`)", args[0])
 }
@@ -362,4 +368,148 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+type scanRequest struct {
+	Service      string      `json:"service"`
+	Environment  string      `json:"environment,omitempty"`
+	Operations   []Operation `json:"operations"`
+	Dependencies []string    `json:"dependencies"`
+}
+
+type scanResponse struct {
+	ServiceID           string   `json:"serviceId"`
+	Operations          int      `json:"operations"`
+	DependenciesAdded   []string `json:"dependenciesAdded"`
+	DependenciesUnknown []string `json:"dependenciesUnknown"`
+}
+
+func cmdScan(c *Client, args []string) error {
+	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
+	dir := fs.String("dir", ".", "repository to scan")
+	service := fs.String("service", "", "service the repository is (default: from the project's metadata)")
+	env := fs.String("env", "", "environment (default: whichever the service is registered in)")
+	dryRun := fs.Bool("dry-run", false, "show what would be sent")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	abs, err := filepath.Abs(*dir)
+	if err != nil {
+		return err
+	}
+	result, err := scanDir(abs)
+	if err != nil {
+		return err
+	}
+	if *service == "" {
+		if stack, ok := detectStack(abs); ok {
+			*service = stack.Service
+		} else {
+			*service = filepath.Base(abs)
+		}
+	}
+
+	// Only names of registered services become dependencies; other hosts (databases, SaaS APIs)
+	// are reported, not declared.
+	known := map[string]bool{}
+	if !*dryRun || c.cfg.Token != "" {
+		if err := requireOrg(c); err != nil {
+			return err
+		}
+		var services []Service
+		if err := c.do(http.MethodGet, "/organizations/"+c.cfg.OrgID+"/services", nil, &services); err != nil {
+			return err
+		}
+		for _, s := range services {
+			known[strings.ToLower(s.Name)] = true
+		}
+	}
+	split := func(refs []string, self string) (deps, other []string) {
+		for _, r := range refs {
+			switch {
+			case r == strings.ToLower(self):
+			case known[r]:
+				deps = append(deps, r)
+			default:
+				other = append(other, r)
+			}
+		}
+		return deps, other
+	}
+
+	deps, other := split(result.References, *service)
+	main := scanRequest{Service: *service, Environment: *env, Dependencies: nonNil(deps)}
+	if len(result.Operations) > 0 {
+		main.Operations = result.Operations
+	}
+	requests := []scanRequest{main}
+	var ignored []string
+	ignored = append(ignored, other...)
+	composeNames := make([]string, 0, len(result.ComposeReferences))
+	for name := range result.ComposeReferences {
+		composeNames = append(composeNames, name)
+	}
+	sort.Strings(composeNames)
+	for _, name := range composeNames {
+		if !known[strings.ToLower(name)] {
+			continue // a compose service that isn't a registered service (a database, a helper)
+		}
+		d, o := split(result.ComposeReferences[name], name)
+		ignored = append(ignored, o...)
+		if name == *service {
+			requests[0].Dependencies = append(requests[0].Dependencies, d...)
+		} else if len(d) > 0 {
+			requests = append(requests, scanRequest{Service: name, Environment: *env, Dependencies: d})
+		}
+	}
+
+	// A repository with nothing about itself (only a compose file for other services, say) isn't a
+	// service: don't register one named after it.
+	if len(requests[0].Operations) == 0 && len(requests[0].Dependencies) == 0 {
+		requests = requests[1:]
+	}
+
+	fmt.Printf("→ scanned %s: %d operations from %d files\n", abs, len(result.Operations), len(result.Files))
+	if *dryRun {
+		out, _ := json.MarshalIndent(requests, "", "  ")
+		fmt.Println(string(out))
+		return nil
+	}
+	for _, req := range requests {
+		var res scanResponse
+		if err := c.do(http.MethodPost, "/organizations/"+c.cfg.OrgID+"/catalog/scan", req, &res); err != nil {
+			return fmt.Errorf("%s: %w", req.Service, err)
+		}
+		line := fmt.Sprintf("✓ %s:", req.Service)
+		if req.Operations != nil {
+			line += fmt.Sprintf(" %d operations", res.Operations)
+		}
+		if len(res.DependenciesAdded) > 0 {
+			line += " · depends on " + strings.Join(res.DependenciesAdded, ", ")
+		}
+		fmt.Println(line)
+	}
+	if ignored = unique(ignored); len(ignored) > 0 {
+		fmt.Printf("  (hosts that aren't registered services, not declared: %s)\n", strings.Join(ignored, ", "))
+	}
+	return nil
+}
+
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
+
+func unique(s []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, v := range s {
+		if !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	return out
 }
