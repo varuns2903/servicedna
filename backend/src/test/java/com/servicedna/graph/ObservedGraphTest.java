@@ -51,6 +51,7 @@ class ObservedGraphTest {
   @Autowired private ObservedCallCollector collector;
   @Autowired private ObservedCallRepository observedCallRepository;
   @Autowired private SubscriptionRepository subscriptionRepository;
+  @Autowired private com.servicedna.service.service.DependencyGraphService dependencyGraphService;
 
   private String token;
   private String orgId;
@@ -191,6 +192,20 @@ class ObservedGraphTest {
     assertThat(ObservedCallCollector.normalizePath("/orders/42")).isEqualTo("/orders/{id}");
     assertThat(ObservedCallCollector.normalizePath("/health")).isEqualTo("/health");
     assertThat(ObservedCallCollector.normalizePath("/v2/users/u-1/")).isEqualTo("/{id}/users/{id}/");
+  }
+
+  @Test
+  void observedCallsCountAsDependenciesForIncidentGrouping() throws Exception {
+    ByteString trace = id(16);
+    Span client = span(trace, id(8), ByteString.EMPTY, Span.SpanKind.SPAN_KIND_CLIENT, "POST", 10, attr("http.request.method", "POST"));
+    Span server = span(trace, id(8), client.getSpanId(), Span.SpanKind.SPAN_KIND_SERVER, "POST /charge", 5, attr("http.request.method", "POST"), attr("http.route", "/charge"));
+    export("checkout", client);
+    export("payments", server);
+    aggregator.flush();
+
+    JsonNode graph = graph();
+    var relations = dependencyGraphService.relationsOf(UUID.fromString(orgId), UUID.fromString(serviceId(graph, "checkout")));
+    assertThat(relations.dependencies()).containsExactly(UUID.fromString(serviceId(graph, "payments")));
   }
 
   @Test

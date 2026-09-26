@@ -25,6 +25,13 @@ public interface ObservedCallRepository extends JpaRepository<ObservedCall, UUID
           String targetOperation,
           Protocol protocol);
 
+  /** Service-to-service pairs seen since {@code since}, as [source id, target id]. */
+  @Query(
+      "select distinct c.sourceServiceId, c.targetServiceId from ObservedCall c"
+          + " where c.organizationId = :organizationId and c.targetServiceId is not null"
+          + " and c.bucketStart >= :since")
+  List<Object[]> findServiceEdgesSince(UUID organizationId, OffsetDateTime since);
+
   List<ObservedCall> findByOrganizationIdAndBucketStartGreaterThanEqual(
       UUID organizationId, OffsetDateTime since);
 

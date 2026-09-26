@@ -198,7 +198,7 @@ validated.
 - Kafka/async edges from span links (producer → topic → consumer)
 - Databases and external APIs (Stripe, Twilio…) shown as distinct node types
 
-### 3.2 Declared vs. observed (drift detection)
+### 3.2 Declared vs. observed (drift detection) — ✅ Done (alerting on new undeclared dependencies: later)
 - Manual edges stay as the **declared** graph
 - UI highlights: *declared but never seen* (stale docs) and *seen but undeclared* (hidden
   dependency)
