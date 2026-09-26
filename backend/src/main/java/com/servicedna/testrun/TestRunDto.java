@@ -22,6 +22,8 @@ public final class TestRunDto {
       @Size(max = 64) String environment,
       @NotNull Protocol protocol,
       UUID serviceId,
+      /** Alternative to serviceId, for files written by hand (CI flows). */
+      @Size(max = 255) String serviceName,
       @Size(max = 16) String method,
       @Size(max = 2048) String path,
       @Size(max = 255) String grpcMethod,
@@ -48,7 +50,25 @@ public final class TestRunDto {
       String runner,
       OffsetDateTime createdAt,
       OffsetDateTime finishedAt,
+      String caseName,
+      Boolean passed,
+      JsonNode assertionResults,
       List<Hop> hops) {}
+
+  /** A saved or inline test case: a request plus what must hold afterwards. */
+  public record Case(@NotNull @Size(max = 255) String name, @NotNull @jakarta.validation.Valid CreateRequest request, JsonNode assertions) {}
+
+  public record Collection(UUID id, String name, String description, List<Case> cases, OffsetDateTime updatedAt) {}
+
+  public record SaveCollection(@NotNull @Size(min = 1, max = 255) String name, @Size(max = 4000) String description,
+      @NotNull @Size(max = 200) List<@jakarta.validation.Valid Case> cases) {}
+
+  /** Runs a collection, or cases given inline (CI). */
+  public record StartSuite(@Size(max = 255) String name, UUID collectionId, @Size(max = 64) String environment,
+      @Size(max = 200) List<@jakarta.validation.Valid Case> cases) {}
+
+  public record Suite(UUID id, String name, UUID collectionId, String environment, String status,
+      OffsetDateTime createdAt, OffsetDateTime finishedAt, int passed, int failed, int pending, List<Run> runs) {}
 
   /** One service's part in the run: what it received and returned, from its captured spans. */
   public record Hop(

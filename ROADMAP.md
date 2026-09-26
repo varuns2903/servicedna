@@ -361,14 +361,14 @@ the gateway (e.g. hit `payment-service POST /charge` to test one subgraph).
   or all assertions pass, or a timeout expires
 - Terminal consumers (e.g. `notification-service`) are shown as final outputs
 
-### 5.4 Collections, assertions, CI
+### 5.4 Collections, assertions, CI — ✅ Done
 - Save requests as **collections** (like Postman), per environment
 - Assertions on any hop: status, latency, body fields, "event published to `order.created`
   containing `orderId`"
 - Flows stored as YAML in the repo and run with `sdna test run` in CI; results linked back to the
   commit
 
-### 5.5 Capturing values inside a service
+### 5.5 Capturing values inside a service — ✅ Done
 Function-internal values can't be observed from outside; one line exposes them:
 ```js
 sdna.capture('order.total', total)

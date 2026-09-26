@@ -146,6 +146,7 @@ public class TestRunViews {
         run.getId(), run.getEnvironment(), run.getProtocol(), run.getTargetServiceId(), serviceName,
         testRunService.readJson(run.getTarget()), testRunService.readJson(run.getRequest()), run.getTraceId(),
         run.getStatus(), testRunService.readJson(run.getResult()), run.getError(), run.getRunner(),
-        run.getCreatedAt(), run.getFinishedAt(), hops);
+        run.getCreatedAt(), run.getFinishedAt(), run.getCaseName(), run.getPassed(),
+        testRunService.readJson(run.getAssertionResults()), hops);
   }
 }

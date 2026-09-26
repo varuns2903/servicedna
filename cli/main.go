@@ -31,6 +31,8 @@ Usage:
   sdna init [--env ENV] [--no-install]     connect the project in this directory
   sdna scan [--service NAME] [--env ENV]   send this repo's API specs and configured dependencies
             [--dry-run]                    (OpenAPI, .proto, AsyncAPI, compose/.env/k8s URLs)
+  sdna test run <flow.yaml|dir>...         run test flows (or --collection NAME); exits 1 on failure
+            [--env ENV] [--timeout 5m]
 
 Settings are stored in ~/.config/servicedna/config.json (override with SDNA_CONFIG).
 `
@@ -67,6 +69,8 @@ func run(args []string) error {
 		return cmdInit(client, args[1:])
 	case "scan":
 		return cmdScan(client, args[1:])
+	case "test":
+		return cmdTest(client, args[1:])
 	}
 	return fmt.Errorf("unknown command %q (see `sdna help`)", args[0])
 }

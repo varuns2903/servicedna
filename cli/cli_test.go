@@ -215,3 +215,40 @@ func TestScanOfAComposeOnlyRepoDoesNotRegisterIt(t *testing.T) {
 		t.Fatalf("sent %+v", sent)
 	}
 }
+
+func TestFlowFilesBecomeSuites(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "checkout.yaml", `environment: dev
+cases:
+  - name: place an order
+    request:
+      service: api-gateway
+      method: POST
+      path: /api/orders
+      body: {userId: u-1, items: [{productId: p-2}]}
+    expect:
+      - {entry: true, status: 201}
+      - {service: payment-service, operation: Charge, exists: true}
+`)
+	files, err := flowFiles([]string{dir})
+	if err != nil || len(files) != 1 {
+		t.Fatalf("files %v %v", files, err)
+	}
+	start, err := loadFlow(files[0], "staging")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _ := json.Marshal(start)
+	for _, want := range []string{
+		`"name":"checkout"`, `"environment":"staging"`, `"serviceName":"api-gateway"`, `"protocol":"HTTP"`,
+		`"body":"{\"items\":[{\"productId\":\"p-2\"}],\"userId\":\"u-1\"}"`,
+		`"target":{"entry":true}`, `"target":{"operation":"Charge","service":"payment-service"}`, `"exists":true`,
+	} {
+		if !strings.Contains(string(out), want) {
+			t.Fatalf("missing %s in %s", want, out)
+		}
+	}
+	if got := strings.Join(reorder([]string{"flows/", "--env", "dev"}), " "); got != "--env dev flows/" {
+		t.Fatalf("reorder: %s", got)
+	}
+}

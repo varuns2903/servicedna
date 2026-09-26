@@ -64,6 +64,8 @@ public class TestRunService {
     if (request.serviceId() != null) {
       service = serviceRepository.findByOrganizationIdAndId(organizationId, request.serviceId())
           .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "Service not found"));
+    } else if (blankToNull(request.serviceName()) != null) {
+      service = byName(organizationId, request.serviceName().trim(), blankToNull(request.environment()));
     }
     String environment = blankToNull(request.environment());
     if (environment == null && service != null) {
@@ -206,6 +208,16 @@ public class TestRunService {
     } catch (IllegalArgumentException e) {
       return Optional.empty();
     }
+  }
+
+  /** A service by name, preferring the requested environment; ambiguous names need one. */
+  private Service byName(UUID organizationId, String name, String environment) {
+    List<Service> matches = serviceRepository.findByOrganizationId(organizationId).stream()
+        .filter(s -> s.getName().equalsIgnoreCase(name)).toList();
+    return matches.stream().filter(s -> java.util.Objects.equals(s.getEnvironment(), environment)).findFirst()
+        .or(() -> matches.size() == 1 ? Optional.of(matches.get(0)) : Optional.empty())
+        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND",
+            matches.isEmpty() ? "No service named " + name : name + " exists in several environments; say which one"));
   }
 
   private static String describe(ObjectNode target) {

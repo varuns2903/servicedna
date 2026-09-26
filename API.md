@@ -154,6 +154,22 @@ allows them:
 | GET | `/api/v1/organizations/{orgId}/environments` | Each environment, whether it's production-like, and whether test runs are allowed |
 | PUT | `/api/v1/organizations/{orgId}/environments/{environment}` | `{"allowTestRuns": true}` — `OWNER`/`ADMIN`, audit-logged |
 
+### Collections and suites
+
+| Method | Path | Description |
+|---|---|---|
+| GET / POST | `/api/v1/organizations/{orgId}/test-collections` | Saved cases: `{name, description, cases: [{name, request, assertions}]}` (a case's request can name its service with `serviceName`) |
+| PUT / DELETE | `/api/v1/organizations/{orgId}/test-collections/{id}` | |
+| POST | `/api/v1/organizations/{orgId}/test-suites` | Run a collection (`collectionId`) or inline `cases` (CI), optionally in an `environment` |
+| GET | `/api/v1/organizations/{orgId}/test-suites[/{id}]` | Status (`RUNNING` → `PASSED`/`FAILED`), counts, and each case's run with its assertion results |
+
+An assertion targets the entry call (`{"target": {"entry": true}}`) or a hop
+(`{"target": {"service": "payment-service", "operation": "Charge"}}`, operation matched exactly or
+as a substring) and checks any of `exists`, `status`, `latencyMs`, `request` / `response` fields
+(dot paths such as `lines.0.qty`) and `captured` values. Expected values are literals or one of
+`eq ne lt lte gt gte contains matches exists`, e.g. `"latencyMs": {"lt": 500}`. A case whose run
+fails or times out fails.
+
 ### Runner — `/api/v1/runner` *(authenticated by ingestion key or `RUNNER_SHARED_TOKEN`)*
 
 | Method | Path | Description |
