@@ -175,7 +175,7 @@ Modelled on Sentry/Datadog onboarding:
 2. Screen waits live: *"Waiting for first signal from your service…"*
 3. Service appears → wizard links straight to its graph and health
 
-### 2.6 `sdna` CLI
+### 2.6 `sdna` CLI — ✅ Done (login, orgs, status, keys, init; `test run` / `trace` come with Phases 5–6)
 ```bash
 sdna login
 sdna init                 # detects framework, adds the SDK, writes servicedna.yaml

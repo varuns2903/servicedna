@@ -3,10 +3,10 @@ name: SDKs
 on:
   push:
     branches: ["main"]
-    paths: ["sdks/**", ".github/workflows/sdks.yml"]
+    paths: ["sdks/**", "cli/**", ".github/workflows/sdks.yml"]
   pull_request:
     branches: ["main"]
-    paths: ["sdks/**", ".github/workflows/sdks.yml"]
+    paths: ["sdks/**", "cli/**", ".github/workflows/sdks.yml"]
 
 concurrency:
   group: sdks-${{ github.ref }}
@@ -75,3 +75,18 @@ jobs:
           java-version: "21"
           cache: maven
       - run: ./mvnw -B install
+
+  cli:
+    name: sdna CLI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - run: go vet ./...
+      - run: go test ./...

@@ -67,6 +67,10 @@ All notable changes to this project are documented in this file. The format is b
   agent (URL, key and environment filled in), and the page waits live until the service's first
   telemetry arrives, then links to it.
 
+- `sdna` CLI (`cli/`): `login`, `orgs`/`use`, `status`, `keys list|create`, and `init`, which
+  detects a Node, Python, Go or Spring Boot project, creates an ingestion key, adds the SDK, and
+  writes a gitignored `.env.servicedna`. Binaries are built for tagged `cli-v*` releases.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
