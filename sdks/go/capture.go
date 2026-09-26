@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
@@ -22,6 +23,16 @@ var MaxCaptureBytes = func() int {
 }()
 
 var sensitive = regexp.MustCompile(`(?i)pass(word|wd)?|secret|token|api[-_.]?key|authorization|cookie|session|card|cvv|ssn`)
+
+// CaptureOnError reports whether failed requests' bodies are recorded outside test runs
+// (SERVICEDNA_CAPTURE_ON_ERROR=true): held in memory per request, attached only on a 5xx.
+func CaptureOnError() bool {
+	switch strings.ToLower(os.Getenv("SERVICEDNA_CAPTURE_ON_ERROR")) {
+	case "1", "true", "yes":
+		return true
+	}
+	return false
+}
 
 // CaptureRequested reports whether ctx belongs to a ServiceDNA capture run (baggage sdna.capture=1).
 func CaptureRequested(ctx context.Context) bool {

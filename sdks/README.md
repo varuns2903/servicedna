@@ -18,7 +18,16 @@ those requests only, each SDK records the body the service received and the body
 the server span (`sdna.request.body`, `sdna.response.body`), so the run shows every hop's input
 and output. Fields named like credentials (password, token, secret, API key, cookie, session,
 card…) are masked, and bodies are capped at `SERVICEDNA_CAPTURE_MAX_BYTES` (16 KiB). Ordinary
-traffic is never captured.
+traffic is never captured — unless you turn on capture on error.
+
+### Capture on error (production)
+
+Set `SERVICEDNA_CAPTURE_ON_ERROR=true` (Spring Boot: `servicedna.capture-on-error=true`) and every
+request's bodies are held in memory until it finishes, then recorded **only if it failed** — a 5xx
+or an unhandled exception (in Node.js, any span that ends in error, including a Kafka message whose
+handler threw). Successful traffic ships no payloads; each failure arrives with what caused it,
+masked the same way and marked `sdna.captured_on_error`. It's off by default: turn it on where
+sending masked request data to ServiceDNA is acceptable.
 
 Values computed inside a function can be added to the run too — outside a test run it's a no-op:
 

@@ -44,7 +44,7 @@ public class ServiceDnaAutoConfiguration {
             (sampler, config) -> new HealthCheckDroppingSampler(sampler, healthPath));
   }
 
-  /** Body capture for test runs, in servlet (Spring MVC) applications. */
+  /** Body capture for test runs (and optionally failed requests), in servlet (Spring MVC) applications. */
   @org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
   @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(
       type = org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
@@ -52,8 +52,10 @@ public class ServiceDnaAutoConfiguration {
       name = "org.springframework.web.util.ContentCachingRequestWrapper")
   static class CaptureConfiguration {
     @Bean
-    org.springframework.boot.web.servlet.FilterRegistrationBean<ServiceDnaCaptureFilter> serviceDnaCaptureFilter() {
-      var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(new ServiceDnaCaptureFilter());
+    org.springframework.boot.web.servlet.FilterRegistrationBean<ServiceDnaCaptureFilter> serviceDnaCaptureFilter(Environment env) {
+      // SERVICEDNA_CAPTURE_ON_ERROR=true (or servicedna.capture-on-error): bodies of failed requests too.
+      boolean onError = env.getProperty("servicedna.capture-on-error", Boolean.class, false);
+      var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(new ServiceDnaCaptureFilter(onError));
       // Inside OpenTelemetry's server filter, so its span and extracted baggage are current.
       registration.setOrder(org.springframework.core.Ordered.LOWEST_PRECEDENCE - 100);
       return registration;

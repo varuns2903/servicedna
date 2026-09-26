@@ -1,6 +1,8 @@
-"""Request/response body capture for ServiceDNA test runs. Only requests carrying the baggage entry
-``sdna.capture=1`` (set by the ServiceDNA runner) are captured; bodies are masked and truncated
-before being recorded on the request's server span."""
+"""Request/response body capture for ServiceDNA. Requests carrying the baggage entry
+``sdna.capture=1`` (test runs) are always captured. With ``SERVICEDNA_CAPTURE_ON_ERROR=true``,
+every other request's bodies are held until its response and recorded only if it failed (5xx) —
+successful traffic ships no payloads. Bodies are masked and truncated before being recorded on the
+request's server span."""
 
 from __future__ import annotations
 
@@ -13,6 +15,10 @@ from opentelemetry import baggage, trace
 MAX_BYTES = int(os.getenv("SERVICEDNA_CAPTURE_MAX_BYTES", "16384"))
 _SENSITIVE = re.compile(r"pass(word|wd)?|secret|token|api[-_.]?key|authorization|cookie|session|card|cvv|ssn", re.I)
 _SCOPE_KEY = "servicedna.capture"
+
+
+def capture_on_error() -> bool:
+    return os.getenv("SERVICEDNA_CAPTURE_ON_ERROR", "").lower() in ("1", "true", "yes")
 
 
 def capture_requested() -> bool:
@@ -52,8 +58,12 @@ def capture(name: str, value) -> None:
 
 
 def server_request_hook(span, scope):
-    if capture_requested() and span is not None and span.is_recording():
-        scope[_SCOPE_KEY] = {"span": span, "request": bytearray(), "response": bytearray()}
+    if span is None or not span.is_recording():
+        return
+    if capture_requested():
+        scope[_SCOPE_KEY] = {"span": span, "on_error": False, "status": None, "request": bytearray(), "response": bytearray()}
+    elif capture_on_error():
+        scope[_SCOPE_KEY] = {"span": span, "on_error": True, "status": None, "request": bytearray(), "response": bytearray()}
 
 
 def client_request_hook(span, scope, message):
@@ -64,17 +74,27 @@ def client_request_hook(span, scope, message):
 
 def client_response_hook(span, scope, message):
     state = scope.get(_SCOPE_KEY)
-    if state is None or message.get("type") != "http.response.body":
+    if state is None:
+        return
+    if message.get("type") == "http.response.start":
+        state["status"] = message.get("status")
+        return
+    if message.get("type") != "http.response.body":
         return
     _append(state["response"], message.get("body", b""))
     if not message.get("more_body", False):
+        scope.pop(_SCOPE_KEY, None)
         server_span = state["span"]
+        if state["on_error"]:
+            if (state["status"] or 0) < 500:
+                return
+            server_span.set_attribute("sdna.captured_on_error", True)
+        else:
+            server_span.set_attribute("sdna.captured", True)
         if state["request"]:
             server_span.set_attribute("sdna.request.body", redact(state["request"].decode("utf-8", "replace")))
         if state["response"]:
             server_span.set_attribute("sdna.response.body", redact(state["response"].decode("utf-8", "replace")))
-        server_span.set_attribute("sdna.captured", True)
-        scope.pop(_SCOPE_KEY, None)
 
 
 def _append(buffer: bytearray, chunk: bytes) -> None:

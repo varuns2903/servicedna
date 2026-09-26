@@ -11,11 +11,12 @@ import (
 )
 
 // captureBodies records request and response bodies on the server span for ServiceDNA capture runs
-// (baggage sdna.capture=1). Runs inside the otelhttp handler, where trace context and baggage have
-// been extracted.
+// (baggage sdna.capture=1) and, with servicedna.CaptureOnError, for requests that fail (5xx or a
+// panic). Runs inside the otelhttp handler, where trace context and baggage have been extracted.
 func captureBodies(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !servicedna.CaptureRequested(r.Context()) {
+		requested := servicedna.CaptureRequested(r.Context())
+		if !requested && !servicedna.CaptureOnError() {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -29,25 +30,53 @@ func captureBodies(next http.Handler) http.Handler {
 			}{io.MultiReader(bytes.NewReader(request), r.Body), r.Body}
 		}
 		rec := &bodyRecorder{ResponseWriter: w}
-		next.ServeHTTP(rec, r)
-
 		span := trace.SpanFromContext(r.Context())
-		if len(request) > 0 {
-			span.SetAttributes(attribute.String("sdna.request.body", servicedna.Redact(string(request))))
+		if !requested {
+			defer func() {
+				panicked := recover()
+				if panicked != nil || rec.status >= 500 {
+					record(span, request, rec)
+					span.SetAttributes(attribute.Bool("sdna.captured_on_error", true))
+				}
+				if panicked != nil {
+					panic(panicked)
+				}
+			}()
+			next.ServeHTTP(rec, r)
+			return
 		}
-		if rec.body.Len() > 0 {
-			span.SetAttributes(attribute.String("sdna.response.body", servicedna.Redact(rec.body.String())))
-		}
+		next.ServeHTTP(rec, r)
+		record(span, request, rec)
 		span.SetAttributes(attribute.Bool("sdna.captured", true))
 	})
 }
 
+func record(span trace.Span, request []byte, rec *bodyRecorder) {
+	if len(request) > 0 {
+		span.SetAttributes(attribute.String("sdna.request.body", servicedna.Redact(string(request))))
+	}
+	if rec.body.Len() > 0 {
+		span.SetAttributes(attribute.String("sdna.response.body", servicedna.Redact(rec.body.String())))
+	}
+}
+
 type bodyRecorder struct {
 	http.ResponseWriter
-	body bytes.Buffer
+	body   bytes.Buffer
+	status int
+}
+
+func (b *bodyRecorder) WriteHeader(status int) {
+	if b.status == 0 {
+		b.status = status
+	}
+	b.ResponseWriter.WriteHeader(status)
 }
 
 func (b *bodyRecorder) Write(p []byte) (int, error) {
+	if b.status == 0 {
+		b.status = http.StatusOK
+	}
 	if b.body.Len() <= servicedna.MaxCaptureBytes {
 		b.body.Write(p)
 	}

@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 from opentelemetry import propagate, trace
 from opentelemetry.baggage.propagation import W3CBaggagePropagator
@@ -28,6 +28,12 @@ app = FastAPI()
 async def charge(request: Request):
     body = await request.json()
     sdna.capture("computed.total", {"amount": body["amount"] * 2})
+    if body.get("fail"):
+        raise HTTPException(status_code=503, detail="processor unavailable")
+    if body.get("crash"):
+        raise RuntimeError("bug")
+    if body.get("reject"):
+        raise HTTPException(status_code=402, detail="declined")
     return {"status": "CAPTURED", "amount": body["amount"], "apiKey": "secret"}
 
 
@@ -76,3 +82,27 @@ def test_leaves_ordinary_requests_alone():
     assert "sdna.request.body" not in attrs
     assert "sdna.response.body" not in attrs
     assert all("sdna.capture.computed.total" not in s.attributes for s in exporter.get_finished_spans())
+
+
+def test_with_capture_on_error_only_failed_requests_carry_their_bodies(monkeypatch):
+    monkeypatch.setenv("SERVICEDNA_CAPTURE_ON_ERROR", "true")
+
+    client.post("/charge", json={"amount": 1})
+    client.post("/charge", json={"amount": 2, "reject": True})
+    assert all("sdna.request.body" not in s.attributes for s in exporter.get_finished_spans())
+
+    exporter.clear()
+    client.post("/charge", json={"amount": 3, "fail": True, "password": "x"})
+    attrs = server_span().attributes
+    assert json.loads(attrs["sdna.request.body"]) == {"amount": 3, "fail": True, "password": "[masked]"}
+    assert json.loads(attrs["sdna.response.body"]) == {"detail": "processor unavailable"}
+    assert attrs["sdna.captured_on_error"] is True
+    assert "sdna.captured" not in attrs
+
+
+def test_capture_on_error_includes_unhandled_exceptions(monkeypatch):
+    monkeypatch.setenv("SERVICEDNA_CAPTURE_ON_ERROR", "true")
+    TestClient(app, raise_server_exceptions=False).post("/charge", json={"amount": 4, "crash": True})
+    attrs = server_span().attributes
+    assert json.loads(attrs["sdna.request.body"]) == {"amount": 4, "crash": True}
+    assert attrs["sdna.captured_on_error"] is True

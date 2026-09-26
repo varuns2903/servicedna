@@ -7,6 +7,10 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- SDKs: capture on error. With `SERVICEDNA_CAPTURE_ON_ERROR=true` (Spring Boot:
+  `servicedna.capture-on-error`), request and response bodies are held per request and recorded
+  only when it fails (5xx or an unhandled exception; in Node.js any span ending in error, including
+  failed Kafka consumers), masked and marked `sdna.captured_on_error`. Off by default.
 - Test Studio (`/testing`): compose an HTTP, GraphQL, gRPC or Kafka request from a service's
   catalog (body templated from its request schema), send it through the environment's runner and
   watch each hop arrive with what it received and returned. One click turns a run into
@@ -131,6 +135,8 @@ All notable changes to this project are documented in this file. The format is b
   and exits non-zero on failure.
 
 ### Changed
+- Spring Boot SDK: body capture writes responses straight through, keeping a capped copy,
+  instead of buffering the whole response.
 - Test run hops are returned in call order (callers before what they call) rather than by start
   time, which clock skew between hosts could scramble.
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)

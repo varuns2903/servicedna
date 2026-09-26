@@ -29,6 +29,16 @@ func handler() http.Handler {
 		body, _ := io.ReadAll(r.Body)
 		var req map[string]any
 		_ = json.Unmarshal(body, &req)
+		switch req["fail"] {
+		case "503":
+			http.Error(w, `{"error":"no stock service"}`, http.StatusServiceUnavailable)
+			return
+		case "409":
+			http.Error(w, `{"error":"out of stock"}`, http.StatusConflict)
+			return
+		case "panic":
+			panic("bug")
+		}
 		servicedna.Capture(r.Context(), "remaining", 119)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"sku": req["sku"], "sessionToken": "t"})
@@ -78,5 +88,33 @@ func TestLeavesOrdinaryRequestsAlone(t *testing.T) {
 		if _, ok := a[key]; ok {
 			t.Fatalf("%s recorded outside a capture run", key)
 		}
+	}
+}
+
+func TestWithCaptureOnErrorOnlyFailedRequestsCarryTheirBodies(t *testing.T) {
+	t.Setenv("SERVICEDNA_CAPTURE_ON_ERROR", "true")
+	send := func(body string) map[string]string {
+		recorder := setup(t)
+		func() {
+			defer func() { recover() }()
+			handler().ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/reserve", strings.NewReader(body)))
+		}()
+		return attrs(recorder)
+	}
+
+	for _, body := range []string{`{"sku":"KB-001"}`, `{"sku":"KB-001","fail":"409"}`} {
+		if a := send(body); a["sdna.request.body"] != "" || a["sdna.captured_on_error"] != "" {
+			t.Fatalf("%s: recorded %v", body, a)
+		}
+	}
+	a := send(`{"sku":"KB-001","fail":"503","password":"x"}`)
+	if a["sdna.request.body"] != `{"fail":"503","password":"[masked]","sku":"KB-001"}` || a["sdna.captured_on_error"] != "true" {
+		t.Fatalf("503: %v", a)
+	}
+	if !strings.Contains(a["sdna.response.body"], "no stock service") || a["sdna.captured"] != "" {
+		t.Fatalf("503 response: %v", a)
+	}
+	if a := send(`{"sku":"KB-001","fail":"panic"}`); a["sdna.request.body"] == "" || a["sdna.captured_on_error"] != "true" {
+		t.Fatalf("panic: %v", a)
 	}
 }
