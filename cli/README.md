@@ -13,12 +13,32 @@ sdna init --env dev                               # connect the project in this 
 | `sdna status` | Services with status, environment, language/version and last telemetry; open incidents |
 | `sdna keys list` / `sdna keys create <name>` | Ingestion keys (a created key is shown once) |
 | `sdna scan [--service NAME] [--env ENV] [--dry-run] [--dir DIR]` | Read the repository's OpenAPI, `.proto` and AsyncAPI specs into the service's API catalog, and declare dependencies on the registered services its configuration names (`.env`, Spring `application.*`, k8s/helm manifests, and each service in a docker-compose file). Works on private repos and in CI — nothing leaves your machine but the results |
+| `sdna test run <flow.yaml\|dir>... [--env ENV] [--timeout 5m]` / `--collection NAME` | Run test flows (YAML in the repo) or a saved collection as suites; prints each case and failed check; exits 1 on any failure — drop it into CI |
 | `sdna init [--env ENV] [--no-install] [--dir DIR]` | Detect the stack (Node, Python, Go, Spring Boot), create an ingestion key, add the SDK, write `.env.servicedna` (and gitignore it), and print how to start the service |
 
 Settings live in `~/.config/servicedna/config.json` (owner-only; override with `SDNA_CONFIG`).
 The session refreshes itself; `sdna login` again if it's revoked.
 
-Test runs and trace lookups (`sdna test run`, `sdna trace`) arrive with the roadmap's Test Studio.
+### Flow files
+
+```yaml
+name: Checkout
+environment: staging          # optional; --env overrides
+cases:
+  - name: an order is paid and confirmed
+    request:                  # protocol defaults to HTTP (also GRPC, GRAPHQL, MESSAGING)
+      service: api-gateway
+      method: POST
+      path: /api/orders
+      body: {userId: u-1, items: [{productId: p-2}]}
+    expect:
+      - {entry: true, status: 201, latencyMs: {lt: 2000}}
+      - {service: order-service, operation: POST /orders, response: {status: CONFIRMED}}
+      - {service: payment-service, operation: Charge, exists: true}
+      - {service: notification-service, request: {total: 59}}
+```
+
+Runs are in test mode unless a request sets `testMode: false`.
 
 ## Install
 

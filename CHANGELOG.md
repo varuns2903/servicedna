@@ -117,6 +117,11 @@ All notable changes to this project are documented in this file. The format is b
   real side effects); production-like environments refuse test runs until an owner or admin
   allows them (`/environments`); every run is audit-logged; 60 runs a minute per organization.
 
+- Test collections, suites and assertions: save cases, run them (or inline cases from CI) as a
+  suite, and check the entry response and any hop — status, latency, request/response fields,
+  captured values, whether a hop happened. `sdna test run flows/` runs YAML flow files from a repo
+  and exits non-zero on failure.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent

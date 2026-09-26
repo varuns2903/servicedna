@@ -68,6 +68,23 @@ public class TestRun {
   @Column(name = "finished_at")
   private OffsetDateTime finishedAt;
 
+  /** Set when the run is one case of a suite. */
+  @Column(name = "suite_id")
+  private UUID suiteId;
+
+  @Column(name = "case_name")
+  private String caseName;
+
+  /** JSON array of assertions (see AssertionEvaluator); evaluated when the run finishes. */
+  @Column(columnDefinition = "TEXT")
+  private String assertions;
+
+  @Column(name = "assertion_results", columnDefinition = "TEXT")
+  private String assertionResults;
+
+  /** Null until evaluated (or when there are no assertions). */
+  private Boolean passed;
+
   public TestRun() {}
 
   public TestRun(
@@ -105,4 +122,14 @@ public class TestRun {
   public void setRespondedAt(OffsetDateTime respondedAt) { this.respondedAt = respondedAt; }
   public OffsetDateTime getFinishedAt() { return finishedAt; }
   public void setFinishedAt(OffsetDateTime finishedAt) { this.finishedAt = finishedAt; }
+  public UUID getSuiteId() { return suiteId; }
+  public void setSuiteId(UUID suiteId) { this.suiteId = suiteId; }
+  public String getCaseName() { return caseName; }
+  public void setCaseName(String caseName) { this.caseName = caseName; }
+  public String getAssertions() { return assertions; }
+  public void setAssertions(String assertions) { this.assertions = assertions; }
+  public String getAssertionResults() { return assertionResults; }
+  public void setAssertionResults(String assertionResults) { this.assertionResults = assertionResults; }
+  public Boolean getPassed() { return passed; }
+  public void setPassed(Boolean passed) { this.passed = passed; }
 }
