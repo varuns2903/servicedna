@@ -90,7 +90,7 @@ public class ServiceDiscoveryListener {
   }
 
   /** Null when the resource doesn't name its service. */
-  static TelemetryIdentity identityOf(List<KeyValue> attributes) {
+  public static TelemetryIdentity identityOf(List<KeyValue> attributes) {
     String name = attribute(attributes, "service.name");
     if (name == null || name.isBlank() || name.startsWith(UNKNOWN_SERVICE_PREFIX)) {
       return null;

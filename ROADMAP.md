@@ -191,14 +191,14 @@ sdna trace <trace-id>     # print a hop-by-hop flow in the terminal
 The dependency graph is a headline feature, but today every edge is typed by hand and never
 validated.
 
-### 3.1 Observed graph from traces
+### 3.1 Observed graph from traces — ✅ Done
 - A client span in service A whose child server span is in service B ⇒ edge `A → B`
 - Built with the OTel Collector `servicegraph` connector; aggregated into
   `observed_edges(from, to, protocol, calls, errors, p95, last_seen)`
 - Kafka/async edges from span links (producer → topic → consumer)
 - Databases and external APIs (Stripe, Twilio…) shown as distinct node types
 
-### 3.2 Declared vs. observed (drift detection)
+### 3.2 Declared vs. observed (drift detection) — ✅ Done (alerting on new undeclared dependencies: later)
 - Manual edges stay as the **declared** graph
 - UI highlights: *declared but never seen* (stale docs) and *seen but undeclared* (hidden
   dependency)
