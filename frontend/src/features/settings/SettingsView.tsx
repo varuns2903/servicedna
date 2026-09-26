@@ -32,6 +32,7 @@ import { EscalationTab } from './EscalationTab';
 import { AuditLogTab } from './AuditLogTab';
 import { IntegrationsTab } from './IntegrationsTab';
 import { SlaReportTab } from './SlaReportTab';
+import { ApiTokensCard } from './ApiTokensCard';
 
 export function SettingsView() {
   const currentOrgId = useOrganizationStore((state) => state.selectedOrganizationId);
@@ -606,6 +607,7 @@ export function SettingsView() {
 
         {activeTab === 'account' && (
           <div className="space-y-6 max-w-2xl">
+            <ApiTokensCard />
             <Card>
               <CardHeader>
                 <CardTitle>Change Password</CardTitle>

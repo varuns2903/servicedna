@@ -1,5 +1,7 @@
 package com.servicedna.auth.security;
 
+import com.servicedna.auth.token.ApiTokenService;
+import com.servicedna.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,13 +18,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+  /** Request attribute set when the caller authenticated with a personal API token. */
+  public static final String API_TOKEN_ATTRIBUTE = "servicedna.apiToken";
+
   private final JwtService jwtService;
   private final CustomUserDetailsService userDetailsService;
+  private final ApiTokenService apiTokens;
+  private final UserRepository users;
 
   public JwtAuthenticationFilter(
-      JwtService jwtService, CustomUserDetailsService userDetailsService) {
+      JwtService jwtService, CustomUserDetailsService userDetailsService, ApiTokenService apiTokens, UserRepository users) {
     this.jwtService = jwtService;
     this.userDetailsService = userDetailsService;
+    this.apiTokens = apiTokens;
+    this.users = users;
   }
 
   @Override
@@ -41,6 +50,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     jwt = authHeader.substring(7);
+    if (jwt.startsWith(ApiTokenService.PREFIX)) {
+      apiTokens.authenticate(jwt).flatMap(users::findById).ifPresent(user -> {
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        UsernamePasswordAuthenticationToken authToken =
+            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+        request.setAttribute(API_TOKEN_ATTRIBUTE, true);
+      });
+      filterChain.doFilter(request, response);
+      return;
+    }
     try {
       userEmail = jwtService.extractUsername(jwt);
       if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {

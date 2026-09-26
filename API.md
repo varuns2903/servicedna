@@ -38,6 +38,20 @@ always carries an `errorCode` and must never trigger a retry.
 
 ---
 
+## API tokens — `/api/v1/users/me/tokens`
+
+Personal tokens (`sdna_pat_…`) for the CLI and CI, sent as `Authorization: Bearer <token>`; a
+token acts as its user, with the user's organization roles. Only a hash is stored.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | Your tokens: name, prefix, created, expires, last used (never the token) |
+| POST | `/` | Create one (`{name, expiresInDays?}` — 1–366, omitted = never); the response is the only time `token` is returned |
+| DELETE | `/{tokenId}` | Revoke |
+
+Creating and revoking need a signed-in session: requests authenticated with an API token get
+`403 SESSION_REQUIRED`, so a leaked token can't mint more.
+
 ## Authentication — `/api/v1/auth`
 
 | Method | Path | Description |

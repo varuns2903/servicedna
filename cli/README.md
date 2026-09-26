@@ -9,6 +9,7 @@ sdna init --env dev                               # connect the project in this 
 | Command | |
 |---|---|
 | `sdna login [--url URL] [--email EMAIL]` | Sign in; picks your first organization |
+| `sdna login --token sdna_pat_…` | Sign in with an API token (Settings → Account) — for SSO accounts |
 | `sdna orgs` / `sdna use <org>` | List organizations / choose the one other commands use |
 | `sdna status` | Services with status, environment, language/version and last telemetry; open incidents |
 | `sdna keys list` / `sdna keys create <name>` | Ingestion keys (a created key is shown once) |
@@ -18,6 +19,19 @@ sdna init --env dev                               # connect the project in this 
 
 Settings live in `~/.config/servicedna/config.json` (owner-only; override with `SDNA_CONFIG`).
 The session refreshes itself; `sdna login` again if it's revoked.
+
+### In CI
+
+No login needed: create an API token (Settings → Account → API Tokens) and set
+
+```bash
+SDNA_URL=https://servicedna.example.com
+SDNA_TOKEN=sdna_pat_…        # a secret in your CI
+SDNA_ORG=Acme                # organization name or id
+sdna scan && sdna test run flows/
+```
+
+Settings from the environment are never written to the config file.
 
 ### servicedna.yaml
 

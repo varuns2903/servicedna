@@ -7,6 +7,10 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- API tokens (`sdna_pat_…`): created in Settings → Account, they act as their user from the CLI
+  (`sdna login --token`, for SSO accounts too) and CI (`SDNA_URL`, `SDNA_TOKEN`, `SDNA_ORG`, no
+  login or config file). Only hashes are stored; tokens can expire, show when they were last
+  used, and can't mint more tokens.
 - Catalog as code: a repository's `servicedna.yaml` declares its service's description, owner,
   tier, SLO, health URL, repository, dependencies and alert rules; `sdna scan` applies it and
   `sdna init` writes a starter. Alert rules it declares are managed by the file (replaced on each

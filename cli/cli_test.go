@@ -328,3 +328,50 @@ func TestServicednaYamlMistakesAreReported(t *testing.T) {
 		t.Fatalf("template doesn't load: %+v %v", m, err)
 	}
 }
+
+func TestCIRunsFromEnvironmentVariables(t *testing.T) {
+	var auth []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = append(auth, r.Header.Get("Authorization")+" "+r.URL.Path)
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/organizations"):
+			json.NewEncoder(w).Encode([]Organization{{ID: "11111111-2222-3333-4444-555555555555", Name: "ShopLite"}})
+		case strings.HasSuffix(r.URL.Path, "/services"):
+			json.NewEncoder(w).Encode([]Service{{Name: "orders"}})
+		case strings.HasSuffix(r.URL.Path, "/catalog/scan"):
+			json.NewEncoder(w).Encode(scanResponse{})
+		}
+	}))
+	defer srv.Close()
+	configFile := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("SDNA_CONFIG", configFile)
+	t.Setenv("SDNA_URL", srv.URL+"/")
+	t.Setenv("SDNA_TOKEN", "sdna_pat_abc")
+	t.Setenv("SDNA_ORG", "shoplite")
+
+	cfg, err := loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	write(t, dir, "servicedna.yaml", "service: orders\nowner: team-checkout\n")
+	if err := cmdScan(newClient(cfg), []string{"--dir", dir}); err != nil {
+		t.Fatal(err)
+	}
+	want := "Bearer sdna_pat_abc /api/v1/organizations/11111111-2222-3333-4444-555555555555/catalog/scan"
+	if auth[len(auth)-1] != want {
+		t.Fatalf("requests %v", auth)
+	}
+	if err := cfg.save(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(configFile); !os.IsNotExist(err) {
+		t.Fatal("a token from the environment must not be written to the config file")
+	}
+
+	var c Config
+	c.applyEnv(func(k string) string { return map[string]string{"SDNA_ORG": "11111111-2222-3333-4444-555555555555"}[k] })
+	if c.OrgID == "" || c.fromEnv {
+		t.Fatalf("org id: %+v", c)
+	}
+}
