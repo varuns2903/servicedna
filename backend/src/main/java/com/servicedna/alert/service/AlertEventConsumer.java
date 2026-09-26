@@ -10,6 +10,7 @@ import com.servicedna.alert.repository.AlertRuleRepository;
 import com.servicedna.dashboard.event.DashboardInvalidationEvent;
 import com.servicedna.service.domain.ServiceStatus;
 import com.servicedna.service.repository.MaintenanceWindowRepository;
+import com.servicedna.service.repository.ServiceRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -32,19 +33,22 @@ public class AlertEventConsumer {
   private final ApplicationEventPublisher eventPublisher;
   private final MeterRegistry meterRegistry;
   private final MaintenanceWindowRepository maintenanceWindowRepository;
+  private final ServiceRepository serviceRepository;
 
   public AlertEventConsumer(
       AlertRuleRepository alertRuleRepository,
       ObjectMapper objectMapper,
       ApplicationEventPublisher eventPublisher,
       MeterRegistry meterRegistry,
-      MaintenanceWindowRepository maintenanceWindowRepository) {
+      MaintenanceWindowRepository maintenanceWindowRepository,
+      ServiceRepository serviceRepository) {
     this.alertRuleRepository = alertRuleRepository;
     this.objectMapper = objectMapper;
     this.restTemplate = new RestTemplate();
     this.eventPublisher = eventPublisher;
     this.meterRegistry = meterRegistry;
     this.maintenanceWindowRepository = maintenanceWindowRepository;
+    this.serviceRepository = serviceRepository;
   }
 
   @KafkaListener(topics = KafkaTopicConfig.SERVICE_EVENTS_TOPIC, groupId = "sdna-alerts-group")
@@ -71,8 +75,17 @@ public class AlertEventConsumer {
 
         List<AlertRule> rules =
             alertRuleRepository.findByServiceIdAndCondition(event.serviceId(), triggeredCondition);
-        for (AlertRule rule : rules) {
-          triggerWebhook(rule, event);
+        if (!rules.isEmpty()) {
+          // Looked up once per event rather than via rule.getService(): that association is
+          // lazy, and this listener runs outside a transaction.
+          String serviceName =
+              serviceRepository
+                  .findById(event.serviceId())
+                  .map(com.servicedna.service.domain.Service::getName)
+                  .orElse(event.serviceId().toString());
+          for (AlertRule rule : rules) {
+            triggerWebhook(rule, event, serviceName);
+          }
         }
       }
 
@@ -90,7 +103,7 @@ public class AlertEventConsumer {
     };
   }
 
-  private void triggerWebhook(AlertRule rule, ServiceStatusChangedEvent event) {
+  private void triggerWebhook(AlertRule rule, ServiceStatusChangedEvent event, String serviceName) {
     log.info(
         "Triggering {} webhook for rule ID: {} to URL: {}",
         rule.getIntegrationType(),
@@ -101,8 +114,8 @@ public class AlertEventConsumer {
       Object payload;
       String message =
           String.format(
-              "Service '%s' (ID: %s) changed status to %s",
-              event.serviceId(), event.serviceId(), event.newStatus());
+              "Service '%s' changed status from %s to %s",
+              serviceName, event.oldStatus(), event.newStatus());
 
       switch (rule.getIntegrationType()) {
         case SLACK:
@@ -113,7 +126,7 @@ public class AlertEventConsumer {
           break;
         case GENERIC:
         default:
-          payload = new WebhookPayload(message, event);
+          payload = new WebhookPayload(message, serviceName, event);
           break;
       }
 
@@ -131,7 +144,8 @@ public class AlertEventConsumer {
     }
   }
 
-  private record WebhookPayload(String message, ServiceStatusChangedEvent event) {}
+  private record WebhookPayload(
+      String message, String serviceName, ServiceStatusChangedEvent event) {}
 
   private record SlackPayload(String text) {}
 

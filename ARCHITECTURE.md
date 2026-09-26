@@ -49,9 +49,9 @@ event processing, Redis for caching/rate-limiting, and PostgreSQL as the system 
 - **Health-check ingestion**: external services `POST /api/v1/ping` with their own API key
   (validated against the `services` table, cached in Redis for an hour so every ping doesn't hit
   Postgres). A status change publishes a `ServiceStatusChangedEvent` onto Kafka.
-- **Alert evaluation**: `AlertEventConsumer` consumes those Kafka events, evaluates configured
-  alert rules (latency threshold, error rate, consecutive failures) against recent pings, and
-  opens an incident automatically when a rule's condition is met.
+- **Alert evaluation**: `AlertEventConsumer` consumes those Kafka events, finds the service's
+  alert rules matching the new status (`STATUS_DOWN` / `STATUS_DEGRADED` / `STATUS_RECOVERED`),
+  and posts each rule's webhook, unless the service is in an active maintenance window.
 - **Dashboard live updates**: any incident or service-status change publishes a
   `DashboardInvalidationEvent` in-process, which the dashboard module turns into a STOMP broadcast
   to `/topic/organizations/{orgId}/dashboard` — the frontend's WebSocket provider invalidates the

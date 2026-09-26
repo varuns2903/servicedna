@@ -6,6 +6,11 @@ spring:
     password: sa
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
+    properties:
+      hibernate:
+        # application.yml pins PostgreSQLDialect via this more specific property, which would
+        # otherwise win over database-platform and emit Postgres-only SQL (e.g. row-lock clauses).
+        dialect: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
   flyway:

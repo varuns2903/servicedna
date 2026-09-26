@@ -4,6 +4,31 @@ All notable changes to this project are documented in this file. The format is b
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
+  consecutive observations agree, so a single slow probe, or the active prober and a push agent
+  disagreeing near the DEGRADED threshold, no longer flips it back and forth. A newly registered
+  service's first status still applies immediately. Set it to `1` for the previous behaviour.
+- Alert webhook messages name the service and its previous status
+  (`Service 'order-service' changed status from HEALTHY to DOWN`), and generic webhook payloads
+  include a `serviceName` field.
+
+### Fixed
+- Services page and Alerts page crashed when a service had alert rules (`Cannot read properties
+  of undefined (reading 'replace')`): the frontend expected a different alert-rule shape than the
+  API returns. Creating rules from the UI failed for the same reason.
+- Concurrent observations of the same status change (prober and pushed ping at once) could both
+  publish an alert; status changes are now applied under a row lock.
+- Status changes reported through `POST /api/v1/ping` didn't evict the services cache, so the UI
+  could show a stale status for up to 10 minutes.
+- Client errors — malformed JSON, invalid enum values, missing headers, invalid path IDs,
+  unsupported methods — returned `500` instead of the matching `4xx`.
+- The Kafka healthcheck in `docker-compose.yml` ignored `KAFKA_PORT`, so changing it left Kafka
+  unhealthy and the backend never started.
+- Docs described alert conditions and automatic incident creation that don't exist yet.
+
 ## [1.0.0] — 2026-09-12
 
 Initial public release.
