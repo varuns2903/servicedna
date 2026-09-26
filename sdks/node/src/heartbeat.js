@@ -17,7 +17,7 @@ function startHeartbeat(config, log = console) {
     context.with(suppressTracing(context.active()), async () => {
       const start = Date.now();
       let status = 'DOWN';
-      let message = 'health check failed';
+      let message;
       try {
         const res = await fetch(config.localHealthUrl, { signal: AbortSignal.timeout(5000) });
         const body = await res.json().catch(() => ({}));

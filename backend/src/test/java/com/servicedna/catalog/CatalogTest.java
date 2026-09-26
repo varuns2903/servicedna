@@ -205,6 +205,12 @@ class CatalogTest {
     call(post("/api/v1/organizations/" + orgId + "/catalog/scan").content(
         "{\"service\":\"orders\",\"dependencies\":[],\"alerts\":[{\"condition\":\"STATUS_DOWN\",\"incidentSeverity\":\"MAJOR\"}]}"));
     call(post("/api/v1/organizations/" + orgId + "/catalog/scan").content("{\"service\":\"orders\",\"dependencies\":[]}"));
+    // A rule is deleted through its own service's path only.
+    String ruleId = call(get(rules)).get(0).get("id").asText();
+    String other = call(post("/api/v1/organizations/" + orgId + "/services").content(json(new CreateServiceRequest("other", null, null, null, null)))).get("id").asText();
+    assertThat(mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .delete("/api/v1/organizations/" + orgId + "/services/" + other + "/alert-rules/" + ruleId)
+            .header("Authorization", "Bearer " + token)).andReturn().getResponse().getStatus()).isEqualTo(404);
     List<String> now = new ArrayList<>();
     call(get(rules)).forEach(r -> now.add(r.get("condition").asText() + " " + r.get("incidentSeverity").asText() + " " + r.path("managedBy").asText("-")));
     assertThat(now).containsExactlyInAnyOrder("STATUS_DEGRADED MINOR -", "STATUS_DOWN MAJOR CATALOG");

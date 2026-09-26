@@ -51,10 +51,10 @@ public class AlertRuleController {
   @DeleteMapping("/{ruleId}")
   public ResponseEntity<Void> deleteAlertRule(
       @PathVariable UUID orgId,
-      @PathVariable UUID serviceId, // included for URL consistency
+      @PathVariable UUID serviceId,
       @PathVariable UUID ruleId,
       @AuthenticationPrincipal CustomUserDetails userDetails) {
-    alertRuleService.deleteAlertRule(orgId, ruleId, userDetails.getUser().getId());
+    alertRuleService.deleteAlertRule(orgId, serviceId, ruleId, userDetails.getUser().getId());
     return ResponseEntity.noContent().build();
   }
 }

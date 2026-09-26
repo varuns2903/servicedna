@@ -95,7 +95,7 @@ public class GlobalExceptionHandler {
       return error(status, code, detail != null ? detail : ex.getMessage(), request);
     }
 
-    log.error("Unexpected error occurred while processing request: " + request.getRequestURI(), ex);
+    log.error("Unexpected error occurred while processing request: {}", request.getRequestURI().replaceAll("[\r\n]", "_"), ex);
     ErrorResponse errorResponse =
         new ErrorResponse(
             OffsetDateTime.now(),

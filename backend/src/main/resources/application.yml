@@ -74,6 +74,8 @@ frontend:
 
 mail:
   from: ${MAIL_FROM:no-reply@servicedna.local}
+  # Log emails that couldn't be sent, links included — local development without SMTP only.
+  log-unsent: ${MAIL_LOG_UNSENT:false}
 
 
 management:

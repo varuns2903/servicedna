@@ -8,7 +8,7 @@ const path = require('node:path');
  * SERVICEDNA_KEY are required; everything else has a default.
  */
 function resolveConfig(options = {}, env = process.env, cwd = process.cwd()) {
-  const url = (options.url ?? env.SERVICEDNA_URL ?? '').replace(/\/+$/, '');
+  const url = trimSlashes(options.url ?? env.SERVICEDNA_URL ?? '');
   const key = options.key ?? env.SERVICEDNA_KEY ?? '';
   const port = env.PORT;
   return {
@@ -34,6 +34,12 @@ function resolveConfig(options = {}, env = process.env, cwd = process.cwd()) {
     consoleLogs: flag(options.consoleLogs ?? env.SERVICEDNA_LOGS_CONSOLE, true),
     degradedThresholdMs: Number(options.degradedThresholdMs ?? env.SERVICEDNA_DEGRADED_MS ?? 2000),
   };
+}
+
+function trimSlashes(url) {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end -= 1;
+  return url.slice(0, end);
 }
 
 function flag(value, fallback) {

@@ -25,7 +25,8 @@ public final class TraceQl {
       /** Text inside captured request/response bodies, e.g. an order id. */
       String text) {}
 
-  private static final Pattern ATTRIBUTE = Pattern.compile("^\\s*([A-Za-z_][\\w.\\-]*)\\s*(!=|>=|<=|=~|!~|=|>|<)\\s*(.*?)\\s*$");
+  private static final Pattern ATTRIBUTE = Pattern.compile("^([A-Za-z_][\\w.\\-]*)\\s*(!=|>=|<=|=~|!~|=|>|<)\\s*(.*)$");
+  private static final int MAX_FILTER = 1000;
   private static final Pattern NUMBER = Pattern.compile("^-?\\d+(\\.\\d+)?$");
 
   /** The span selector for the filters: all conditions must hold on one span. */
@@ -70,8 +71,10 @@ public final class TraceQl {
    * numbers and booleans compare as such, anything else as a string (quotes optional).
    */
   static String attribute(String filter) {
-    Matcher m = ATTRIBUTE.matcher(filter);
-    if (!m.matches() || m.group(3).isEmpty()) {
+    // Trimmed and bounded first: the pattern then has no ambiguous whitespace to backtrack over.
+    String trimmed = filter.strip();
+    Matcher m = trimmed.length() <= MAX_FILTER ? ATTRIBUTE.matcher(trimmed) : null;
+    if (m == null || !m.matches() || m.group(3).isEmpty()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_FILTER", "Filters look like key=value, key>=500 or key=~regex: " + filter);
     }
     String key = m.group(1);

@@ -586,13 +586,10 @@ public class IncidentService {
   public PostMortemDto getPostMortem(UUID organizationId, UUID incidentId, UUID userId) {
     organizationService.validateUserAccess(organizationId, userId);
 
-    Incident incident =
-        incidentRepository
-            .findByOrganizationIdAndId(organizationId, incidentId)
-            .orElseThrow(
-                () ->
-                    new ApiException(
-                        HttpStatus.NOT_FOUND, "INCIDENT_NOT_FOUND", "Incident not found"));
+    incidentRepository
+        .findByOrganizationIdAndId(organizationId, incidentId)
+        .orElseThrow(
+            () -> new ApiException(HttpStatus.NOT_FOUND, "INCIDENT_NOT_FOUND", "Incident not found"));
 
     IncidentPostMortem postMortem =
         postMortemRepository

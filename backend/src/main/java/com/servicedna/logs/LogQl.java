@@ -21,7 +21,8 @@ public final class LogQl {
       "warn", "warn|warning",
       "error", "error|fatal|critical");
   private static final Pattern TRACE_ID = Pattern.compile("^[0-9a-fA-F]{16,32}$");
-  private static final Pattern ATTRIBUTE = Pattern.compile("^\\s*([A-Za-z_][\\w.\\-]*)\\s*(!=|>=|<=|=~|!~|=|>|<)\\s*(.*?)\\s*$");
+  private static final Pattern ATTRIBUTE = Pattern.compile("^([A-Za-z_][\\w.\\-]*)\\s*(!=|>=|<=|=~|!~|=|>|<)\\s*(.*)$");
+  private static final int MAX_FILTER = 1000;
   private static final Pattern NUMBER = Pattern.compile("^-?\\d+(\\.\\d+)?$");
 
   static String query(Filters f) {
@@ -61,8 +62,10 @@ public final class LogQl {
 
   /** {@code orderId=o-17}, {@code http.status_code>=500}: numeric comparisons stay numeric. */
   static String attribute(String filter) {
-    Matcher m = ATTRIBUTE.matcher(filter);
-    if (!m.matches() || m.group(3).isEmpty()) {
+    // Trimmed and bounded first: the pattern then has no ambiguous whitespace to backtrack over.
+    String trimmed = filter.strip();
+    Matcher m = trimmed.length() <= MAX_FILTER ? ATTRIBUTE.matcher(trimmed) : null;
+    if (m == null || !m.matches() || m.group(3).isEmpty()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_FILTER", "Filters look like key=value, key>=500 or key=~regex: " + filter);
     }
     String key = m.group(1).replace('.', '_').replace('-', '_');
