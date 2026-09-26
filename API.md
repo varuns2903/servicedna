@@ -110,6 +110,12 @@ audit history the account is referenced from stay intact.
 | POST | `/{serviceId}/api-key/regenerate` | Rotate a service's API key |
 | POST | `/{serviceId}/dependencies` | Add a "depends on" edge to another service |
 
+### Dependency graph — `/api/v1/organizations/{orgId}/graph`
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/?windowMinutes=60` | Declared and traffic-observed dependencies (max 7 days). Nodes are services plus databases, external hosts and topics seen in traces; each edge says whether it's `declared`, `observed`, or both (drift), with protocols, calls, calls/min, error rate, average and p95 latency, and last seen |
+
 ### Health-check ingestion — `/api/v1/ping` *(public endpoint, see below)*
 
 ### Maintenance windows — `/api/v1/organizations/{orgId}/maintenance`

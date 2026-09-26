@@ -191,7 +191,7 @@ sdna trace <trace-id>     # print a hop-by-hop flow in the terminal
 The dependency graph is a headline feature, but today every edge is typed by hand and never
 validated.
 
-### 3.1 Observed graph from traces
+### 3.1 Observed graph from traces — ✅ Done
 - A client span in service A whose child server span is in service B ⇒ edge `A → B`
 - Built with the OTel Collector `servicegraph` connector; aggregated into
   `observed_edges(from, to, protocol, calls, errors, p95, last_seen)`

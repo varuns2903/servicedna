@@ -2,6 +2,7 @@ package com.servicedna.telemetry.service;
 
 import com.servicedna.billing.domain.PlanType;
 import com.servicedna.billing.service.PlanLimitService;
+import com.servicedna.graph.repository.ObservedCallRepository;
 import com.servicedna.telemetry.repository.ServicePingRepository;
 import java.time.OffsetDateTime;
 import org.slf4j.Logger;
@@ -24,14 +25,17 @@ public class PingRetentionService {
   private static final Logger log = LoggerFactory.getLogger(PingRetentionService.class);
 
   private final ServicePingRepository servicePingRepository;
+  private final ObservedCallRepository observedCallRepository;
   private final PlanLimitService planLimitService;
   private final int retentionDays;
 
   public PingRetentionService(
       ServicePingRepository servicePingRepository,
+      ObservedCallRepository observedCallRepository,
       PlanLimitService planLimitService,
       @Value("${PING_RETENTION_DAYS:90}") int retentionDays) {
     this.servicePingRepository = servicePingRepository;
+    this.observedCallRepository = observedCallRepository;
     this.planLimitService = planLimitService;
     this.retentionDays = retentionDays;
   }
@@ -46,10 +50,13 @@ public class PingRetentionService {
         int days = planLimitService.retentionDays(plan);
         if (days < retentionDays) {
           deleted += servicePingRepository.deleteForPlanOlderThan(plan, now.minusDays(days));
+          observedCallRepository.deleteForPlanOlderThan(plan, now.minusDays(days));
         }
       }
     }
     deleted += servicePingRepository.deleteByCreatedAtBefore(now.minusDays(retentionDays));
+    // Observed calls (the traffic-derived graph) follow the same retention as health history.
+    observedCallRepository.deleteByBucketStartBefore(now.minusDays(retentionDays));
     if (deleted > 0) {
       log.info("Deleted {} service_pings rows past their plan's retention window", deleted);
     }

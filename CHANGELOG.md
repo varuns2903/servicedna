@@ -71,6 +71,13 @@ All notable changes to this project are documented in this file. The format is b
   detects a Node, Python, Go or Spring Boot project, creates an ingestion key, adds the SDK, and
   writes a gitignored `.env.servicedna`. Binaries are built for tagged `cli-v*` releases.
 
+- The dependency graph is discovered from traffic. Client/producer spans are paired with the
+  server/consumer spans they caused (across services' separate exports), aggregated per minute at
+  operation level, and served by `GET /graph` with calls/min, error rate and p95 per edge. Calls
+  that nothing instrumented answered become database, external-host or topic nodes — or, when the
+  hostname is a registered service's name, calls to that service. Declared edges are kept and
+  compared: `declared`-only edges were never seen, `observed`-only edges were never declared.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
