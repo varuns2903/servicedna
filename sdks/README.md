@@ -11,6 +11,27 @@ registers itself, sends traces, and reports health heartbeats.
 | Go | [`github.com/varuns2903/servicedna/sdks/go`](go/) | ✅ |
 | Java / Spring Boot | [`io.github.varuns2903:servicedna-spring-boot-starter`](java/) | ✅ |
 
+## Test runs: capturing each hop's data
+
+When ServiceDNA's Test Studio sends a request, it adds the baggage entry `sdna.capture=1`. For
+those requests only, each SDK records the body the service received and the body it sent back on
+the server span (`sdna.request.body`, `sdna.response.body`), so the run shows every hop's input
+and output. Fields named like credentials (password, token, secret, API key, cookie, session,
+card…) are masked, and bodies are capped at `SERVICEDNA_CAPTURE_MAX_BYTES` (16 KiB). Ordinary
+traffic is never captured.
+
+Values computed inside a function can be added to the run too — outside a test run it's a no-op:
+
+| Language | |
+|---|---|
+| Node.js | `require('@servicedna/node').capture('order.total', total)` |
+| Python | `servicedna.capture("order.total", total)` |
+| Go | `servicedna.Capture(ctx, "order.total", total)` |
+| Spring Boot | `ServiceDna.capture("order.total", total)` |
+
+Body capture covers HTTP servers (and HTTP clients in Node.js); FastAPI/Starlette in Python and
+Spring MVC in Java.
+
 Already using OpenTelemetry? No SDK is needed — point your exporter at ServiceDNA:
 
 ```bash

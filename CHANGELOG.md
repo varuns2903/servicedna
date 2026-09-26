@@ -102,6 +102,10 @@ All notable changes to this project are documented in this file. The format is b
   them as a waterfall with span attributes and events; internal spans are hidden by default.
   Backed by `GET /flows`, `/flows/entry-points`, `/traces` and `/traces/{id}`.
 
+- SDKs capture request and response bodies on server spans for ServiceDNA test runs (baggage
+  `sdna.capture=1` only), masking credential-like fields and capping size, and expose
+  `capture(name, value)` for values computed inside a function.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent

@@ -16,8 +16,9 @@ import logging
 import os
 
 from . import config as _config
+from .bodies import capture
 
-__all__ = ["start"]
+__all__ = ["start", "capture"]
 __version__ = "0.1.0"
 
 log = logging.getLogger("servicedna")

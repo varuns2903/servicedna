@@ -10,13 +10,14 @@ import (
 )
 
 // Handler traces every incoming request, named "METHOD /route" from Go 1.22 ServeMux patterns.
-// Requests to the service's health path aren't traced.
+// Requests to the service's health path aren't traced. For ServiceDNA test runs, request and
+// response bodies are recorded on the span (masked and size-capped).
 func Handler(h http.Handler) http.Handler {
 	healthPath := ""
 	if u, err := url.Parse(servicedna.Current().LocalHealthURL); err == nil {
 		healthPath = u.Path
 	}
-	return otelhttp.NewHandler(h, "http.server",
+	return otelhttp.NewHandler(captureBodies(h), "http.server",
 		otelhttp.WithFilter(func(r *http.Request) bool { return healthPath == "" || r.URL.Path != healthPath }),
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			if r.Pattern != "" {

@@ -6,6 +6,7 @@ const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto'
 const { resourceFromAttributes } = require('@opentelemetry/resources');
 const { resolveConfig } = require('./config');
 const { startHeartbeat } = require('./heartbeat');
+const { httpHooks, capture } = require('./capture');
 
 let running;
 
@@ -47,6 +48,9 @@ function start(options = {}) {
         // Health probes (ServiceDNA's and the heartbeat's) aren't traffic worth tracing.
         '@opentelemetry/instrumentation-http': {
           ignoreIncomingRequestHook: (req) => Boolean(healthPath) && req.url?.split('?')[0] === healthPath,
+          // Bodies are recorded only for ServiceDNA test runs (baggage sdna.capture=1).
+          requestHook: httpHooks.requestHook,
+          responseHook: httpHooks.responseHook,
         },
       }),
       ...(options.instrumentations ?? []),
@@ -73,4 +77,4 @@ function start(options = {}) {
   return running;
 }
 
-module.exports = { start, resolveConfig };
+module.exports = { start, resolveConfig, capture };
