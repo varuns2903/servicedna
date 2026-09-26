@@ -234,7 +234,7 @@ Same trace data, finer grain: nodes are **operations**, not services.
 Send real data through the real code in dev / stage / prod and see each service's input and
 output — the Kafka-UI-produce-message experience, extended across the whole system.
 
-### 5.1 How it works
+### 5.1 How it works — ✅ Done (API; the Test Studio page is 5.7)
 1. In **Test Studio**, pick an entry point from the discovered catalog: REST endpoint, gRPC
    method, GraphQL operation, or Kafka topic
 2. ServiceDNA generates a **payload template** from the schema (OpenAPI / proto / AsyncAPI /
@@ -260,7 +260,7 @@ Example (ShopLite, amount over the fraud limit):
 ✗ order              responds 402   (notification never called)
 ```
 
-### 5.2 The Runner — how test requests reach real services
+### 5.2 The Runner — how test requests reach real services — ✅ Done
 
 ServiceDNA never executes service code, and its server usually can't reach private services or
 brokers. A **Runner** inside the target network receives test jobs and makes the call with an
@@ -355,7 +355,7 @@ the gateway (e.g. hit `payment-service POST /charge` to test one subgraph).
 - `sdna.test` baggage flag services can honour to dry-run side effects
 - Rate limits and payload size caps per run
 
-### 5.3 Completion detection
+### 5.3 Completion detection — ✅ Done
 - Sync flows: the entry response is the final result
 - Async flows: done when the entry call has responded **and** no new spans arrive for N seconds,
   or all assertions pass, or a timeout expires

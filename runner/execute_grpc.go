@@ -1,0 +1,137 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"strings"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+	reflectionpb "google.golang.org/grpc/reflection/grpc_reflection_v1"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/dynamicpb"
+)
+
+// executeGRPC calls a unary method it knows nothing about in advance: it asks the server for the
+// method's descriptors (server reflection), builds the request from JSON, and returns JSON.
+func (r *Runner) executeGRPC(ctx context.Context, job Job) Result {
+	address := r.cfg.GRPCTargets[job.Target.Service]
+	if address == "" {
+		address = job.Target.Address
+	}
+	if address == "" {
+		return failed(fmt.Errorf("don't know where %s's gRPC server is: set RUNNER_GRPC_TARGETS=%s=host:port", job.Target.Service, job.Target.Service))
+	}
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return failed(err)
+	}
+	defer conn.Close()
+
+	method, err := resolveMethod(ctx, conn, job.Target.Method)
+	if err != nil {
+		return failed(err)
+	}
+	in := dynamicpb.NewMessage(method.Input())
+	if strings.TrimSpace(job.Request.Body) != "" {
+		if err := protojson.Unmarshal([]byte(job.Request.Body), in); err != nil {
+			return failed(fmt.Errorf("request doesn't match %s: %w", method.Input().FullName(), err))
+		}
+	}
+	md := metadata.New(job.Request.Headers)
+	for k, v := range job.propagation() {
+		md.Set(k, v)
+	}
+	out := dynamicpb.NewMessage(method.Output())
+	start := time.Now()
+	fullMethod := "/" + string(method.Parent().FullName()) + "/" + string(method.Name())
+	callErr := conn.Invoke(metadata.NewOutgoingContext(ctx, md), fullMethod, in, out)
+	duration := time.Since(start).Milliseconds()
+
+	code := int(status.Code(callErr))
+	if callErr != nil {
+		return Result{Sent: true, Status: &code, Body: status.Convert(callErr).Message(), DurationMs: duration}
+	}
+	body, _ := protojson.Marshal(out)
+	return Result{Sent: true, Status: &code, Body: truncate(body), DurationMs: duration}
+}
+
+func resolveMethod(ctx context.Context, conn *grpc.ClientConn, name string) (protoreflect.MethodDescriptor, error) {
+	service, method, ok := strings.Cut(name, "/")
+	if !ok {
+		return nil, fmt.Errorf("gRPC method %q isn't package.Service/Method", name)
+	}
+	stream, err := reflectionpb.NewServerReflectionClient(conn).ServerReflectionInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("server reflection unavailable: %w", err)
+	}
+	defer stream.CloseSend()
+
+	files := map[string]*descriptorpb.FileDescriptorProto{}
+	request := &reflectionpb.ServerReflectionRequest{MessageRequest: &reflectionpb.ServerReflectionRequest_FileContainingSymbol{FileContainingSymbol: service}}
+	pending := []*reflectionpb.ServerReflectionRequest{request}
+	for len(pending) > 0 {
+		if err := stream.Send(pending[0]); err != nil {
+			return nil, err
+		}
+		pending = pending[1:]
+		res, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if e := res.GetErrorResponse(); e != nil {
+			return nil, fmt.Errorf("server reflection: %s", e.GetErrorMessage())
+		}
+		for _, raw := range res.GetFileDescriptorResponse().GetFileDescriptorProto() {
+			fd := &descriptorpb.FileDescriptorProto{}
+			if err := proto.Unmarshal(raw, fd); err != nil {
+				return nil, err
+			}
+			if _, seen := files[fd.GetName()]; seen {
+				continue
+			}
+			files[fd.GetName()] = fd
+			// Every import comes from the server too, so the descriptors resolve on their own.
+			for _, dep := range fd.GetDependency() {
+				if _, seen := files[dep]; !seen {
+					pending = append(pending, &reflectionpb.ServerReflectionRequest{MessageRequest: &reflectionpb.ServerReflectionRequest_FileByFilename{FileByFilename: dep}})
+				}
+			}
+		}
+	}
+	set := &descriptorpb.FileDescriptorSet{}
+	for _, fd := range files {
+		set.File = append(set.File, fd)
+	}
+	registry, err := protodesc.NewFiles(set)
+	if err != nil {
+		return nil, err
+	}
+	desc, err := registry.FindDescriptorByName(protoreflect.FullName(service))
+	if err != nil {
+		return nil, fmt.Errorf("service %s not found via reflection", service)
+	}
+	sd, ok := desc.(protoreflect.ServiceDescriptor)
+	if !ok {
+		return nil, fmt.Errorf("%s isn't a service", service)
+	}
+	md := sd.Methods().ByName(protoreflect.Name(method))
+	if md == nil {
+		return nil, fmt.Errorf("%s has no method %s", service, method)
+	}
+	if md.IsStreamingClient() || md.IsStreamingServer() {
+		return nil, fmt.Errorf("%s is streaming; test runs support unary methods", name)
+	}
+	return md, nil
+}

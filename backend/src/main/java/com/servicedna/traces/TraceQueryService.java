@@ -88,6 +88,11 @@ public class TraceQueryService {
 
   public TraceDto.Trace trace(UUID organizationId, String traceId, UUID userId) {
     organizationService.validateUserAccess(organizationId, userId);
+    return trace(organizationId, traceId);
+  }
+
+  /** For internal callers that have already established the organization (e.g. test runs). */
+  public TraceDto.Trace trace(UUID organizationId, String traceId) {
     if (!TRACE_ID.matcher(traceId).matches()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TRACE_ID", "Trace ids are 16 or 32 hex characters.");
     }

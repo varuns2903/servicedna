@@ -133,6 +133,23 @@ Read from the trace store as the organization's tenant.
 | GET | `/?service=&operation=[&calleeService=&calleeOperation=][&errorsOnly=][&windowMinutes=][&limit=]` | Recent traces through an operation, or where it called the callee's operation (TraceQL `{caller} >> {callee}`) |
 | GET | `/{traceId}` | The trace as spans ordered by start: service, name, kind, timing, status, attributes, events |
 
+### Test runs — `/api/v1/organizations/{orgId}/test-runs`
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/` | Queue a request for a runner: `protocol` (`HTTP`, `GRAPHQL`, `GRPC`, `MESSAGING`), `serviceId` + `method` + concrete `path` (HTTP/GraphQL), `serviceId` + `grpcMethod` (`package.Service/Method`), or `topic` + `key` (messaging); `headers`, `body`, optional `environment` (defaults to the service's). Gets its own `traceId` |
+| GET | `/` | Recent runs |
+| GET | `/{runId}` | Status (`QUEUED` → `RUNNING` → `WAITING` → `COMPLETED`, or `FAILED`/`TIMED_OUT`), the entry call's `result`, and `hops`: every service the request reached (and databases/external calls it made), with what each received and returned |
+
+A run completes when its trace stops growing (asynchronous consumers included), or after a minute.
+
+### Runner — `/api/v1/runner` *(authenticated by ingestion key or `RUNNER_SHARED_TOKEN`)*
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/claim` | Long-polls (20 s) for a queued run in the runner's `environment`; 204 when there's none |
+| POST | `/runs/{runId}/result` | Report the entry call's outcome |
+
 ### Dependency graph — `/api/v1/organizations/{orgId}/graph`
 
 | Method | Path | Description |
@@ -298,6 +315,7 @@ These require no authentication:
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/v1/public/organizations/{orgId}/status` | Public status page data (service health + active incidents) |
+| POST | `/api/v1/runner/claim`, `/api/v1/runner/runs/{id}/result` | Test Studio runners — authenticated by ingestion key or `RUNNER_SHARED_TOKEN` |
 | POST | `/api/v1/otlp/v1/traces` | OTLP trace ingestion — authenticated via an ingestion key, see [Telemetry ingestion](#telemetry-ingestion-otlp) |
 | POST | `/api/v1/ping` | Health-check ingestion — authenticated via an `X-API-Key` header: either a service's own API key, or an organization ingestion key with `service` (and optional `environment`) in the body, which registers the service on first contact |
 | POST | `/api/v1/webhooks/stripe` | Stripe webhook receiver — authenticated via Stripe's signature header |

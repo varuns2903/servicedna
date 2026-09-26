@@ -106,6 +106,13 @@ All notable changes to this project are documented in this file. The format is b
   `sdna.capture=1` only), masking credential-like fields and capping size, and expose
   `capture(name, value)` for values computed inside a function.
 
+- Test runs and the runner (`runner/`): a run queues a request (HTTP, GraphQL, gRPC via server
+  reflection, or Kafka); a runner inside the target environment claims it over an outbound
+  connection, sends it with its own trace id and `sdna.capture=1` baggage, and reports the entry
+  result. The run completes once its trace stops growing, and lists every hop with what each
+  service received and returned, plus `capture()` values. Runners authenticate with an ingestion
+  key; the one bundled with ServiceDNA (`--profile runner`) with `RUNNER_SHARED_TOKEN`.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
