@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/codes"
 	reflectionpb "google.golang.org/grpc/reflection/grpc_reflection_v1"
 	reflectionv1alpha "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/grpc/status"
@@ -139,7 +140,8 @@ func reflectionFetcher(ctx context.Context, conn *grpc.ClientConn) (func(fileQue
 		if q.filename != "" {
 			req.MessageRequest = &reflectionpb.ServerReflectionRequest_FileByFilename{FileByFilename: q.filename}
 		}
-		if err := v1.Send(req); err != nil {
+		// A rejected stream (e.g. Unimplemented) fails Send with io.EOF; Recv has the actual status.
+		if err := v1.Send(req); err != nil && err != io.EOF {
 			return nil, err
 		}
 		res, err := v1.Recv()
@@ -171,7 +173,8 @@ func reflectionFetcher(ctx context.Context, conn *grpc.ClientConn) (func(fileQue
 			if q.filename != "" {
 				req.MessageRequest = &reflectionv1alpha.ServerReflectionRequest_FileByFilename{FileByFilename: q.filename}
 			}
-			if err := alpha.Send(req); err != nil {
+			// A rejected stream fails Send with io.EOF; Recv has the actual status.
+			if err := alpha.Send(req); err != nil && err != io.EOF {
 				return nil, err
 			}
 			res, err := alpha.Recv()

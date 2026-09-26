@@ -8,6 +8,7 @@ import { Trash2 } from 'lucide-react';
 import { useWebhooks, useCreateWebhook, useDeleteWebhook } from '@/hooks/useWebhooks';
 import type { WebhookType } from '@/api/webhooks.api';
 import { IngestionKeysCard } from './IngestionKeysCard';
+import { EnvironmentsCard } from './EnvironmentsCard';
 
 interface IntegrationsTabProps {
   orgId: string;
@@ -118,6 +119,7 @@ export function IntegrationsTab({ orgId }: IntegrationsTabProps) {
       </Card>
 
       <IngestionKeysCard orgId={orgId} />
+      <EnvironmentsCard orgId={orgId} />
     </div>
   );
 }

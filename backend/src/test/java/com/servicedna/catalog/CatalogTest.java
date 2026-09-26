@@ -109,6 +109,31 @@ class CatalogTest {
   }
 
   @Test
+  void entryOperationsNothingInstrumentedCallsAreListedToo() throws Exception {
+    String gateway = call(post("/api/v1/organizations/" + orgId + "/services").content(json(new CreateServiceRequest("gateway", null, null, null, null)))).get("id").asText();
+    String orders = call(post("/api/v1/organizations/" + orgId + "/services").content(json(new CreateServiceRequest("orders", null, null, null, null)))).get("id").asText();
+    aggregator.record(UUID.fromString(orgId), Instant.now(),
+        new CallKey(UUID.fromString(gateway), "POST /api/orders", UUID.fromString(orders), TargetKind.SERVICE, orders, "POST /orders", Protocol.HTTP), 5, false);
+    aggregator.record(UUID.fromString(orgId), Instant.now(),
+        new CallKey(UUID.fromString(gateway), "/shop.Orders/Place", UUID.fromString(orders), TargetKind.SERVICE, orders, "POST /orders", Protocol.HTTP), 5, false);
+    aggregator.flush();
+
+    JsonNode operations = call(get("/api/v1/organizations/" + orgId + "/services/" + gateway + "/operations"));
+    List<String> listed = new ArrayList<>();
+    operations.forEach(o -> listed.add(o.get("protocol").asText() + " " + o.get("name").asText() + " " + o.get("source").asText()));
+    assertThat(listed).containsExactlyInAnyOrder("HTTP POST /api/orders TRAFFIC", "GRPC /shop.Orders/Place TRAFFIC");
+  }
+
+  @Test
+  void protocolsAreInferredFromOperationNames() {
+    assertThat(com.servicedna.catalog.service.CatalogService.protocolOf("GET /products/{id}")).isEqualTo(Protocol.HTTP);
+    assertThat(com.servicedna.catalog.service.CatalogService.protocolOf("process order.created")).isEqualTo(Protocol.MESSAGING);
+    assertThat(com.servicedna.catalog.service.CatalogService.protocolOf("order.created publish")).isEqualTo(Protocol.MESSAGING);
+    assertThat(com.servicedna.catalog.service.CatalogService.protocolOf("query Products")).isEqualTo(Protocol.GRAPHQL);
+    assertThat(com.servicedna.catalog.service.CatalogService.protocolOf("cleanup")).isEqualTo(Protocol.OTHER);
+  }
+
+  @Test
   void aScanWithoutOperationsKeepsTheCatalog() throws Exception {
     String orders = scan("orders", new CatalogDto.OperationSpec(Protocol.HTTP, "POST /orders", "OPENAPI", null, null)).get("serviceId").asText();
     call(post("/api/v1/organizations/" + orgId + "/catalog/scan").content(json(new CatalogDto.ScanRequest("orders", null, null, List.of()))));
