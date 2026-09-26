@@ -1,0 +1,28 @@
+name: Agent
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["agent/**", ".github/workflows/agent.yml"]
+  pull_request:
+    branches: ["main"]
+    paths: ["agent/**", ".github/workflows/agent.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate collector config
+        run: |
+          docker run --rm -v "$PWD/agent/helm/servicedna-agent/files/collector.yaml:/c.yaml:ro" \
+            -e SERVICEDNA_URL=https://example.com -e SERVICEDNA_KEY=k -e SERVICEDNA_ENV=ci \
+            otel/opentelemetry-collector-contrib:0.111.0 validate --config=/c.yaml
+      - uses: azure/setup-helm@v4
+      - name: Lint and render Helm chart
+        run: |
+          helm lint agent/helm/servicedna-agent --set servicedna.url=https://example.com,servicedna.key=k,servicedna.environment=ci
+          helm template demo agent/helm/servicedna-agent --set servicedna.url=https://example.com,servicedna.key=k,servicedna.environment=ci > /dev/null

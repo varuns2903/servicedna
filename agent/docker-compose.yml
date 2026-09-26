@@ -1,0 +1,22 @@
+# ServiceDNA agent for Docker hosts:
+#
+#   SERVICEDNA_URL=https://servicedna.example.com SERVICEDNA_KEY=sdna_ik_... SERVICEDNA_ENV=prod \
+#     docker compose -f docker-compose.yml up -d
+#
+# Then point services at it: OTEL_EXPORTER_OTLP_ENDPOINT=http://<agent-host>:4318 (no key needed).
+services:
+  servicedna-agent:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: servicedna-agent
+    command: ["--config=/etc/servicedna-agent/collector.yaml"]
+    volumes:
+      - ./helm/servicedna-agent/files/collector.yaml:/etc/servicedna-agent/collector.yaml:ro
+    environment:
+      SERVICEDNA_URL: ${SERVICEDNA_URL:?set SERVICEDNA_URL to your ServiceDNA base URL}
+      SERVICEDNA_KEY: ${SERVICEDNA_KEY:?set SERVICEDNA_KEY to an ingestion key}
+      SERVICEDNA_ENV: ${SERVICEDNA_ENV:?set SERVICEDNA_ENV, e.g. prod}
+    ports:
+      - "${AGENT_OTLP_GRPC_PORT:-4317}:4317"
+      - "${AGENT_OTLP_HTTP_PORT:-4318}:4318"
+      - "${AGENT_ZIPKIN_PORT:-9411}:9411"
+    restart: unless-stopped

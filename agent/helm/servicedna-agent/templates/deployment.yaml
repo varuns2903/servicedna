@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "servicedna-agent.fullname" . }}
+  labels:
+    {{- include "servicedna-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "servicedna-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "servicedna-agent.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ .Files.Get "files/collector.yaml" | sha256sum }}
+    spec:
+      containers:
+        - name: agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["--config=/etc/servicedna-agent/collector.yaml"]
+          env:
+            - name: SERVICEDNA_URL
+              value: {{ required "servicedna.url is required" .Values.servicedna.url | quote }}
+            - name: SERVICEDNA_ENV
+              value: {{ required "servicedna.environment is required" .Values.servicedna.environment | quote }}
+            - name: SERVICEDNA_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.servicedna.existingSecret.name | default (include "servicedna-agent.fullname" .) }}
+                  key: {{ .Values.servicedna.existingSecret.key | default "servicedna-key" }}
+          ports:
+            - {name: otlp-grpc, containerPort: 4317}
+            - {name: otlp-http, containerPort: 4318}
+            - {name: zipkin, containerPort: 9411}
+          readinessProbe:
+            httpGet: {path: /, port: 13133}
+          livenessProbe:
+            httpGet: {path: /, port: 13133}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/servicedna-agent
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "servicedna-agent.fullname" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

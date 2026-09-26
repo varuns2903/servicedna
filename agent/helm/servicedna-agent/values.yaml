@@ -1,0 +1,30 @@
+servicedna:
+  # ServiceDNA base URL, e.g. https://servicedna.example.com
+  url: ""
+  # Ingestion key (Settings → Integrations). Ignored when existingSecret is set.
+  key: ""
+  # Use a key from an existing Secret instead: {name: my-secret, key: servicedna-key}
+  existingSecret: {}
+  # Environment name stamped on telemetry that doesn't set one (dev, staging, prod…).
+  environment: ""
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.111.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

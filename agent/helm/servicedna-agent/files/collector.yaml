@@ -1,0 +1,64 @@
+# ServiceDNA agent: an OpenTelemetry Collector that runs inside your environment. Services send
+# OTLP (or Zipkin) to it with no key; it adds the environment name, masks sensitive data, and
+# forwards to ServiceDNA over an outbound connection with the environment's ingestion key.
+#
+# Required environment: SERVICEDNA_URL, SERVICEDNA_KEY, SERVICEDNA_ENV.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  zipkin:
+    endpoint: 0.0.0.0:9411
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  # Services that don't set an environment get this agent's.
+  resource/environment:
+    attributes:
+      - key: deployment.environment.name
+        value: ${env:SERVICEDNA_ENV}
+        action: insert
+
+  # Masking runs here, before anything leaves your network. Extend the patterns to match your
+  # own sensitive fields.
+  transform/mask:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          # Credentials and session material, by attribute name.
+          - delete_matching_keys(attributes, "(?i).*(password|passwd|secret|token|api[-_.]?key|authorization|cookie|session).*")
+          # Payment card numbers (13-19 digits, optionally separated) anywhere in a value.
+          - replace_all_patterns(attributes, "value", "\\b(?:\\d[ -]?){12,18}\\d\\b", "[card]")
+      - context: spanevent
+        statements:
+          - delete_matching_keys(attributes, "(?i).*(password|passwd|secret|token|api[-_.]?key|authorization|cookie|session).*")
+          - replace_all_patterns(attributes, "value", "\\b(?:\\d[ -]?){12,18}\\d\\b", "[card]")
+
+  batch: {}
+
+exporters:
+  otlphttp/servicedna:
+    endpoint: ${env:SERVICEDNA_URL}/api/v1/otlp
+    encoding: proto
+    headers:
+      x-servicedna-key: ${env:SERVICEDNA_KEY}
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp, zipkin]
+      processors: [memory_limiter, resource/environment, transform/mask, batch]
+      exporters: [otlphttp/servicedna]

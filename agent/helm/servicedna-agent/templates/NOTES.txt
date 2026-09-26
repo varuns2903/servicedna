@@ -1,0 +1,7 @@
+The ServiceDNA agent is forwarding {{ .Values.servicedna.environment }} telemetry to {{ .Values.servicedna.url }}.
+
+Point services at it (no key needed):
+
+  OTEL_EXPORTER_OTLP_ENDPOINT=http://{{ include "servicedna-agent.fullname" . }}.{{ .Release.Namespace }}:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+  OTEL_SERVICE_NAME=<service>
