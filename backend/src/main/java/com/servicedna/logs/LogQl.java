@@ -9,11 +9,11 @@ import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 
 /** Builds LogQL from log search filters. Loki keeps OTLP attributes with dots as underscores. */
-final class LogQl {
+public final class LogQl {
 
   private LogQl() {}
 
-  record Filters(String service, String environment, String level, String text, String traceId, List<String> attributes) {}
+  public record Filters(String service, String environment, String level, String text, String traceId, List<String> attributes) {}
 
   private static final Map<String, String> LEVELS = Map.of(
       "debug", "debug|trace",
@@ -82,7 +82,7 @@ final class LogQl {
     return s != null && !s.isBlank();
   }
 
-  static String quote(String value) {
+  public static String quote(String value) {
     return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
   }
 }

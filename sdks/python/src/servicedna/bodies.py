@@ -53,6 +53,17 @@ def capture(name: str, value) -> None:
         span.set_attribute(f"sdna.capture.{name}", redact(text))
 
 
+def tag(name: str, value) -> None:
+    """Tags the current span with a business key, so ServiceDNA can follow it across services,
+    traces and logs — even where trace context was lost: ``servicedna.tag("orderId", order_id)``.
+    Unlike capture(), it applies to all traffic; use ids, not personal data."""
+    if value is None:
+        return
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.set_attribute(f"sdna.key.{name}", str(value))
+
+
 # ASGI instrumentation hooks (FastAPI, Starlette). The receive/send hooks run on the
 # instrumentation's own receive/send spans, so the server span is remembered on the ASGI scope.
 

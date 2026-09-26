@@ -8,7 +8,7 @@ const { BatchLogRecordProcessor } = require('@opentelemetry/sdk-logs');
 const { resourceFromAttributes } = require('@opentelemetry/resources');
 const { resolveConfig } = require('./config');
 const { startHeartbeat } = require('./heartbeat');
-const { httpHooks, kafkaHooks, capture } = require('./capture');
+const { httpHooks, kafkaHooks, capture, tag } = require('./capture');
 const { bridgeConsole } = require('./console');
 
 let running;
@@ -90,4 +90,4 @@ function start(options = {}) {
   return running;
 }
 
-module.exports = { start, resolveConfig, capture };
+module.exports = { start, resolveConfig, capture, tag };

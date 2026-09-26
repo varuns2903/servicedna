@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Trace, TraceSpan } from '@/api/traces.api';
 
 const PALETTE = ['#10b981', '#38bdf8', '#a78bfa', '#f59e0b', '#f472b6', '#34d399', '#60a5fa', '#fb923c'];
@@ -116,7 +117,15 @@ function SpanDetails({ span }: { span: TraceSpan }) {
           {Object.entries(span.attributes).filter(([k]) => !BODIES.includes(k)).map(([k, v]) => (
             <tr key={k} className="align-top">
               <td className="w-1/3 pr-2 text-gray-500">{k}</td>
-              <td className="break-all font-mono text-gray-200">{v}</td>
+              <td className="break-all font-mono text-gray-200">
+                {k.startsWith('sdna.key.') ? (
+                  <Link to={`/follow?key=${encodeURIComponent(k.slice('sdna.key.'.length))}&value=${encodeURIComponent(v)}`} className="text-emerald-400 hover:underline" title="Follow this key">
+                    {v}
+                  </Link>
+                ) : (
+                  v
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

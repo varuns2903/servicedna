@@ -8,12 +8,12 @@ import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 
 /** Builds TraceQL from explorer filters, so users search with fields rather than query syntax. */
-final class TraceQl {
+public final class TraceQl {
 
   private TraceQl() {}
 
   /** Explorer filters; every one is optional. {@code attributes} are "key op value" (see {@link #attribute}). */
-  record Filters(
+  public record Filters(
       String service,
       String operation,
       String environment,
@@ -88,7 +88,7 @@ final class TraceQl {
     return s != null && !s.isBlank();
   }
 
-  static String quote(String value) {
+  public static String quote(String value) {
     return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
   }
 }

@@ -103,3 +103,19 @@ test('redact truncates and leaves non-JSON text alone', () => {
   assert.strictEqual(redact('plain text'), 'plain text');
   assert.match(redact('x'.repeat(20000)), /…\[truncated\]$/);
 });
+
+test('tag records a business key on every request, capture run or not', async () => {
+  exporter.reset();
+  const { tag } = require('../src/capture');
+  const { trace } = require('@opentelemetry/api');
+  const span = trace.getTracer('t').startSpan('job');
+  const { context } = require('@opentelemetry/api');
+  context.with(trace.setSpan(context.active(), span), () => {
+    tag('orderId', 'o-17');
+    tag('skipped', undefined);
+  });
+  span.end();
+  const ended = exporter.getFinishedSpans().find((s) => s.name === 'job');
+  assert.strictEqual(ended.attributes['sdna.key.orderId'], 'o-17');
+  assert.strictEqual(ended.attributes['sdna.key.skipped'], undefined);
+});

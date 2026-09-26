@@ -11,6 +11,22 @@ registers itself, sends traces, and reports health heartbeats.
 | Go | [`github.com/varuns2903/servicedna/sdks/go`](go/) | ✅ |
 | Java / Spring Boot | [`io.github.varuns2903:servicedna-spring-boot-starter`](java/) | ✅ |
 
+## Following business keys
+
+Tag the ids your services handle, and ServiceDNA can follow one through every service and log that
+touched it — even where trace context was lost (a queue, a batch job, a worker picking work up
+later):
+
+| Language | |
+|---|---|
+| Node.js | `require('@servicedna/node').tag('orderId', order.id)` |
+| Python | `servicedna.tag("orderId", order_id)` |
+| Go | `servicedna.Tag(ctx, "orderId", order.ID)` |
+| Spring Boot | `ServiceDna.tag("orderId", order.getId())` |
+
+Tags go on the current span for all traffic (not only test runs), so tag ids, not personal data.
+Then open **Follow a key** (or click a tagged value in a trace).
+
 ## Logs
 
 Each SDK sends the service's logs to ServiceDNA next to its traces, tagged with the trace and span

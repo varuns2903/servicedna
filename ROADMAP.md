@@ -405,7 +405,7 @@ arrives with full context. Tail sampling keeps 100% of errors and test runs.
 Kibana-style search across traces and correlated logs: by service, operation, status, latency,
 environment, time range, and attributes.
 
-### 6.3 Business-key tracking
+### 6.3 Business-key tracking — ✅ Done
 When trace context is broken (custom thread pools, batch jobs, uninstrumented hops), follow a
 domain ID instead — `orderId=o-17`, `paymentId=…` — across spans, logs, and Kafka messages.
 
