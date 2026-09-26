@@ -173,4 +173,16 @@ function capture(name, value) {
   span.setAttribute(`sdna.capture.${name}`, redact(text ?? String(value)));
 }
 
-module.exports = { httpHooks, kafkaHooks, capture, redact, captureRequested, captureOnError };
+/**
+ * Tags the current span with a business key, so ServiceDNA can follow it across services, traces
+ * and logs — even where trace context was lost (queues, batch jobs, uninstrumented hops):
+ *   tag('orderId', order.id)
+ * Unlike capture(), it applies to all traffic; use ids, not personal data.
+ */
+function tag(name, value) {
+  const span = trace.getActiveSpan();
+  if (!span || value === undefined || value === null) return;
+  span.setAttribute(`sdna.key.${name}`, String(value));
+}
+
+module.exports = { httpHooks, kafkaHooks, capture, tag, redact, captureRequested, captureOnError };

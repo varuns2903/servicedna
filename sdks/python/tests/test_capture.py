@@ -106,3 +106,13 @@ def test_capture_on_error_includes_unhandled_exceptions(monkeypatch):
     attrs = server_span().attributes
     assert json.loads(attrs["sdna.request.body"]) == {"amount": 4, "crash": True}
     assert attrs["sdna.captured_on_error"] is True
+
+
+def test_tag_records_a_business_key_outside_capture_runs_too():
+    tracer = trace.get_tracer("t")
+    with tracer.start_as_current_span("job"):
+        sdna.tag("orderId", 17)
+        sdna.tag("skipped", None)
+    span = next(s for s in exporter.get_finished_spans() if s.name == "job")
+    assert span.attributes["sdna.key.orderId"] == "17"
+    assert "sdna.key.skipped" not in span.attributes

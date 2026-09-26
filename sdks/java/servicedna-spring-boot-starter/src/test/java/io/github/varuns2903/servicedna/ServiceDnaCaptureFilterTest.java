@@ -97,4 +97,18 @@ class ServiceDnaCaptureFilterTest {
     assertThat(thrown.getAttributes().get(AttributeKey.stringKey("sdna.request.body"))).contains("AAPL");
     assertThat(thrown.getAttributes().get(AttributeKey.booleanKey("sdna.captured_on_error"))).isTrue();
   }
+
+  @Test
+  void tagRecordsABusinessKeyOnAnyRequest() {
+    Span span = provider.get("test").spanBuilder("job").startSpan();
+    try (Scope ignored = Context.current().with(span).makeCurrent()) {
+      ServiceDna.tag("orderId", 17);
+      ServiceDna.tag("skipped", null);
+    } finally {
+      span.end();
+    }
+    SpanData data = exporter.getFinishedSpanItems().get(exporter.getFinishedSpanItems().size() - 1);
+    assertThat(data.getAttributes().get(AttributeKey.stringKey("sdna.key.orderId"))).isEqualTo("17");
+    assertThat(data.getAttributes().get(AttributeKey.stringKey("sdna.key.skipped"))).isNull();
+  }
 }

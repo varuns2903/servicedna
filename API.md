@@ -124,6 +124,12 @@ audit history the account is referenced from stay intact.
 | GET | `/?windowMinutes=60[&entryNode=&entryOperation=]` | Operation-level calls (nodes are service/database/host/topic operations). With an entry, only what that operation triggers downstream. Each call has protocol, calls/min, error rate, p50 and p95 |
 | GET | `/entry-points?windowMinutes=60` | Operations nothing instrumented calls (entered from outside), busiest first |
 
+### Follow a key — `/api/v1/organizations/{orgId}/follow`
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/?key=orderId&value=o-17[&from=&to=]` | Everything that touched a business key (default: the last day): traces with a span tagged `sdna.key.<key>`, an attribute `<key>`, a captured value, a Kafka message key or a captured body holding the value — separate traces included — and log lines mentioning it. The value matches whole ids (`o-1` doesn't match `o-12`). Returns the services involved, first/last seen, the traces, the logs and the queries used |
+
 ### Logs — `/api/v1/organizations/{orgId}/logs`
 
 | Method | Path | Description |

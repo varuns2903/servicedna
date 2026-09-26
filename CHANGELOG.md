@@ -7,6 +7,11 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Follow a business key (`/follow`): every request, separate trace and log line that touched an
+  id like `orderId=o-17`, in time order — so work that lost its trace context (queues, batch
+  jobs, background workers) is still connected. SDKs gain `tag(name, value)` (Node.js, Python,
+  Go `Tag(ctx, …)`, Spring Boot `ServiceDna.tag`), and tagged values in span details link to the
+  page. API: `GET /follow?key=&value=`.
 - Logs. `POST /api/v1/otlp/v1/logs` ingests OTLP logs (stored in Grafana Loki, one tenant per
   organization; the bundled collector and the agent forward OTLP/gRPC logs, and the agent masks
   them like spans). The SDKs send logs by default — Node.js console/pino/bunyan, Python logging

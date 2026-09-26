@@ -118,3 +118,15 @@ func TestWithCaptureOnErrorOnlyFailedRequestsCarryTheirBodies(t *testing.T) {
 		t.Fatalf("panic: %v", a)
 	}
 }
+
+func TestTagRecordsABusinessKeyOnAnyRequest(t *testing.T) {
+	recorder := setup(t)
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /orders/{id}", func(w http.ResponseWriter, r *http.Request) {
+		servicedna.Tag(r.Context(), "orderId", r.PathValue("id"))
+	})
+	Handler(mux).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/orders/o-17", nil))
+	if a := attrs(recorder); a["sdna.key.orderId"] != "o-17" {
+		t.Fatalf("attributes: %v", a)
+	}
+}

@@ -64,6 +64,20 @@ func Capture(ctx context.Context, name string, value any) {
 	span.SetAttributes(attribute.String("sdna.capture."+name, Redact(text)))
 }
 
+// Tag records a business key on the current span, so ServiceDNA can follow it across services,
+// traces and logs — even where trace context was lost (queues, batch jobs, uninstrumented hops):
+//
+//	servicedna.Tag(ctx, "orderId", order.ID)
+//
+// Unlike Capture, it applies to all traffic; use ids, not personal data.
+func Tag(ctx context.Context, name string, value any) {
+	span := trace.SpanFromContext(ctx)
+	if !span.IsRecording() || value == nil {
+		return
+	}
+	span.SetAttributes(attribute.String("sdna.key."+name, fmt.Sprint(value)))
+}
+
 // Redact masks credential-like fields in JSON (other text is kept) and truncates to MaxCaptureBytes.
 func Redact(text string) string {
 	var parsed any

@@ -48,6 +48,18 @@ public final class ServiceDna {
     span.setAttribute("sdna.capture." + name, redact(text));
   }
 
+  /**
+   * Tags the current span with a business key, so ServiceDNA can follow it across services, traces
+   * and logs — even where trace context was lost: {@code ServiceDna.tag("orderId", order.getId())}.
+   * Unlike {@link #capture}, it applies to all traffic; use ids, not personal data.
+   */
+  public static void tag(String name, Object value) {
+    Span span = Span.current();
+    if (value != null && span.isRecording()) {
+      span.setAttribute("sdna.key." + name, String.valueOf(value));
+    }
+  }
+
   /** Masks credential-like fields in JSON (other text is kept) and truncates. */
   public static String redact(String text) {
     String out = text;
