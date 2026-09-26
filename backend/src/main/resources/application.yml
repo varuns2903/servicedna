@@ -117,6 +117,8 @@ trace-store:
   # OTLP/HTTP base URL of the trace store (Grafana Tempo); spans are forwarded with the
   # organization as tenant (X-Scope-OrgID). Empty disables storage.
   otlp-url: ${TRACE_STORE_OTLP_URL:}
+  # Tempo's HTTP API, for reading traces back (queried with X-Scope-OrgID = organization).
+  query-url: ${TRACE_STORE_QUERY_URL:}
 
 billing:
   # Self-hosted deployments that don't sell plans can turn plan limits (service count, ping

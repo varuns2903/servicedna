@@ -95,6 +95,13 @@ All notable changes to this project are documented in this file. The format is b
   (read-only RBAC included; `kubernetesMetadata.enabled=false` turns it off). The agent README
   covers sending Istio, Linkerd and Envoy traces to it.
 
+- API Flows page: pick an entry point (an operation called from outside, busiest first) to see
+  every call it triggers, operation by operation across services, databases and topics, with
+  protocol, calls/min, p50/p95 and error rate — or view the whole operation map. Clicking a call
+  lists recent traces where one operation called the other (errors-only filter) and opens any of
+  them as a waterfall with span attributes and events; internal spans are hidden by default.
+  Backed by `GET /flows`, `/flows/entry-points`, `/traces` and `/traces/{id}`.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
