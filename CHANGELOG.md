@@ -7,6 +7,9 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Alert on undeclared dependencies: an `UNDECLARED_DEPENDENCY` rule fires (webhook and/or
+  incident) when its service calls a service it doesn't declare, the first time that call is
+  seen. Edges already in recorded traffic are remembered on upgrade, so they don't all alert.
 - Import from GitHub (Services → Import from GitHub): list a GitHub organization's repositories,
   see what each `servicedna.yaml` declares, and register the chosen ones in one go — from their
   manifest, or from the repository's name, description and link. The token isn't stored.

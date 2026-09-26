@@ -9,7 +9,9 @@ public enum AlertCondition {
   /** Share of failed (DOWN) checks over {@code windowMinutes} is above {@code threshold} percent. */
   ERROR_RATE_ABOVE,
   /** The last {@code threshold} checks all failed. */
-  CONSECUTIVE_FAILURES;
+  CONSECUTIVE_FAILURES,
+  /** The service started calling a service it doesn't declare as a dependency (seen in traffic for the first time). */
+  UNDECLARED_DEPENDENCY;
 
   /** Threshold conditions are evaluated on a schedule against recent pings, not on status changes. */
   public boolean isThreshold() {

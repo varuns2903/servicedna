@@ -289,7 +289,7 @@ any CRITICAL/MAJOR incident that's gone unacknowledged past the configured windo
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/` | Create an alert rule: `condition` (`STATUS_DOWN` \| `STATUS_DEGRADED` \| `STATUS_RECOVERED` \| `LATENCY_ABOVE` \| `ERROR_RATE_ABOVE` \| `CONSECUTIVE_FAILURES`; the last three need `threshold` — ms, percent, or a check count — and the first two of those `windowMinutes`, 1–60), and at least one action — `webhookUrl` + `integrationType` (`GENERIC` \| `SLACK` \| `DISCORD`), and/or `incidentSeverity` (`CRITICAL` \| `MAJOR` \| `MINOR` \| `LOW`; not allowed on `STATUS_RECOVERED`) |
+| POST | `/` | Create an alert rule: `condition` (`STATUS_DOWN` \| `STATUS_DEGRADED` \| `STATUS_RECOVERED` \| `LATENCY_ABOVE` \| `ERROR_RATE_ABOVE` \| `CONSECUTIVE_FAILURES` \| `UNDECLARED_DEPENDENCY` — the service starts calling a service it doesn't declare, the first time that's seen; the three before it need `threshold` — ms, percent, or a check count — and the first two of those `windowMinutes`, 1–60), and at least one action — `webhookUrl` + `integrationType` (`GENERIC` \| `SLACK` \| `DISCORD`), and/or `incidentSeverity` (`CRITICAL` \| `MAJOR` \| `MINOR` \| `LOW`; not allowed on `STATUS_RECOVERED`) |
 | GET | `/` | List alert rules for a service |
 | DELETE | `/{ruleId}` | Delete a rule |
 
