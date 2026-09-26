@@ -50,7 +50,7 @@ Configure a rotating on-call schedule per organization, view it as a color-coded
 <td width="50%">
 
 ### 🔔 Alerts & Notification Webhooks
-Define per-service alert rules that fire a Slack, Discord, or generic JSON webhook and/or open an incident (paging on-call for CRITICAL/MAJOR) when a service goes down or becomes degraded — auto-resolved on recovery — and route incident created/resolved/escalated events to Slack, Microsoft Teams, or any generic JSON webhook.
+Define per-service alert rules that fire a Slack, Discord, or generic JSON webhook and/or open an incident (paging on-call for CRITICAL/MAJOR) when a service goes down or becomes degraded, or when its latency, error rate, or consecutive failures cross a threshold — auto-resolved on recovery — and route incident created/resolved/escalated events to Slack, Microsoft Teams, or any generic JSON webhook.
 
 ### 📈 SLA & Error Budgets
 Set a per-service uptime SLO target and track its error budget — total allowed downtime, how much is consumed, and the burn-down — over 7/30/90-day windows, alongside uptime, MTTR, and MTBF.
@@ -310,6 +310,8 @@ servicedna/
 | `RATE_LIMIT_MAX_REQUESTS` | Max API requests per client per minute | `100` |
 | `HEALTH_CHECK_INTERVAL_MS` | Interval between automated health-check probes | `30000` |
 | `HEALTH_CHECK_TIMEOUT_MS` | Per-probe HTTP timeout | `5000` |
+| `ALERT_THRESHOLD_EVALUATION_INTERVAL_MS` | How often latency / error-rate / consecutive-failure alert rules are evaluated | `30000` |
+| `ALERT_THRESHOLD_MIN_SAMPLES` | Minimum checks in a window before a latency or error-rate rule can fire | `3` |
 | `HEALTH_CHECK_STATUS_CONFIRMATIONS` | Consecutive agreeing observations (probes or pushed pings) required before a service's status changes; `1` applies every observation immediately | `2` |
 | `MANAGEMENT_ZIPKIN_TRACING_ENDPOINT` | Zipkin span export endpoint | `http://localhost:9411/api/v2/spans` |
 | `DATADOG_ENABLED` / `DATADOG_API_KEY` | Optional Datadog metrics export | `false` / — |

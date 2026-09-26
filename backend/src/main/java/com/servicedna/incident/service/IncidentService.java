@@ -25,7 +25,6 @@ import com.servicedna.organization.repository.OrganizationMemberRepository;
 import com.servicedna.organization.repository.OrganizationRepository;
 import com.servicedna.organization.service.OrganizationService;
 import com.servicedna.service.domain.Service;
-import com.servicedna.service.domain.ServiceStatus;
 import com.servicedna.service.repository.ServiceRepository;
 import com.servicedna.service.service.DependencyGraphService;
 import com.servicedna.user.domain.User;
@@ -163,6 +162,9 @@ public class IncidentService {
    * </ul>
    *
    * Severity only ever rises, and on-call is paged when it reaches CRITICAL/MAJOR.
+   *
+   * @param headline what's wrong, appended to the service name for the title (e.g. "is DOWN")
+   * @param change one-line description of what triggered the alert, for the timeline
    */
   @Transactional
   @org.springframework.cache.annotation.CacheEvict(
@@ -172,16 +174,18 @@ public class IncidentService {
       UUID organizationId,
       UUID serviceId,
       String serviceName,
-      ServiceStatus oldStatus,
-      ServiceStatus newStatus,
+      String headline,
+      String change,
       IncidentSeverity severity) {
-    String change = serviceName + " changed status from " + oldStatus + " to " + newStatus;
+    String title = serviceName + " " + headline;
 
     Optional<Incident> affecting = openAlertIncidentAffecting(serviceId);
     if (affecting.isPresent()) {
       Incident incident = affecting.get();
-      if (serviceId.equals(incident.getTriggeredByServiceId())) {
-        incident.setTitle(serviceName + " is " + newStatus);
+      // A milder alert (e.g. latency while the service is DOWN) shouldn't replace the title.
+      if (serviceId.equals(incident.getTriggeredByServiceId())
+          && severity.ordinal() <= incident.getSeverity().ordinal()) {
+        incident.setTitle(title);
       }
       recordEvent(incident, IncidentEventType.ALERT_TRIGGERED, change, null);
       return saveAlertUpdate(incident, severity, organizationId);
@@ -201,7 +205,7 @@ public class IncidentService {
       // cause: title the incident after it.
       if (related.get().isDependencyOfRoot()) {
         incident.setTriggeredByServiceId(serviceId);
-        incident.setTitle(serviceName + " is " + newStatus);
+        incident.setTitle(title);
         recordEvent(
             incident,
             IncidentEventType.ALERT_TRIGGERED,
@@ -223,7 +227,7 @@ public class IncidentService {
             UUID.randomUUID(),
             organization,
             null,
-            serviceName + " is " + newStatus,
+            title,
             "Opened automatically by an alert rule: " + change + ".",
             severity);
     incident.setTriggeredByServiceId(serviceId);
@@ -236,23 +240,27 @@ public class IncidentService {
 
   /**
    * Records a service's recovery on the alert incident affecting it, and resolves the incident
-   * once every affected service is healthy again.
+   * once no affected service is still affected.
+   *
+   * @param stillAffected whether another affected service is still unhealthy; decided by the
+   *     alert module, which also knows about breached threshold rules
    */
   @Transactional
   @org.springframework.cache.annotation.CacheEvict(
       value = "publicStatus",
       key = "#organizationId.toString()")
   public Optional<IncidentDto> resolveAlertIncident(
-      UUID organizationId, UUID serviceId, String serviceName) {
+      UUID organizationId,
+      UUID serviceId,
+      String serviceName,
+      java.util.function.Predicate<UUID> stillAffected) {
     return openAlertIncidentAffecting(serviceId)
         .map(
             incident -> {
-              // The recovering service's own row may not be refreshed in this persistence
-              // context yet; the event that brought us here already says it's healthy.
               List<String> stillUnhealthy =
                   incident.getAffectedServices().stream()
                       .filter(s -> !s.getId().equals(serviceId))
-                      .filter(s -> s.getStatus() != ServiceStatus.HEALTHY)
+                      .filter(s -> stillAffected.test(s.getId()))
                       .map(Service::getName)
                       .sorted()
                       .toList();

@@ -199,7 +199,7 @@ class AlertIncidentFlowTest {
     // Unroutable webhook: delivery fails fast and is only logged.
     call(
         post(rulesPath())
-            .content(json(new CreateAlertRuleRequest(AlertCondition.STATUS_DOWN, "http://localhost:1/hook", null, null))));
+            .content(json(new CreateAlertRuleRequest(AlertCondition.STATUS_DOWN, "http://localhost:1/hook", null, null, null, null))));
 
     statusChanged(ServiceStatus.HEALTHY, ServiceStatus.DOWN);
 
@@ -239,7 +239,7 @@ class AlertIncidentFlowTest {
   }
 
   private void addRule(UUID service, AlertCondition condition, IncidentSeverity severity) throws Exception {
-    call(post(rulesPath(service)).content(json(new CreateAlertRuleRequest(condition, null, null, severity))));
+    call(post(rulesPath(service)).content(json(new CreateAlertRuleRequest(condition, null, null, severity, null, null))));
   }
 
   private String rulesPath() {

@@ -155,11 +155,17 @@ any CRITICAL/MAJOR incident that's gone unacknowledged past the configured windo
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/` | Create an alert rule: `condition` (`STATUS_DOWN` \| `STATUS_DEGRADED` \| `STATUS_RECOVERED`), and at least one action — `webhookUrl` + `integrationType` (`GENERIC` \| `SLACK` \| `DISCORD`), and/or `incidentSeverity` (`CRITICAL` \| `MAJOR` \| `MINOR` \| `LOW`; not allowed on `STATUS_RECOVERED`) |
+| POST | `/` | Create an alert rule: `condition` (`STATUS_DOWN` \| `STATUS_DEGRADED` \| `STATUS_RECOVERED` \| `LATENCY_ABOVE` \| `ERROR_RATE_ABOVE` \| `CONSECUTIVE_FAILURES`; the last three need `threshold` — ms, percent, or a check count — and the first two of those `windowMinutes`, 1–60), and at least one action — `webhookUrl` + `integrationType` (`GENERIC` \| `SLACK` \| `DISCORD`), and/or `incidentSeverity` (`CRITICAL` \| `MAJOR` \| `MINOR` \| `LOW`; not allowed on `STATUS_RECOVERED`) |
 | GET | `/` | List alert rules for a service |
 | DELETE | `/{ruleId}` | Delete a rule |
 
-Alert evaluation runs asynchronously off a Kafka consumer: when a service's status changes, every
+Threshold rules are evaluated every 30 seconds (`ALERT_THRESHOLD_EVALUATION_INTERVAL_MS`) against
+recent checks from both the active prober and push agents: `LATENCY_ABOVE` averages successful
+checks, `ERROR_RATE_ABOVE` is the share of DOWN checks, and `CONSECUTIVE_FAILURES` looks at the
+latest N. Windowed rules need at least `ALERT_THRESHOLD_MIN_SAMPLES` (default 3) checks to judge.
+Each rule fires once when crossed and once when cleared (`breached` on the rule shows its state).
+
+Status-change evaluation runs asynchronously off a Kafka consumer: when a service's status changes, every
 rule matching the new status posts to its webhook (suppressed while the service is in an active
 maintenance window). Rules with an `incidentSeverity` also open an incident: a service has at most
 one open alert-opened incident — repeat alerts add to its timeline and can raise (never lower) its

@@ -69,7 +69,7 @@ class AlertRuleControllerTest {
     @Test
     void shouldCreateAndListAlertRules() throws Exception {
         CreateAlertRuleRequest req = new CreateAlertRuleRequest(
-                AlertCondition.STATUS_DOWN, "https://webhook.site/my-hook", com.servicedna.alert.domain.IntegrationType.SLACK, null);
+                AlertCondition.STATUS_DOWN, "https://webhook.site/my-hook", com.servicedna.alert.domain.IntegrationType.SLACK, null, null, null);
 
         String ruleRes = mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
                 .header("Authorization", "Bearer " + userToken)
@@ -113,7 +113,7 @@ class AlertRuleControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
 
         CreateAlertRuleRequest req = new CreateAlertRuleRequest(
-                AlertCondition.STATUS_DOWN, "https://webhook.site/should-not-be-created", com.servicedna.alert.domain.IntegrationType.SLACK, null);
+                AlertCondition.STATUS_DOWN, "https://webhook.site/should-not-be-created", com.servicedna.alert.domain.IntegrationType.SLACK, null, null, null);
         mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
                 .header("Authorization", "Bearer " + outsiderToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -131,7 +131,7 @@ class AlertRuleControllerTest {
     @Test
     void shouldCreateIncidentOnlyRuleWithoutWebhook() throws Exception {
         CreateAlertRuleRequest req = new CreateAlertRuleRequest(
-                AlertCondition.STATUS_DOWN, null, null, com.servicedna.incident.domain.IncidentSeverity.CRITICAL);
+                AlertCondition.STATUS_DOWN, null, null, com.servicedna.incident.domain.IncidentSeverity.CRITICAL, null, null);
 
         mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
                 .header("Authorization", "Bearer " + userToken)
@@ -144,7 +144,7 @@ class AlertRuleControllerTest {
 
     @Test
     void shouldRejectRuleWithNoAction() throws Exception {
-        CreateAlertRuleRequest req = new CreateAlertRuleRequest(AlertCondition.STATUS_DOWN, null, null, null);
+        CreateAlertRuleRequest req = new CreateAlertRuleRequest(AlertCondition.STATUS_DOWN, null, null, null, null, null);
 
         mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
                 .header("Authorization", "Bearer " + userToken)
@@ -157,7 +157,7 @@ class AlertRuleControllerTest {
     @Test
     void shouldRejectIncidentSeverityOnRecoveryRule() throws Exception {
         CreateAlertRuleRequest req = new CreateAlertRuleRequest(
-                AlertCondition.STATUS_RECOVERED, null, null, com.servicedna.incident.domain.IncidentSeverity.MINOR);
+                AlertCondition.STATUS_RECOVERED, null, null, com.servicedna.incident.domain.IncidentSeverity.MINOR, null, null);
 
         mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
                 .header("Authorization", "Bearer " + userToken)
@@ -165,5 +165,46 @@ class AlertRuleControllerTest {
                 .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_RULE"));
+    }
+
+    @Test
+    void shouldRequireThresholdForThresholdConditions() throws Exception {
+        CreateAlertRuleRequest req = new CreateAlertRuleRequest(
+                AlertCondition.LATENCY_ABOVE, null, null, com.servicedna.incident.domain.IncidentSeverity.MINOR, null, 5);
+
+        mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("LATENCY_ABOVE requires a threshold."));
+    }
+
+    @Test
+    void shouldRejectErrorRateAbove100Percent() throws Exception {
+        CreateAlertRuleRequest req = new CreateAlertRuleRequest(
+                AlertCondition.ERROR_RATE_ABOVE, null, null, com.servicedna.incident.domain.IncidentSeverity.MINOR, 150.0, 5);
+
+        mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_RULE"));
+    }
+
+    @Test
+    void shouldCreateLatencyRuleWithThresholdAndWindow() throws Exception {
+        CreateAlertRuleRequest req = new CreateAlertRuleRequest(
+                AlertCondition.LATENCY_ABOVE, null, null, com.servicedna.incident.domain.IncidentSeverity.MINOR, 800.0, 10);
+
+        mockMvc.perform(post("/api/v1/organizations/" + orgId + "/services/" + serviceId + "/alert-rules")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.threshold").value(800.0))
+                .andExpect(jsonPath("$.windowMinutes").value(10))
+                .andExpect(jsonPath("$.breached").value(false));
     }
 }
