@@ -215,7 +215,7 @@ Gives `repositoryUrl` a real purpose:
 
 ---
 
-## Phase 4 — API call flow graph
+## Phase 4 — API call flow graph — ✅ Done
 
 Same trace data, finer grain: nodes are **operations**, not services.
 

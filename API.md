@@ -117,6 +117,22 @@ audit history the account is referenced from stay intact.
 | POST | `/api/v1/organizations/{orgId}/catalog/scan` | What `sdna scan` found in a repository: `service`, optional `environment`, `operations` (protocol, name, source, description, requestSchema — replaces the service's catalog; `null` keeps it) and `dependencies` (service names, added as declared edges; unknown names are reported back). Registers the service if it's new |
 | GET | `/api/v1/organizations/{orgId}/services/{serviceId}/operations` | The service's operations from its specs merged with those callers used in the last 24 h (`observed`, `callsLast24h`) |
 
+### API flows — `/api/v1/organizations/{orgId}/flows`
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/?windowMinutes=60[&entryNode=&entryOperation=]` | Operation-level calls (nodes are service/database/host/topic operations). With an entry, only what that operation triggers downstream. Each call has protocol, calls/min, error rate, p50 and p95 |
+| GET | `/entry-points?windowMinutes=60` | Operations nothing instrumented calls (entered from outside), busiest first |
+
+### Traces — `/api/v1/organizations/{orgId}/traces`
+
+Read from the trace store as the organization's tenant.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/?service=&operation=[&calleeService=&calleeOperation=][&errorsOnly=][&windowMinutes=][&limit=]` | Recent traces through an operation, or where it called the callee's operation (TraceQL `{caller} >> {callee}`) |
+| GET | `/{traceId}` | The trace as spans ordered by start: service, name, kind, timing, status, attributes, events |
+
 ### Dependency graph — `/api/v1/organizations/{orgId}/graph`
 
 | Method | Path | Description |

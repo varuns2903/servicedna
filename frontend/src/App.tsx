@@ -15,6 +15,7 @@ import { Dashboard } from '@/features/dashboard/Dashboard';
 import { ServiceList } from '@/features/services/ServiceList';
 import { ServiceDetails } from '@/features/services/ServiceDetails';
 import { ConnectService } from '@/features/onboarding/ConnectService';
+import { FlowsView } from '@/features/flows/FlowsView';
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { DependencyGraph } from '@/features/map/DependencyGraph';
 import { IncidentList } from '@/features/incidents/IncidentList';
@@ -93,6 +94,16 @@ function App() {
               <ProtectedRoute>
                 <AppShell>
                   <ServiceList />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/flows"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <FlowsView />
                 </AppShell>
               </ProtectedRoute>
             }
