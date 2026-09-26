@@ -32,6 +32,13 @@ public interface ObservedCallRepository extends JpaRepository<ObservedCall, UUID
           + " and c.bucketStart >= :since")
   List<Object[]> findServiceEdgesSince(UUID organizationId, OffsetDateTime since);
 
+  /** A service's operations that callers used since {@code since}: [protocol, operation, calls]. */
+  @Query(
+      "select c.protocol, c.targetOperation, sum(c.calls) from ObservedCall c"
+          + " where c.targetServiceId = :serviceId and c.bucketStart >= :since"
+          + " group by c.protocol, c.targetOperation order by sum(c.calls) desc")
+  List<Object[]> findTargetOperationsSince(UUID serviceId, OffsetDateTime since);
+
   List<ObservedCall> findByOrganizationIdAndBucketStartGreaterThanEqual(
       UUID organizationId, OffsetDateTime since);
 

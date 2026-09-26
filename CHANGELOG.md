@@ -84,6 +84,12 @@ All notable changes to this project are documented in this file. The format is b
   window and view pickers; drift chips that highlight each kind. Incident grouping (1.1b) now also
   follows dependencies observed in the last 24 hours.
 
+- `sdna scan` builds each service's API catalog from its OpenAPI, `.proto` and AsyncAPI specs
+  (request schemas included) and declares dependencies found in its configuration — `.env`,
+  Spring config, Kubernetes/Helm manifests, and per-service environments in docker-compose — so
+  the graph exists before any traffic. `GET /services/{id}/operations` merges the catalog with
+  operations seen in traffic.
+
 ### Changed
 - A service's status now changes only after `HEALTH_CHECK_STATUS_CONFIRMATIONS` (default 2)
   consecutive observations agree, so a single slow probe, or the active prober and a push agent
