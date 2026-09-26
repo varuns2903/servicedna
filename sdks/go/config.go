@@ -23,6 +23,8 @@ type Config struct {
 	LocalHealthURL  string
 	Heartbeat       time.Duration
 	DegradedLatency time.Duration
+	// Logs sends slog and log package output to ServiceDNA too (SERVICEDNA_LOGS=false turns it off).
+	Logs bool
 }
 
 // Enabled reports whether telemetry will be sent.
@@ -48,6 +50,7 @@ func load(getenv func(string) string) Config {
 		LocalHealthURL:  getenv("SERVICEDNA_LOCAL_HEALTH_URL"),
 		Heartbeat:       millis(get("SERVICEDNA_HEARTBEAT_MS", "15000")),
 		DegradedLatency: millis(get("SERVICEDNA_DEGRADED_MS", "2000")),
+		Logs:            !isFalse(getenv("SERVICEDNA_LOGS")),
 	}
 	if c.LocalHealthURL == "" {
 		if port := getenv("PORT"); port != "" {
@@ -55,6 +58,14 @@ func load(getenv func(string) string) Config {
 		}
 	}
 	return c
+}
+
+func isFalse(v string) bool {
+	switch strings.ToLower(v) {
+	case "0", "false", "no", "off":
+		return true
+	}
+	return false
 }
 
 func millis(v string) time.Duration {

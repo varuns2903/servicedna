@@ -11,6 +11,21 @@ registers itself, sends traces, and reports health heartbeats.
 | Go | [`github.com/varuns2903/servicedna/sdks/go`](go/) | ✅ |
 | Java / Spring Boot | [`io.github.varuns2903:servicedna-spring-boot-starter`](java/) | ✅ |
 
+## Logs
+
+Each SDK sends the service's logs to ServiceDNA next to its traces, tagged with the trace and span
+of the request that wrote them — so a trace shows its logs, and a log line links to its trace. Your
+output doesn't change.
+
+| Language | What's sent |
+|---|---|
+| Node.js | `console.*`, pino, bunyan (`SERVICEDNA_LOGS_CONSOLE=false` leaves console out) |
+| Python | the `logging` module, including uvicorn's startup and error logs (not access lines) |
+| Go | `log/slog`'s default logger (use `slog.InfoContext(ctx, …)` for the trace link) and the `log` package |
+| Spring Boot | Logback / Log4j |
+
+`SERVICEDNA_LOGS=false` (Spring Boot: `servicedna.logs=false`) turns log export off.
+
 ## Test runs: capturing each hop's data
 
 When ServiceDNA's Test Studio sends a request, it adds the baggage entry `sdna.capture=1`. For

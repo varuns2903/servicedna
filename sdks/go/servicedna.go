@@ -1,5 +1,5 @@
-// Package servicedna connects a Go service to ServiceDNA: traces, self-registration and health
-// heartbeats, configured with two environment variables.
+// Package servicedna connects a Go service to ServiceDNA: traces, logs, self-registration and
+// health heartbeats, configured with two environment variables.
 //
 //	shutdown, err := servicedna.Start(ctx) // reads SERVICEDNA_URL, SERVICEDNA_KEY, ...
 //	defer shutdown(context.Background())
@@ -11,6 +11,7 @@ package servicedna
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/url"
 
@@ -22,7 +23,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// ShutdownFunc flushes pending spans and stops heartbeats.
+// ShutdownFunc flushes pending spans and logs and stops heartbeats.
 type ShutdownFunc func(context.Context) error
 
 var current Config
@@ -30,7 +31,7 @@ var current Config
 // Current returns the configuration Start was called with (zero until then).
 func Current() Config { return current }
 
-// Start configures OpenTelemetry to send traces to ServiceDNA and starts heartbeats.
+// Start configures OpenTelemetry to send traces and logs to ServiceDNA and starts heartbeats.
 func Start(ctx context.Context) (ShutdownFunc, error) {
 	return StartWithConfig(ctx, Load())
 }
@@ -74,13 +75,20 @@ func StartWithConfig(ctx context.Context, cfg Config) (ShutdownFunc, error) {
 		attrs = append(attrs, attribute.String("servicedna.health.url", cfg.HealthURL))
 	}
 
+	res := resource.NewSchemaless(attrs...)
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
-		sdktrace.WithResource(resource.NewSchemaless(attrs...)),
+		sdktrace.WithResource(res),
 	)
 	otel.SetTracerProvider(provider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 
+	stopLogs := func(context.Context) error { return nil }
+	if cfg.Logs {
+		if stopLogs, err = startLogs(ctx, cfg, endpoint, res); err != nil {
+			return nil, err
+		}
+	}
 	stopHeartbeat := startHeartbeat(cfg)
 	suffix := ""
 	if cfg.Environment != "" {
@@ -90,6 +98,6 @@ func StartWithConfig(ctx context.Context, cfg Config) (ShutdownFunc, error) {
 
 	return func(ctx context.Context) error {
 		stopHeartbeat()
-		return provider.Shutdown(ctx)
+		return errors.Join(provider.Shutdown(ctx), stopLogs(ctx))
 	}, nil
 }

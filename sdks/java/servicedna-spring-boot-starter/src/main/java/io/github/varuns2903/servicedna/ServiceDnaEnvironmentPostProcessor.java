@@ -75,7 +75,15 @@ public class ServiceDnaEnvironmentPostProcessor implements EnvironmentPostProces
     props.put("otel.exporter.otlp.traces.protocol", "http/protobuf");
     props.put("otel.exporter.otlp.traces.headers", "x-servicedna-key=" + key);
     props.put("otel.metrics.exporter", "none");
-    props.put("otel.logs.exporter", "none");
+    // Logback (and Log4j) records, with the active trace and span ids; servicedna.logs=false turns it off.
+    if (env.getProperty("servicedna.logs", Boolean.class, true)) {
+      props.put("otel.logs.exporter", "otlp");
+      props.put("otel.exporter.otlp.logs.endpoint", url + "/api/v1/otlp/v1/logs");
+      props.put("otel.exporter.otlp.logs.protocol", "http/protobuf");
+      props.put("otel.exporter.otlp.logs.headers", "x-servicedna-key=" + key);
+    } else {
+      props.put("otel.logs.exporter", "none");
+    }
 
     String service = env.getProperty("servicedna.service");
     if (service != null && !service.isBlank()) {

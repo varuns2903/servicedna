@@ -9,6 +9,7 @@ import type { FoundTrace, TraceExploreParams } from '@/api/traces.api';
 import { useServices } from '@/hooks/useServices';
 import { useTrace, useTraceAttributes, useTraceExplore } from '@/hooks/useTraces';
 import { TraceWaterfall } from './TraceWaterfall';
+import { TraceLogs } from '@/features/logs/TraceLogs';
 
 const RANGES = [
   { minutes: 15, label: 'Last 15 min' },
@@ -57,7 +58,7 @@ export function TraceExplorer() {
   const [attributeDraft, setAttributeDraft] = useState('');
   const [showQuery, setShowQuery] = useState(!!search.get('q'));
   const [queryDraft, setQueryDraft] = useState(search.get('q') ?? '');
-  const [open, setOpen] = useState<{ traceId: string; spanId?: string } | null>(null);
+  const [open, setOpen] = useState<{ traceId: string; spanId?: string } | null>(() => (search.get('trace') ? { traceId: search.get('trace')! } : null));
 
   const params = useMemo(() => paramsFrom(search, searchedAt), [search, searchedAt]);
   const { data, isFetching, error } = useTraceExplore(params);
@@ -293,6 +294,7 @@ function OpenTrace({ traceId, spanId }: { traceId: string; spanId?: string }) {
         </span>
       </div>
       <TraceWaterfall key={`${traceId}|${spanId}`} trace={trace} initialSpanId={spanId} />
+      <TraceLogs traceId={trace.traceId} start={trace.start} />
     </div>
   );
 }

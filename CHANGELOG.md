@@ -7,6 +7,13 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Logs. `POST /api/v1/otlp/v1/logs` ingests OTLP logs (stored in Grafana Loki, one tenant per
+  organization; the bundled collector and the agent forward OTLP/gRPC logs, and the agent masks
+  them like spans). The SDKs send logs by default — Node.js console/pino/bunyan, Python logging
+  (uvicorn included), Go slog and log, Spring Boot Logback — tagged with the active trace.
+  `/logs` searches them by service, environment, level, text or attribute (or LogQL), each line
+  linking to its trace; traces in the explorer and Test Studio runs show the logs written while
+  handling them. `docker-compose.yml` gains Loki and `LOG_STORE_URL`.
 - Trace explorer (`/traces`): search every trace by service, operation, environment, status,
   latency, any attribute (`orderId=o-17`, `http.response.status_code>=500`) or text inside
   captured bodies — or write TraceQL. Results show the matching spans and which services erred;

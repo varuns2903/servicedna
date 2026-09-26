@@ -45,6 +45,12 @@ processors:
         statements:
           - delete_matching_keys(attributes, "(?i).*(password|passwd|secret|token|api[-_.]?key|authorization|cookie|session).*")
           - replace_all_patterns(attributes, "value", "\\b(?:\\d[ -]?){12,18}\\d\\b", "[card]")
+    log_statements:
+      - context: log
+        statements:
+          - delete_matching_keys(attributes, "(?i).*(password|passwd|secret|token|api[-_.]?key|authorization|cookie|session).*")
+          - replace_all_patterns(attributes, "value", "\\b(?:\\d[ -]?){12,18}\\d\\b", "[card]")
+          - replace_pattern(body, "\\b(?:\\d[ -]?){12,18}\\d\\b", "[card]")
 
   batch: {}
 
@@ -60,5 +66,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp, zipkin]
+      processors: [memory_limiter, resource/environment, transform/mask, batch]
+      exporters: [otlphttp/servicedna]
+    logs:
+      receivers: [otlp]
       processors: [memory_limiter, resource/environment, transform/mask, batch]
       exporters: [otlphttp/servicedna]

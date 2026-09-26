@@ -401,7 +401,7 @@ The SDK buffers request/response bodies in memory for the duration of a request 
 them **only if the span ends in error**. Successful traffic ships no payloads; every failure
 arrives with full context. Tail sampling keeps 100% of errors and test runs.
 
-### 6.2 Trace & log explorer — ✅ Traces done (logs: next)
+### 6.2 Trace & log explorer — ✅ Done
 Kibana-style search across traces and correlated logs: by service, operation, status, latency,
 environment, time range, and attributes.
 

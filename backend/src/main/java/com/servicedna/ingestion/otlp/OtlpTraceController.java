@@ -98,7 +98,7 @@ public class OtlpTraceController {
   }
 
   /** OTLP exporters (the collector's included) gzip by default. */
-  private static byte[] decode(byte[] raw, String contentEncoding) {
+  static byte[] decode(byte[] raw, String contentEncoding) {
     if (contentEncoding == null || contentEncoding.isBlank() || contentEncoding.equalsIgnoreCase("identity")) {
       return checkSize(raw);
     }
@@ -122,7 +122,7 @@ public class OtlpTraceController {
     return body;
   }
 
-  private static String bearer(String authorization) {
+  static String bearer(String authorization) {
     return authorization != null && authorization.startsWith("Bearer ")
         ? authorization.substring("Bearer ".length())
         : null;

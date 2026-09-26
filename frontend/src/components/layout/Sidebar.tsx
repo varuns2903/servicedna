@@ -1,6 +1,6 @@
 
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Server, Network, Workflow, FlaskConical, ScanSearch, AlertTriangle, BellRing, Settings, Activity, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { LayoutDashboard, Server, Network, Workflow, FlaskConical, ScanSearch, ScrollText, AlertTriangle, BellRing, Settings, Activity, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useUIStore } from '@/stores/useUIStore';
 import { cn } from '@/utils/cn';
 
@@ -10,6 +10,7 @@ const navItems = [
   { name: 'Dependency Graph', path: '/map', icon: Network },
   { name: 'API Flows', path: '/flows', icon: Workflow },
   { name: 'Traces', path: '/traces', icon: ScanSearch },
+  { name: 'Logs', path: '/logs', icon: ScrollText },
   { name: 'Test Studio', path: '/testing', icon: FlaskConical },
   { name: 'Incidents', path: '/incidents', icon: AlertTriangle },
   { name: 'Alerts', path: '/alerts', icon: BellRing },
