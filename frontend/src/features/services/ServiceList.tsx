@@ -8,7 +8,7 @@ import { StatusIndicator } from '@/components/status/StatusIndicator';
 import type { ServiceStatus } from '@/components/status/StatusIndicator';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Search, Plus, Download, Upload } from 'lucide-react';
+import { Search, Plus, Download, Upload, Plug } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { formatDistanceToNow } from 'date-fns';
 import { RegisterServiceModal } from './RegisterServiceModal';
@@ -158,9 +158,13 @@ export function ServiceList() {
             className="hidden"
             onChange={handleImportFile}
           />
-          <Button size="sm" onClick={() => setRegisterOpen(true)}>
+          <Button size="sm" variant="outline" onClick={() => setRegisterOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Register Service
+            Register Manually
+          </Button>
+          <Button size="sm" onClick={() => navigate('/connect')}>
+            <Plug className="mr-2 h-4 w-4" />
+            Connect a Service
           </Button>
         </div>
       </div>
@@ -233,11 +237,16 @@ export function ServiceList() {
         </div>
       ) : services?.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-charcoal-600 py-16 text-center">
-          <div className="text-gray-400">No services registered</div>
-          <p className="mt-1 text-sm text-gray-500">Register your first service to begin monitoring.</p>
-          <Button variant="outline" className="mt-4" onClick={() => setRegisterOpen(true)}>
-            Register Service
-          </Button>
+          <div className="text-gray-400">No services yet</div>
+          <p className="mt-1 text-sm text-gray-500">
+            Add the ServiceDNA SDK to a service and it registers itself — two lines of setup.
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Button onClick={() => navigate('/connect')}>Connect a Service</Button>
+            <Button variant="outline" onClick={() => setRegisterOpen(true)}>
+              Register Manually
+            </Button>
+          </div>
         </div>
       ) : filteredServices?.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-charcoal-600 py-16 text-center">

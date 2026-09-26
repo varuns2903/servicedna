@@ -169,7 +169,7 @@ helm install servicedna-agent servicedna/agent --set key=$SERVICEDNA_KEY --set e
 - Optional **Kafka watcher**: joins topics as its own consumer group to capture events without
   instrumenting producers
 
-### 2.5 Onboarding wizard in the UI
+### 2.5 Onboarding wizard in the UI — ✅ Done
 Modelled on Sentry/Datadog onboarding:
 1. Pick language/framework → copy the two lines shown
 2. Screen waits live: *"Waiting for first signal from your service…"*
