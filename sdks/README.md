@@ -7,6 +7,7 @@ registers itself, sends traces, and reports health heartbeats.
 | Language | Package | Status |
 |---|---|---|
 | Node.js | [`@servicedna/node`](node/) | ✅ |
+| Python | [`servicedna`](python/) | ✅ |
 
 Already using OpenTelemetry? No SDK is needed — point your exporter at ServiceDNA:
 
