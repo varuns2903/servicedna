@@ -54,6 +54,25 @@ public class Service {
   @Column(name = "api_key", nullable = false, unique = true)
   private String apiKey;
 
+  /** From telemetry's deployment.environment; null for services registered without one. */
+  @Column(length = 64)
+  private String environment;
+
+  /** From telemetry's telemetry.sdk.language. */
+  @Column(length = 32)
+  private String language;
+
+  /** From telemetry's service.version. */
+  @Column(length = 64)
+  private String version;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 16)
+  private ServiceSource source = ServiceSource.MANUAL;
+
+  @Column(name = "last_telemetry_at")
+  private OffsetDateTime lastTelemetryAt;
+
   @ManyToMany
   @JoinTable(
       name = "service_dependencies",
@@ -180,6 +199,46 @@ public class Service {
 
   public void setApiKey(String apiKey) {
     this.apiKey = apiKey;
+  }
+
+  public String getEnvironment() {
+    return environment;
+  }
+
+  public void setEnvironment(String environment) {
+    this.environment = environment;
+  }
+
+  public String getLanguage() {
+    return language;
+  }
+
+  public void setLanguage(String language) {
+    this.language = language;
+  }
+
+  public String getVersion() {
+    return version;
+  }
+
+  public void setVersion(String version) {
+    this.version = version;
+  }
+
+  public ServiceSource getSource() {
+    return source;
+  }
+
+  public void setSource(ServiceSource source) {
+    this.source = source;
+  }
+
+  public OffsetDateTime getLastTelemetryAt() {
+    return lastTelemetryAt;
+  }
+
+  public void setLastTelemetryAt(OffsetDateTime lastTelemetryAt) {
+    this.lastTelemetryAt = lastTelemetryAt;
   }
 
   public Set<Service> getDependencies() {

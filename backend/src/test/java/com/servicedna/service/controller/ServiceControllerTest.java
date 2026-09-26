@@ -281,7 +281,7 @@ class ServiceControllerTest {
         mockMvc.perform(post("/api/v1/ping")
                 .header("X-API-Key", originalApiKey)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 20, null))))
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 20, null, null, null))))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(delete("/api/v1/organizations/" + org1Id + "/services/" + serviceId)
@@ -306,17 +306,17 @@ class ServiceControllerTest {
         mockMvc.perform(post("/api/v1/ping")
                 .header("X-API-Key", apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 40, null))))
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 40, null, null, null))))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/ping")
                 .header("X-API-Key", apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 60, null))))
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 60, null, null, null))))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/ping")
                 .header("X-API-Key", apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.DOWN, null, "timeout"))))
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.DOWN, null, "timeout", null, null))))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/organizations/" + org1Id + "/services/" + serviceId + "/metrics")

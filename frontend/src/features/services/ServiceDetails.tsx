@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Copy, Check, AlertTriangle, Trash2, Bell } from 'lucide-react';
@@ -120,7 +121,20 @@ export function ServiceDetails() {
         </Link>
         <h1 className="text-2xl font-semibold text-white">{service.name}</h1>
         <StatusIndicator status={service.status} size="sm" />
+        {service.environment && <Badge variant="info">{service.environment}</Badge>}
       </div>
+      {(service.language || service.lastTelemetryAt) && (
+        <p className="-mt-4 text-sm text-gray-500">
+          {[
+            service.language && `${service.language}${service.version ? ` ${service.version}` : ''}`,
+            service.source === 'TELEMETRY' && 'registered via telemetry',
+            service.lastTelemetryAt &&
+              `telemetry last seen ${formatDistanceToNow(new Date(service.lastTelemetryAt), { addSuffix: true })}`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-6">

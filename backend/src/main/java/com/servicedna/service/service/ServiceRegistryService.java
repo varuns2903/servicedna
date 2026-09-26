@@ -1,6 +1,9 @@
 package com.servicedna.service.service;
 
 import com.servicedna.billing.service.PlanLimitService;
+import java.util.Optional;
+import com.servicedna.service.dto.TelemetryIdentity;
+import com.servicedna.service.domain.ServiceSource;
 import com.servicedna.alert.event.ServiceStatusChangedEvent;
 import com.servicedna.alert.service.AlertEventPublisher;
 import com.servicedna.common.exception.ApiException;
@@ -41,6 +44,7 @@ public class ServiceRegistryService {
   private final SecureRandom secureRandom = new SecureRandom();
 
   private final PlanLimitService planLimitService;
+  private final org.springframework.cache.CacheManager cacheManager;
 
   public ServiceRegistryService(
       ServiceRepository serviceRepository,
@@ -48,13 +52,15 @@ public class ServiceRegistryService {
       OrganizationService organizationService,
       @Lazy AlertEventPublisher alertEventPublisher,
       ApplicationEventPublisher eventPublisher,
-      PlanLimitService planLimitService) {
+      PlanLimitService planLimitService,
+      org.springframework.cache.CacheManager cacheManager) {
     this.serviceRepository = serviceRepository;
     this.organizationRepository = organizationRepository;
     this.organizationService = organizationService;
     this.alertEventPublisher = alertEventPublisher;
     this.eventPublisher = eventPublisher;
     this.planLimitService = planLimitService;
+    this.cacheManager = cacheManager;
   }
 
   @Transactional
@@ -103,6 +109,116 @@ public class ServiceRegistryService {
             "Created service " + service.getName(),
             null));
     return mapToDtoWithApiKey(service);
+  }
+
+  /**
+   * Finds or creates the service a piece of telemetry comes from, and refreshes what its telemetry
+   * says about it. A service is identified by name within an environment; telemetry naming an
+   * environment adopts a service of the same name registered without one, rather than creating a
+   * duplicate.
+   *
+   * @return the service's id, or empty if the organization's plan doesn't allow another service
+   */
+  @Transactional
+  public Optional<UUID> registerFromTelemetry(UUID organizationId, TelemetryIdentity identity) {
+    Optional<Service> existing =
+        serviceRepository.findByOrganizationIdAndNameAndEnvironment(
+            organizationId, identity.name(), identity.environment());
+    if (existing.isEmpty() && identity.environment() != null) {
+      existing =
+          serviceRepository.findByOrganizationIdAndNameAndEnvironmentIsNull(organizationId, identity.name());
+      existing.ifPresent(service -> service.setEnvironment(identity.environment()));
+    }
+
+    Service service;
+    boolean changed;
+    if (existing.isPresent()) {
+      service = existing.get();
+      changed = applyTelemetry(service, identity);
+    } else {
+      if (!planLimitService.canAddService(organizationId)) {
+        return Optional.empty();
+      }
+      Organization organization =
+          organizationRepository
+              .findById(organizationId)
+              .orElseThrow(
+                  () -> new ApiException(HttpStatus.NOT_FOUND, "ORG_NOT_FOUND", "Organization not found"));
+      service =
+          new Service(
+              UUID.randomUUID(),
+              organization,
+              identity.name(),
+              null,
+              null,
+              identity.region() != null ? identity.region() : "global",
+              generateApiKey(),
+              identity.healthCheckUrl());
+      service.setEnvironment(identity.environment());
+      service.setSource(ServiceSource.TELEMETRY);
+      applyTelemetry(service, identity);
+      changed = true;
+      eventPublisher.publishEvent(
+          new AuditLogEvent(
+              organizationId,
+              null,
+              "AUTO_REGISTER_SERVICE",
+              "Service",
+              service.getId().toString(),
+              "Registered " + identity.name()
+                  + (identity.environment() != null ? " (" + identity.environment() + ")" : "")
+                  + " from its telemetry",
+              null));
+    }
+
+    service.setLastTelemetryAt(OffsetDateTime.now());
+    service = serviceRepository.saveAndFlush(service);
+    if (changed) {
+      evictServiceCachesAfterCommit();
+      eventPublisher.publishEvent(new DashboardInvalidationEvent(this, organizationId));
+    }
+    return Optional.of(service.getId());
+  }
+
+  /** Copies what telemetry reports onto the service; a configured health URL is never replaced. */
+  private static boolean applyTelemetry(Service service, TelemetryIdentity identity) {
+    boolean changed = false;
+    if (identity.language() != null && !identity.language().equals(service.getLanguage())) {
+      service.setLanguage(identity.language());
+      changed = true;
+    }
+    if (identity.version() != null && !identity.version().equals(service.getVersion())) {
+      service.setVersion(identity.version());
+      changed = true;
+    }
+    if (identity.healthCheckUrl() != null && service.getHealthCheckUrl() == null) {
+      service.setHealthCheckUrl(identity.healthCheckUrl());
+      changed = true;
+    }
+    return changed;
+  }
+
+  private void evictServiceCachesAfterCommit() {
+    Runnable evict =
+        () -> {
+          for (String name : new String[] {"services", "publicStatus"}) {
+            org.springframework.cache.Cache cache = cacheManager.getCache(name);
+            if (cache != null) {
+              cache.clear();
+            }
+          }
+        };
+    if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+      org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+          new org.springframework.transaction.support.TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              evict.run();
+            }
+          });
+    } else {
+      evict.run();
+    }
   }
 
   @Transactional(readOnly = true)
@@ -386,6 +502,11 @@ public class ServiceRegistryService {
         service.getStatus(),
         null,
         dependencyIds,
+        service.getEnvironment(),
+        service.getLanguage(),
+        service.getVersion(),
+        service.getSource(),
+        service.getLastTelemetryAt(),
         service.getCreatedAt(),
         service.getUpdatedAt());
   }
@@ -406,6 +527,11 @@ public class ServiceRegistryService {
         service.getStatus(),
         service.getApiKey(),
         dependencyIds,
+        service.getEnvironment(),
+        service.getLanguage(),
+        service.getVersion(),
+        service.getSource(),
+        service.getLastTelemetryAt(),
         service.getCreatedAt(),
         service.getUpdatedAt());
   }

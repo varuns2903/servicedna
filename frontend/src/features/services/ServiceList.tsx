@@ -26,6 +26,12 @@ export function ServiceList() {
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
+  const [environmentFilter, setEnvironmentFilter] = useState<string>('ALL');
+  const environments = useMemo(
+    () => [...new Set((services || []).map((s) => s.environment).filter((e): e is string => !!e))].sort(),
+    [services]
+  );
+
   const regions = useMemo(
     () => [...new Set((services || []).map((s) => s.region).filter(Boolean))].sort(),
     [services]
@@ -37,6 +43,7 @@ export function ServiceList() {
     return services.filter((service) => {
       if (statusFilter !== 'ALL' && service.status !== statusFilter) return false;
       if (regionFilter !== 'ALL' && service.region !== regionFilter) return false;
+      if (environmentFilter !== 'ALL' && service.environment !== environmentFilter) return false;
       if (
         term &&
         !service.name.toLowerCase().includes(term) &&
@@ -46,7 +53,7 @@ export function ServiceList() {
       }
       return true;
     });
-  }, [services, search, statusFilter, regionFilter]);
+  }, [services, search, statusFilter, regionFilter, environmentFilter]);
 
   const handleExport = () => {
     const rows = (filteredServices || []).map((s) => [
@@ -198,6 +205,20 @@ export function ServiceList() {
               </option>
             ))}
           </select>
+          {environments.length > 0 && (
+            <select
+              value={environmentFilter}
+              onChange={(e) => setEnvironmentFilter(e.target.value)}
+              className="bg-charcoal-900 border border-charcoal-700 rounded-md p-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+            >
+              <option value="ALL">All environments</option>
+              {environments.map((environment) => (
+                <option key={environment} value={environment}>
+                  {environment}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-400">
           <span>{filteredServices?.length || 0} of {services?.length || 0} services</span>
@@ -241,8 +262,19 @@ export function ServiceList() {
               >
                 <TableCell className="font-medium text-gray-200">
                   <div className="flex flex-col">
-                    <span>{service.name}</span>
-                    <span className="text-xs font-normal text-gray-500">{service.description}</span>
+                    <span className="flex items-center gap-2">
+                      {service.name}
+                      {service.environment && <Badge variant="info">{service.environment}</Badge>}
+                    </span>
+                    <span className="text-xs font-normal text-gray-500">
+                      {[
+                        service.description,
+                        service.language && `${service.language}${service.version ? ` ${service.version}` : ''}`,
+                        service.source === 'TELEMETRY' && 'registered via telemetry',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell>

@@ -72,7 +72,7 @@ class DashboardControllerTest {
         mockMvc.perform(post("/api/v1/ping")
                 .header("X-API-Key", apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 120, "OK"))))
+                .content(objectMapper.writeValueAsString(new PingRequest(ServiceStatus.HEALTHY, 120, "OK", null, null))))
                 .andExpect(status().isOk());
 
         // Create an incident
