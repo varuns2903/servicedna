@@ -7,6 +7,9 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Import from GitHub (Services → Import from GitHub): list a GitHub organization's repositories,
+  see what each `servicedna.yaml` declares, and register the chosen ones in one go — from their
+  manifest, or from the repository's name, description and link. The token isn't stored.
 - GitHub Action (`integrations/github-action`): on pushes to the default branch it runs
   `sdna scan`; on pull requests it runs the repository's test flows and reports them in the job
   summary and a single, updated PR comment, failing the check when a case fails. `sdna test run
