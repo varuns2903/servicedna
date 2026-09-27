@@ -1,5 +1,5 @@
 # Publishes an SDK when its tag is pushed — the tag's version must match the package's:
-#   node-v0.1.0    → npm @servicedna/node          (secret NPM_TOKEN)
+#   node-v0.1.0    → npm @servicedna/node          (npm trusted publishing)
 #   python-v0.1.0  → PyPI servicedna               (PyPI trusted publishing, environment "pypi")
 #   java-v0.1.0    → Maven Central io.github.varuns2903:servicedna-spring-boot-starter
 #                    (secrets CENTRAL_USERNAME, CENTRAL_PASSWORD, GPG_PRIVATE_KEY, GPG_PASSPHRASE)
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # npm provenance
+      id-token: write # npm trusted publishing and provenance
     defaults:
       run:
         working-directory: sdks/node
@@ -33,9 +33,9 @@ jobs:
         run: test "node-v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
       - run: npm ci
       - run: npm test
+      # Trusted publishing (no token) needs npm 11.5.1+; Node 22 ships an older npm.
+      - run: npm install -g npm@^11.5.1
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   python:
     if: startsWith(github.ref_name, 'python-v')
