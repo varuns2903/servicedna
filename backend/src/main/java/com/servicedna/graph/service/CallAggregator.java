@@ -18,6 +18,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -32,6 +33,8 @@ public class CallAggregator {
   private static final Logger log = LoggerFactory.getLogger(CallAggregator.class);
 
   record BucketKey(UUID organizationId, OffsetDateTime bucketStart, CallKey key) {}
+
+  private static final int MAX_ATTEMPTS = 5;
 
   private final ObservedCallRepository repository;
   private final TransactionTemplate transactions;
@@ -73,15 +76,10 @@ public class CallAggregator {
     }
     try {
       transactions.executeWithoutResult(status -> batch.forEach(this::upsert));
-    } catch (DataIntegrityViolationException e) {
-      // Another instance inserted one of these rows first; retry row by row so the rest land.
-      batch.forEach((k, v) -> {
-        try {
-          transactions.executeWithoutResult(status -> upsert(k, v));
-        } catch (RuntimeException retryFailure) {
-          log.warn("Dropping observed calls for {}: {}", k.key(), retryFailure.getMessage());
-        }
-      });
+    } catch (DataIntegrityViolationException | OptimisticLockingFailureException e) {
+      // Another instance inserted or updated one of these rows at the same time: retry row by
+      // row, each from fresh data, so every count lands exactly once.
+      batch.forEach(this::upsertWithRetry);
     }
     for (BucketKey bucket : batch.keySet()) {
       CallKey key = bucket.key();
@@ -91,6 +89,23 @@ public class CallAggregator {
         } catch (RuntimeException e) {
           log.warn("Couldn't record edge {} -> {}: {}", key.sourceServiceId(), key.targetServiceId(), e.getMessage());
         }
+      }
+    }
+  }
+
+  private void upsertWithRetry(BucketKey bucket, CallStats stats) {
+    for (int attempt = 1; ; attempt++) {
+      try {
+        transactions.executeWithoutResult(status -> upsert(bucket, stats));
+        return;
+      } catch (DataIntegrityViolationException | OptimisticLockingFailureException e) {
+        if (attempt == MAX_ATTEMPTS) {
+          log.warn("Dropping observed calls for {} after {} conflicting attempts: {}", bucket.key(), attempt, e.getMessage());
+          return;
+        }
+      } catch (RuntimeException e) {
+        log.warn("Dropping observed calls for {}: {}", bucket.key(), e.getMessage());
+        return;
       }
     }
   }

@@ -303,6 +303,7 @@ servicedna/
 | `RUNNER_SHARED_TOKEN` | Token for the bundled Test Studio runner (`docker compose --profile runner up`), which serves every organization; runners elsewhere use an ingestion key | — |
 | `TRACE_STORE_QUERY_URL` | Tempo's HTTP API, for reading traces back (flows, trace viewer) | — (`http://tempo:3200` in docker-compose) |
 | `TRACE_STORE_OTLP_URL` | OTLP/HTTP base URL of Grafana Tempo, where ingested traces are stored (one tenant per organization); empty disables trace storage | — (`http://tempo:4318` in docker-compose) |
+| `GRAPH_PAIRING_STORE` | Where the client and server halves of each call wait to be paired: `redis` (shared, so any number of backend instances build the graph correctly) or `memory` (one instance only) | `redis` |
 | `LOG_STORE_URL` | Base URL of Grafana Loki, where ingested logs are stored and searched (one tenant per organization); empty disables log storage | — (`http://loki:3100` in docker-compose) |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins | `http://localhost:5173,http://localhost:3000` |
 | `FRONTEND_URL` | Base URL used in email links and OAuth redirects | — |
