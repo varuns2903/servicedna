@@ -117,6 +117,11 @@ github:
   # GitHub's REST API, for importing repositories (GitHub Enterprise: https://<host>/api/v3).
   api-url: ${GITHUB_API_URL:https://api.github.com}
 
+graph:
+  # Where the two halves of a call (client and server span) wait to be paired: "redis" (shared, so
+  # any number of backend instances pair correctly) or "memory" (a single instance only).
+  pairing-store: ${GRAPH_PAIRING_STORE:redis}
+
 log-store:
   # Grafana Loki's base URL: logs are forwarded to its OTLP endpoint and read back with the
   # organization as tenant (X-Scope-OrgID). Empty disables log storage.

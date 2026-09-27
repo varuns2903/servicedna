@@ -18,12 +18,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HexFormat;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,17 +34,14 @@ import org.springframework.stereotype.Component;
  * service paired with the incoming span (SERVER or CONSUMER) it caused in another — the incoming
  * span's parent (or, for messaging, a link) is the outgoing span. Services export separately, so
  * the halves arrive in different batches; each waits up to {@code graph.pairing-window-ms} for the
- * other. An outgoing span nobody answers becomes a call to a database, external host or topic,
- * when its attributes say which.
- *
- * <p>State is in memory: with several backend instances, the halves of a call can land on
- * different instances and go unpaired.
+ * other in the {@link PendingCalls} store (Redis, shared by all backend instances, or memory for a
+ * single one). An outgoing span nobody answers becomes a call to a database, external host or
+ * topic, when its attributes say which.
  */
 @Component
 public class ObservedCallCollector {
 
   private static final Logger log = LoggerFactory.getLogger(ObservedCallCollector.class);
-  private static final int MAX_PENDING = 200_000;
   private static final HexFormat HEX = HexFormat.of();
 
   /** The caller's half of a call. */
@@ -70,17 +65,18 @@ public class ObservedCallCollector {
   private final CallAggregator aggregator;
   private final HostServiceResolver serviceResolver;
   private final Duration pairingWindow;
-  private final Map<String, Outbound> waitingOutbound = new ConcurrentHashMap<>();
-  private final Map<String, Inbound> waitingInbound = new ConcurrentHashMap<>();
+  private final PendingCalls pending;
 
   public ObservedCallCollector(
       ServiceDiscoveryListener serviceDiscovery,
       CallAggregator aggregator,
       HostServiceResolver serviceResolver,
+      PendingCalls pending,
       @Value("${graph.pairing-window-ms:30000}") long pairingWindowMs) {
     this.serviceDiscovery = serviceDiscovery;
     this.aggregator = aggregator;
     this.serviceResolver = serviceResolver;
+    this.pending = pending;
     this.pairingWindow = Duration.ofMillis(pairingWindowMs);
   }
 
@@ -146,13 +142,7 @@ public class ObservedCallCollector {
       recordUnanswered(call);
       return;
     }
-    String key = key(organizationId, span.getTraceId(), span.getSpanId());
-    Inbound answer = waitingInbound.remove(key);
-    if (answer != null) {
-      recordPaired(call, answer);
-    } else if (waitingOutbound.size() < MAX_PENDING) {
-      waitingOutbound.put(key, call);
-    }
+    pending.pairOutbound(key(organizationId, span.getTraceId(), span.getSpanId()), call).ifPresent(answer -> recordPaired(call, answer));
   }
 
   private void inbound(UUID organizationId, UUID serviceId, Span span, Instant now) {
@@ -172,12 +162,7 @@ public class ObservedCallCollector {
   }
 
   private void match(String key, Inbound call) {
-    Outbound caller = waitingOutbound.remove(key);
-    if (caller != null) {
-      recordPaired(caller, call);
-    } else if (waitingInbound.size() < MAX_PENDING) {
-      waitingInbound.put(key, call);
-    }
+    pending.pairInbound(key, call).ifPresent(caller -> recordPaired(caller, call));
   }
 
   private void recordPaired(Outbound caller, Inbound callee) {
@@ -250,15 +235,11 @@ public class ObservedCallCollector {
 
   @Scheduled(fixedDelayString = "${graph.pairing-sweep-ms:5000}")
   public void expireUnpaired() {
-    Instant now = Instant.now();
-    for (Iterator<Map.Entry<String, Outbound>> it = waitingOutbound.entrySet().iterator(); it.hasNext(); ) {
-      Map.Entry<String, Outbound> entry = it.next();
-      if (entry.getValue().expiresAt().isBefore(now) && waitingOutbound.remove(entry.getKey(), entry.getValue())) {
-        recordUnanswered(entry.getValue());
-      }
+    try {
+      pending.takeExpired(Instant.now()).forEach(this::recordUnanswered);
+    } catch (RuntimeException e) {
+      log.warn("Expiring unpaired calls failed: {}", e.getMessage());
     }
-    // An incoming span whose caller never reported (an uninstrumented client) has no edge to add.
-    waitingInbound.values().removeIf(call -> call.expiresAt().isBefore(now));
   }
 
   /** The incoming operation (in the same service) that led to this outgoing span, if exported with it. */

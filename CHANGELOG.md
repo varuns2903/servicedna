@@ -197,6 +197,13 @@ All notable changes to this project are documented in this file. The format is b
   include a `serviceName` field.
 
 ### Fixed
+- The dependency and flow graphs are now correct with several backend instances. The two halves
+  of a call (client and server span) often reach different instances; they now wait for each
+  other in Redis (paired by an atomic script, and unanswered calls claimed by exactly one
+  instance) instead of in each instance's memory, where they went unpaired. Instances flushing
+  counts into the same minute bucket no longer overwrite each other (optimistic locking with
+  retry; they lost up to 40% of counts). `GRAPH_PAIRING_STORE=memory` keeps the old store for a
+  single instance.
 - Runner: gRPC calls to servers that only speak reflection v1alpha (Python's grpcio) could fail
   with `EOF` — the v1 probe's rejection sometimes surfaces on Send, which is now read from Recv.
 - Stripe checkout redirected to `http://localhost:5173` whatever `FRONTEND_URL` was set to.

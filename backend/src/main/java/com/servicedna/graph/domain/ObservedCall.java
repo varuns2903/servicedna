@@ -6,18 +6,28 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /** One minute of calls from an operation in one service to an operation on one target. */
 @Entity
-@Table(name = "observed_calls")
+@Table(
+    name = "observed_calls",
+    // Mirrors the migration's constraint, so concurrent inserts of one bucket conflict everywhere.
+    uniqueConstraints = @UniqueConstraint(name = "uq_observed_calls", columnNames = {
+        "organization_id", "bucket_start", "source_service_id", "source_operation",
+        "target_kind", "target_name", "target_operation", "protocol"}))
 public class ObservedCall {
 
   /** Upper bounds (ms) of the latency histogram buckets; a final bucket holds anything slower. */
   public static final long[] BUCKET_BOUNDS_MS = {10, 50, 100, 250, 500, 1000, 2500, 5000, 10000};
 
   @Id private UUID id;
+
+  /** Several instances may add to the same bucket: a stale write fails and is retried. */
+  @Version private long version;
 
   @Column(name = "organization_id", nullable = false)
   private UUID organizationId;
