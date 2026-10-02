@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -117,7 +118,7 @@ func createApp(apiURL, appURL, org, name string, public, poll bool, out string, 
 	}
 	fmt.Printf("✓ created GitHub app %q (%s/apps/%v)\n", res.app["name"], webURL, res.app["slug"])
 	fmt.Printf("✓ wrote its settings to %s (secrets — keep it out of version control)\n", out)
-	fmt.Println("\nGive them to the ServiceDNA backend, e.g. with docker compose:\n\n  set -a; . ./" + out + "; set +a\n  docker compose up -d backend\n\nThen connect it: Settings → Integrations → GitHub App → Install.")
+	fmt.Println("\nGive them to the ServiceDNA backend, e.g. with docker compose:\n\n  set -a; . " + envPath(out) + "; set +a\n  docker compose up -d backend\n\nThen connect it: Settings → Integrations → GitHub App → Install.")
 	return nil
 }
 
@@ -182,6 +183,14 @@ func appEnv(app map[string]any, poll bool) string {
 	}
 	return fmt.Sprintf("GITHUB_APP_ID=%v\nGITHUB_APP_SLUG=%v\nGITHUB_APP_CLIENT_ID=%v\nGITHUB_APP_CLIENT_SECRET=%v\nGITHUB_APP_WEBHOOK_SECRET=%v\nGITHUB_APP_PRIVATE_KEY=\"%s\"\nGITHUB_APP_POLL=%t\n",
 		jsonNumber(app["id"]), app["slug"], app["client_id"], app["client_secret"], secret, pem, poll)
+}
+
+// envPath is how to source the file from here: "./name" for a relative path.
+func envPath(out string) string {
+	if filepath.IsAbs(out) || strings.HasPrefix(out, ".") {
+		return out
+	}
+	return "./" + out
 }
 
 func jsonNumber(v any) string {
