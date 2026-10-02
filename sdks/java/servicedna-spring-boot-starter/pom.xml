@@ -5,7 +5,7 @@
 
   <groupId>io.github.varuns2903</groupId>
   <artifactId>servicedna-spring-boot-starter</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <name>ServiceDNA Spring Boot Starter</name>
   <description>Connect a Spring Boot service to ServiceDNA: traces, self-registration and health heartbeats with two environment variables.</description>
   <url>https://github.com/varuns2903/servicedna/tree/main/sdks/java</url>
@@ -37,6 +37,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <spring-boot.version>3.5.16</spring-boot.version>
     <opentelemetry-instrumentation.version>2.31.1</opentelemetry-instrumentation.version>
+    <grpc.version>1.73.0</grpc.version>
+    <protobuf-java-util.version>3.25.5</protobuf-java-util.version>
   </properties>
 
   <dependencyManagement>
@@ -60,6 +62,43 @@
   </dependencyManagement>
 
   <dependencies>
+    <!-- gRPC support is optional: present only when the service itself uses gRPC. -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-api</artifactId>
+      <version>${grpc.version}</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
+      <version>${protobuf-java-util.version}</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry.instrumentation</groupId>
+      <artifactId>opentelemetry-grpc-1.6</artifactId>
+      <version>${opentelemetry-instrumentation.version}-alpha</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-inprocess</artifactId>
+      <version>${grpc.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-services</artifactId>
+      <version>${grpc.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+      <version>${grpc.version}</version>
+      <scope>test</scope>
+    </dependency>
     <!-- OpenTelemetry's own Spring Boot starter: SDK auto-configuration plus instrumentation for
          Spring MVC/WebFlux, RestTemplate/RestClient/WebClient, JDBC, Kafka, Mongo, R2DBC... -->
     <dependency>
