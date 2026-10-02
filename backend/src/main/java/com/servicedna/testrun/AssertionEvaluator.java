@@ -63,7 +63,10 @@ public final class AssertionEvaluator {
       }
 
       Integer status = entry ? (entryResult != null && entryResult.hasNonNull("status") ? entryResult.get("status").asInt() : null) : hop.httpStatus();
-      Double latency = entry ? (entryResult != null && entryResult.hasNonNull("durationMs") ? entryResult.get("durationMs").asDouble() : null) : hop.durationMs();
+      // Boxed on both sides: mixing Double and double in a ternary unboxes, and a missing value NPEs.
+      Double latency = entry
+          ? (entryResult != null && entryResult.hasNonNull("durationMs") ? Double.valueOf(entryResult.get("durationMs").asDouble()) : null)
+          : Double.valueOf(hop.durationMs());
       String request = entry ? null : hop.requestBody();
       String response = entry ? (entryResult != null ? entryResult.path("body").asText(null) : null) : hop.responseBody();
 

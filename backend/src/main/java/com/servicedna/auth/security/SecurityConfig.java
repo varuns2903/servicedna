@@ -54,6 +54,7 @@ public class SecurityConfig {
                         "/api/v1/otlp/**",
                         "/api/v1/runner/**",
                         "/api/v1/webhooks/stripe",
+                        "/api/v1/github/webhook",
                         "/ws/**",
                         "/api/v1/public/**")
                     .permitAll()

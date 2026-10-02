@@ -28,7 +28,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     registry
         .addInterceptor(rateLimitInterceptor)
         .addPathPatterns("/api/**")
-        .excludePathPatterns("/api/v1/otlp/**", "/api/v1/runner/**");
+        .excludePathPatterns("/api/v1/otlp/**", "/api/v1/runner/**", "/api/v1/github/webhook");
   }
 
   @Override

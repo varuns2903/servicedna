@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -36,6 +37,7 @@ public class TestSuiteService {
   private final OrganizationService organizationService;
   private final ObjectMapper json;
   private final AssertionEvaluator evaluator;
+  private final ApplicationEventPublisher events;
 
   public TestSuiteService(
       TestCollectionRepository collections,
@@ -45,7 +47,8 @@ public class TestSuiteService {
       TestRunViews views,
       TraceQueryService traces,
       OrganizationService organizationService,
-      ObjectMapper json) {
+      ObjectMapper json,
+      ApplicationEventPublisher events) {
     this.collections = collections;
     this.suites = suites;
     this.runs = runs;
@@ -55,6 +58,7 @@ public class TestSuiteService {
     this.organizationService = organizationService;
     this.json = json;
     this.evaluator = new AssertionEvaluator(json);
+    this.events = events;
   }
 
   // --- collections -------------------------------------------------------------------------
@@ -119,6 +123,12 @@ public class TestSuiteService {
     return toDto(suite);
   }
 
+  /** For integrations acting on a suite they started (e.g. GitHub checks); no user check. */
+  @Transactional(readOnly = true)
+  public java.util.Optional<TestRunDto.Suite> find(UUID organizationId, UUID suiteId) {
+    return suites.findByOrganizationIdAndId(organizationId, suiteId).map(this::toDto);
+  }
+
   @Transactional(readOnly = true)
   public TestRunDto.Suite get(UUID organizationId, UUID suiteId, UUID userId) {
     organizationService.validateUserAccess(organizationId, userId);
@@ -149,6 +159,7 @@ public class TestSuiteService {
       if (allDecided) {
         suite.setStatus(suiteRuns.stream().allMatch(TestRun::getPassed) ? TestSuite.PASSED : TestSuite.FAILED);
         suite.setFinishedAt(OffsetDateTime.now());
+        events.publishEvent(new SuiteFinishedEvent(suite.getOrganizationId(), suite.getId(), suite.getStatus()));
       }
     }
   }

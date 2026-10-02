@@ -150,6 +150,13 @@ services:
       TRACE_STORE_OTLP_URL: ${TRACE_STORE_OTLP_URL:-http://tempo:4318}
       TRACE_STORE_QUERY_URL: ${TRACE_STORE_QUERY_URL:-http://tempo:3200}
       LOG_STORE_URL: ${LOG_STORE_URL:-http://loki:3100}
+      # The ServiceDNA GitHub App (`sdna github create-app` writes these); unset disables it.
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      GITHUB_APP_WEBHOOK_SECRET: ${GITHUB_APP_WEBHOOK_SECRET:-}
+      GITHUB_APP_CLIENT_ID: ${GITHUB_APP_CLIENT_ID:-}
+      GITHUB_APP_CLIENT_SECRET: ${GITHUB_APP_CLIENT_SECRET:-}
       RUNNER_SHARED_TOKEN: ${RUNNER_SHARED_TOKEN:-}
 
   # Test Studio runner for single-host setups, serving every organization on this ServiceDNA

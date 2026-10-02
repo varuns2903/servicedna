@@ -138,6 +138,16 @@ audit history the account is referenced from stay intact.
 | GET | `/?windowMinutes=60[&entryNode=&entryOperation=]` | Operation-level calls (nodes are service/database/host/topic operations). With an entry, only what that operation triggers downstream. Each call has protocol, calls/min, error rate, p50 and p95 |
 | GET | `/entry-points?windowMinutes=60` | Operations nothing instrumented calls (entered from outside), busiest first |
 
+### GitHub App
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/organizations/{orgId}/github/app` | Whether the app is set up here, its install link (owners/admins; carries a signed, hour-long state), and the organization's installations |
+| POST | `/api/v1/organizations/{orgId}/github/installations` | Connect an installation after GitHub returns from installing: `{installationId, code, state}`. The state must be this org's and user's; GitHub's sign-in code must show the user can administer the installation (`403` otherwise); an installation belongs to one organization (`409`). Starts a sync |
+| DELETE | `/api/v1/organizations/{orgId}/github/installations/{installationId}` | Disconnect |
+| POST | `/api/v1/organizations/{orgId}/github/installations/{installationId}/sync` | Apply every repository's `servicedna.yaml` now; returns each repository's result |
+| POST | `/api/v1/github/webhook` | GitHub's deliveries (public; `X-Hub-Signature-256` must verify with the webhook secret, else `401`). Handles `push`, `pull_request`, `installation`, `installation_repositories` |
+
 ### Import from GitHub — `/api/v1/organizations/{orgId}/github/import`
 
 | Method | Path | Description |

@@ -9,6 +9,7 @@ import { useWebhooks, useCreateWebhook, useDeleteWebhook } from '@/hooks/useWebh
 import type { WebhookType } from '@/api/webhooks.api';
 import { IngestionKeysCard } from './IngestionKeysCard';
 import { EnvironmentsCard } from './EnvironmentsCard';
+import { GitHubAppCard } from './GitHubAppCard';
 
 interface IntegrationsTabProps {
   orgId: string;
@@ -120,6 +121,7 @@ export function IntegrationsTab({ orgId }: IntegrationsTabProps) {
 
       <IngestionKeysCard orgId={orgId} />
       <EnvironmentsCard orgId={orgId} />
+      <GitHubAppCard orgId={orgId} />
     </div>
   );
 }
