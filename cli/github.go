@@ -141,10 +141,7 @@ func appManifest(name, apiURL, appURL, redirect string, public, poll bool) strin
 			"pull_requests": "read",
 		},
 	}
-	if poll {
-		// GitHub requires a URL even for an inactive hook; nothing is ever sent to it.
-		m["hook_attributes"] = map[string]any{"url": appURL + "/api/v1/github/webhook", "active": false}
-	} else {
+	if !poll { // polling: no webhook at all (GitHub refuses unreachable hook URLs, even inactive)
 		m["hook_attributes"] = map[string]any{"url": apiURL + "/api/v1/github/webhook", "active": true}
 		m["default_events"] = []string{"push", "pull_request", "installation_repositories"}
 	}

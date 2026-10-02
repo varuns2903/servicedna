@@ -467,8 +467,7 @@ func TestCreateGitHubAppThroughTheManifestFlow(t *testing.T) {
 func TestAPollingAppHasNoWebhooks(t *testing.T) {
 	var m map[string]any
 	json.Unmarshal([]byte(appManifest("ServiceDNA", "", "http://localhost:5173", "http://127.0.0.1:1/callback", false, true)), &m)
-	hook := m["hook_attributes"].(map[string]any)
-	if hook["active"] != false || m["default_events"] != nil || m["public"] != false {
+	if m["hook_attributes"] != nil || m["default_events"] != nil || m["public"] != false {
 		t.Fatalf("manifest: %v", m)
 	}
 	env := appEnv(map[string]any{"id": 1.0, "slug": "s", "client_id": "c", "client_secret": "cs", "pem": "k"}, true)
