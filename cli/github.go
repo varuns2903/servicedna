@@ -22,7 +22,7 @@ import (
 // app-manifest flow and writes its credentials as GITHUB_APP_* settings for the backend.
 func cmdGitHub(args []string) error {
 	if len(args) == 0 || args[0] != "create-app" {
-		return errors.New("usage: sdna github create-app --url https://servicedna.example.com [--app-url URL] [--org GITHUB_ORG] [--name NAME] [--public] [--out FILE]")
+		return errors.New("usage: sdna github create-app (--url https://servicedna.example.com | --poll --app-url URL) [--app-url URL] [--org GITHUB_ORG] [--name NAME] [--public] [--out FILE]")
 	}
 	fs := flag.NewFlagSet("github create-app", flag.ContinueOnError)
 	apiURL := fs.String("url", "", "ServiceDNA's public API URL; GitHub sends webhooks to <url>/api/v1/github/webhook")
@@ -30,24 +30,28 @@ func cmdGitHub(args []string) error {
 	org := fs.String("org", "", "GitHub organization to own the app (default: your account)")
 	name := fs.String("name", "ServiceDNA", "app name (unique on GitHub)")
 	public := fs.Bool("public", false, "let any GitHub account install it (for a shared ServiceDNA)")
+	poll := fs.Bool("poll", false, "no webhooks: ServiceDNA asks GitHub for changes every minute (for a ServiceDNA GitHub can't reach)")
 	out := fs.String("out", ".env.github-app", "file to write the app's settings to")
 	if err := fs.Parse(reorder(args[1:])); err != nil {
 		return err
 	}
-	if *apiURL == "" {
-		return errors.New("--url is required: the address GitHub can reach ServiceDNA's API on")
-	}
 	if *appURL == "" {
 		*appURL = *apiURL
 	}
-	return createApp(*apiURL, *appURL, *org, *name, *public, *out, func(base string) {
+	if *apiURL == "" && !*poll {
+		return errors.New("--url is required: the address GitHub can reach ServiceDNA's API on (or --poll if it can't reach it)")
+	}
+	if *appURL == "" {
+		return errors.New("--app-url is required: ServiceDNA's web app URL, where your browser returns after an install")
+	}
+	return createApp(*apiURL, *appURL, *org, *name, *public, *poll, *out, func(base string) {
 		fmt.Printf("→ Open %s in your browser to create the app on GitHub (opening it for you)…\n", base)
 		openBrowser(base)
 	})
 }
 
 // createApp runs the manifest flow; ready is told the local page to open.
-func createApp(apiURL, appURL, org, name string, public bool, out string, ready func(base string)) error {
+func createApp(apiURL, appURL, org, name string, public, poll bool, out string, ready func(base string)) error {
 	webURL := strings.TrimRight(orDefault(os.Getenv("GITHUB_WEB_URL"), "https://github.com"), "/")
 	ghAPI := strings.TrimRight(orDefault(os.Getenv("GITHUB_API_URL"), "https://api.github.com"), "/")
 
@@ -61,7 +65,7 @@ func createApp(apiURL, appURL, org, name string, public bool, out string, ready 
 		return err
 	}
 	state := hex.EncodeToString(stateBytes)
-	manifest := appManifest(name, strings.TrimRight(apiURL, "/"), strings.TrimRight(appURL, "/"), base+"/callback", public)
+	manifest := appManifest(name, strings.TrimRight(apiURL, "/"), strings.TrimRight(appURL, "/"), base+"/callback", public, poll)
 	target := webURL + "/settings/apps/new"
 	if org != "" {
 		target = webURL + "/organizations/" + org + "/settings/apps/new"
@@ -108,7 +112,7 @@ func createApp(apiURL, appURL, org, name string, public bool, out string, ready 
 	if res.err != nil {
 		return res.err
 	}
-	if err := os.WriteFile(out, []byte(appEnv(res.app)), 0o600); err != nil {
+	if err := os.WriteFile(out, []byte(appEnv(res.app, poll)), 0o600); err != nil {
 		return err
 	}
 	fmt.Printf("✓ created GitHub app %q (%s/apps/%v)\n", res.app["name"], webURL, res.app["slug"])
@@ -119,15 +123,15 @@ func createApp(apiURL, appURL, org, name string, public bool, out string, ready 
 
 // appManifest describes the app GitHub creates: read code and metadata, write checks; events for
 // pushes, pull requests and repository changes; GitHub sign-in during install (to prove who
-// installed it).
-func appManifest(name, apiURL, appURL, redirect string, public bool) string {
+// installed it), also when the installation is changed later. Polling turns webhooks off.
+func appManifest(name, apiURL, appURL, redirect string, public, poll bool) string {
 	m := map[string]any{
 		"name":                     name,
 		"url":                      appURL,
-		"hook_attributes":          map[string]any{"url": apiURL + "/api/v1/github/webhook", "active": true},
 		"redirect_url":             redirect,
 		"callback_urls":            []string{appURL + "/github/setup"},
 		"setup_url":                appURL + "/github/setup",
+		"setup_on_update":          true,
 		"request_oauth_on_install": true,
 		"public":                   public,
 		"default_permissions": map[string]string{
@@ -136,7 +140,13 @@ func appManifest(name, apiURL, appURL, redirect string, public bool) string {
 			"checks":        "write",
 			"pull_requests": "read",
 		},
-		"default_events": []string{"push", "pull_request", "installation_repositories"},
+	}
+	if poll {
+		// GitHub requires a URL even for an inactive hook; nothing is ever sent to it.
+		m["hook_attributes"] = map[string]any{"url": appURL + "/api/v1/github/webhook", "active": false}
+	} else {
+		m["hook_attributes"] = map[string]any{"url": apiURL + "/api/v1/github/webhook", "active": true}
+		m["default_events"] = []string{"push", "pull_request", "installation_repositories"}
 	}
 	b, _ := json.Marshal(m)
 	return string(b)
@@ -163,11 +173,18 @@ func convertManifest(apiURL, code string) (map[string]any, error) {
 	return app, nil
 }
 
-// appEnv writes the settings the backend reads; the PEM goes on one line with \n escapes.
-func appEnv(app map[string]any) string {
+// appEnv writes the settings the backend reads; the PEM goes on one line with \n escapes. The
+// webhook secret also signs install links, so one is made up when GitHub has none (no webhooks).
+func appEnv(app map[string]any, poll bool) string {
 	pem := strings.ReplaceAll(strings.TrimSpace(fmt.Sprint(app["pem"])), "\n", `\n`)
-	return fmt.Sprintf("GITHUB_APP_ID=%v\nGITHUB_APP_SLUG=%v\nGITHUB_APP_CLIENT_ID=%v\nGITHUB_APP_CLIENT_SECRET=%v\nGITHUB_APP_WEBHOOK_SECRET=%v\nGITHUB_APP_PRIVATE_KEY=\"%s\"\n",
-		jsonNumber(app["id"]), app["slug"], app["client_id"], app["client_secret"], app["webhook_secret"], pem)
+	secret, _ := app["webhook_secret"].(string)
+	if secret == "" {
+		b := make([]byte, 32)
+		_, _ = rand.Read(b)
+		secret = hex.EncodeToString(b)
+	}
+	return fmt.Sprintf("GITHUB_APP_ID=%v\nGITHUB_APP_SLUG=%v\nGITHUB_APP_CLIENT_ID=%v\nGITHUB_APP_CLIENT_SECRET=%v\nGITHUB_APP_WEBHOOK_SECRET=%v\nGITHUB_APP_PRIVATE_KEY=\"%s\"\nGITHUB_APP_POLL=%t\n",
+		jsonNumber(app["id"]), app["slug"], app["client_id"], app["client_secret"], secret, pem, poll)
 }
 
 func jsonNumber(v any) string {

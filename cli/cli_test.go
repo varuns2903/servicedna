@@ -415,7 +415,7 @@ func TestCreateGitHubAppThroughTheManifestFlow(t *testing.T) {
 	bases := make(chan string, 1)
 	errs := make(chan error, 1)
 	go func() {
-		errs <- createApp("https://sdna.example.com", "https://app.sdna.example.com", "acme", "ServiceDNA", false, out, func(base string) { bases <- base })
+		errs <- createApp("https://sdna.example.com", "https://app.sdna.example.com", "acme", "ServiceDNA", false, false, out, func(base string) { bases <- base })
 	}()
 	base := <-bases
 
@@ -430,7 +430,7 @@ func TestCreateGitHubAppThroughTheManifestFlow(t *testing.T) {
 		t.Fatalf("page: %s", body)
 	}
 	for _, want := range []string{`"url":"https://sdna.example.com/api/v1/github/webhook"`, `"setup_url":"https://app.sdna.example.com/github/setup"`,
-		`"checks":"write"`, `"request_oauth_on_install":true`, `"redirect_url":"` + base + `/callback"`} {
+		`"checks":"write"`, `"request_oauth_on_install":true`, `"setup_on_update":true`, `"active":true`, `"redirect_url":"` + base + `/callback"`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("manifest lacks %s: %s", want, body)
 		}
@@ -461,5 +461,18 @@ func TestCreateGitHubAppThroughTheManifestFlow(t *testing.T) {
 		if !strings.Contains(string(env), want) {
 			t.Fatalf("env lacks %q:\n%s", want, env)
 		}
+	}
+}
+
+func TestAPollingAppHasNoWebhooks(t *testing.T) {
+	var m map[string]any
+	json.Unmarshal([]byte(appManifest("ServiceDNA", "", "http://localhost:5173", "http://127.0.0.1:1/callback", false, true)), &m)
+	hook := m["hook_attributes"].(map[string]any)
+	if hook["active"] != false || m["default_events"] != nil || m["public"] != false {
+		t.Fatalf("manifest: %v", m)
+	}
+	env := appEnv(map[string]any{"id": 1.0, "slug": "s", "client_id": "c", "client_secret": "cs", "pem": "k"}, true)
+	if !strings.Contains(env, "GITHUB_APP_POLL=true\n") || strings.Contains(env, "GITHUB_APP_WEBHOOK_SECRET=\n") || strings.Contains(env, "<nil>") {
+		t.Fatalf("env: %s", env)
 	}
 }

@@ -126,6 +126,10 @@ github:
     webhook-secret: ${GITHUB_APP_WEBHOOK_SECRET:}
     client-id: ${GITHUB_APP_CLIENT_ID:}
     client-secret: ${GITHUB_APP_CLIENT_SECRET:}
+    # Ask GitHub for changes instead of receiving webhooks — for a ServiceDNA GitHub can't reach
+    # (behind a firewall, or on a laptop), so nothing needs exposing to the internet.
+    poll: ${GITHUB_APP_POLL:false}
+    poll-interval-ms: ${GITHUB_APP_POLL_INTERVAL_MS:60000}
 
 graph:
   # Where the two halves of a call (client and server span) wait to be paired: "redis" (shared, so

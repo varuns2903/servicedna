@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.crypto.Mac;
@@ -30,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
@@ -42,6 +45,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * on pushes to the default branch that change it), and reports a "ServiceDNA" check on pull
  * requests — servicedna.yaml validated, and flows/*.yaml run as suites. Syncs and checks act as
  * the ServiceDNA user who connected the installation.
+ *
+ * <p>GitHub tells it about changes by webhook — or, for a ServiceDNA GitHub can't reach
+ * ({@code github.app.poll}), it asks GitHub every minute instead, so nothing has to be exposed
+ * to the internet.
  */
 @Service
 public class GitHubAppService {
@@ -58,6 +65,8 @@ public class GitHubAppService {
   private final TestSuiteService suites;
   private final OrganizationService organizationService;
   private final TransactionTemplate transactions;
+  private final GitHubPollHeads heads;
+  private final boolean polling;
   private final String frontendUrl;
   // Webhooks must be answered within seconds; the work happens here, in order.
   private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
@@ -68,6 +77,7 @@ public class GitHubAppService {
 
   public GitHubAppService(GitHubAppClient github, GitHubInstallationRepository installations, GitHubCheckRunRepository checkRuns,
       GitHubImportService imports, TestSuiteService suites, OrganizationService organizationService, TransactionTemplate transactions,
+      GitHubPollHeads heads, @Value("${github.app.poll:false}") boolean polling,
       @Value("${frontend.url:http://localhost:5173}") String frontendUrl) {
     this.github = github;
     this.installations = installations;
@@ -76,6 +86,8 @@ public class GitHubAppService {
     this.suites = suites;
     this.organizationService = organizationService;
     this.transactions = transactions;
+    this.heads = heads;
+    this.polling = polling;
     this.frontendUrl = frontendUrl.replaceAll("/+$", "");
   }
 
@@ -124,6 +136,9 @@ public class GitHubAppService {
       return existing.orElseGet(() -> installations.save(new GitHubInstallation(request.installationId(), organizationId, account, userId)));
     });
     worker.submit(() -> syncAll(saved.getInstallationId()));
+    if (polling) {
+      worker.submit(() -> poll(saved));
+    }
     return view(saved);
   }
 
@@ -151,7 +166,7 @@ public class GitHubAppService {
     }
     for (JsonNode repo : github.repositories(installationId)) {
       if (!repo.path("archived").asBoolean()) {
-        syncRepository(installation.get(), repo).ifPresent(results::add);
+        syncRepository(installation.get(), repo, true).ifPresent(results::add);
       }
     }
     transactions.executeWithoutResult(status -> installations.findById(installationId).ifPresent(i -> {
@@ -161,18 +176,27 @@ public class GitHubAppService {
     return results;
   }
 
-  /** Applies the repository's servicedna.yaml on its default branch; repositories without one are left out. */
-  Optional<SyncResult> syncRepository(GitHubInstallation installation, JsonNode repo) {
+  /**
+   * Applies the repository's servicedna.yaml on its default branch; repositories without one are
+   * left out. Unless forced, an unchanged servicedna.yaml isn't applied again.
+   */
+  Optional<SyncResult> syncRepository(GitHubInstallation installation, JsonNode repo, boolean force) {
     String fullName = repo.path("full_name").asText();
+    long installationId = installation.getInstallationId();
     try {
-      Optional<String> manifest = manifest(installation.getInstallationId(), fullName, repo.path("default_branch").asText(null));
+      Optional<String> manifest = manifest(installationId, fullName, repo.path("default_branch").asText(null));
       if (manifest.isEmpty()) {
+        heads.forget(installationId, fullName, "manifest");
+        return Optional.empty();
+      }
+      if (!heads.advance(installationId, fullName, "manifest", sha256(manifest.get())) && !force) {
         return Optional.empty();
       }
       var imported = imports.apply(installation.getOrganizationId(), repo, manifest.get(), installation.getInstalledBy());
       return Optional.of(new SyncResult(fullName, imported.service(), true, imported.message()));
     } catch (ApiException e) {
       log.info("GitHub sync of {} failed: {}", fullName, e.getMessage());
+      heads.forget(installationId, fullName, "manifest"); // try again next time
       return Optional.of(new SyncResult(fullName, null, false, e.getMessage()));
     }
   }
@@ -221,7 +245,7 @@ public class GitHubAppService {
         }
       }
       case "installation_repositories" -> installation.ifPresent(i -> payload.path("repositories_added").forEach(added ->
-          syncRepository(i, github.get(installationId, "/repos/" + added.path("full_name").asText()))));
+          syncRepository(i, github.get(installationId, "/repos/" + added.path("full_name").asText()), true)));
       case "push" -> installation.ifPresent(i -> {
         JsonNode repo = payload.path("repository");
         if (!("refs/heads/" + repo.path("default_branch").asText()).equals(payload.path("ref").asText())) {
@@ -236,7 +260,7 @@ public class GitHubAppService {
           }
         }
         if (touched) {
-          syncRepository(i, repo);
+          syncRepository(i, repo, true);
         }
       });
       case "pull_request" -> installation.ifPresent(i -> {
@@ -246,6 +270,84 @@ public class GitHubAppService {
       });
       default -> { }
     }
+  }
+
+  // --- polling ------------------------------------------------------------------------------
+
+  /** With {@code github.app.poll}: asks GitHub what changed, in place of webhooks. */
+  @Scheduled(initialDelayString = "${github.app.poll-interval-ms:60000}", fixedDelayString = "${github.app.poll-interval-ms:60000}")
+  public void pollAll() {
+    if (!polling || !github.isConfigured()) {
+      return;
+    }
+    try {
+      worker.submit(() -> installations.findAll().forEach(installation -> {
+        try {
+          poll(installation);
+        } catch (RuntimeException e) {
+          log.warn("Polling GitHub installation {} failed: {}", installation.getInstallationId(), e.getMessage());
+        }
+      })).get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } catch (ExecutionException e) {
+      log.warn("Polling GitHub failed: {}", e.getCause().getMessage());
+    }
+  }
+
+  /**
+   * What webhooks would have said: an uninstalled app, a push that changed servicedna.yaml, a new
+   * repository, and pull requests opened or pushed to (each head is checked once).
+   */
+  void poll(GitHubInstallation installation) {
+    long installationId = installation.getInstallationId();
+    try {
+      if (github.installation(installationId).hasNonNull("suspended_at")) {
+        return;
+      }
+    } catch (ApiException e) {
+      if (e.getStatus() == HttpStatus.NOT_FOUND) { // uninstalled
+        transactions.executeWithoutResult(status -> installations.deleteById(installationId));
+        return;
+      }
+      throw e;
+    }
+    Set<String> covered = new HashSet<>();
+    for (JsonNode repo : github.repositories(installationId)) {
+      String fullName = repo.path("full_name").asText();
+      if (repo.path("archived").asBoolean()) {
+        continue;
+      }
+      covered.add(fullName);
+      try {
+        if (heads.advance(installationId, fullName, "pushed", repo.path("pushed_at").asText(""))
+            && syncRepository(installation, repo, false).filter(r -> !r.ok()).isPresent()) {
+          heads.forget(installationId, fullName, "pushed"); // try again next time
+        }
+        Set<String> open = new HashSet<>();
+        for (JsonNode pull : github.get(installationId, "/repos/" + fullName + "/pulls?state=open&per_page=100")) {
+          if (pull.path("draft").asBoolean()) {
+            continue; // checked once it's ready for review
+          }
+          String ref = "pr:" + pull.path("number").asLong();
+          open.add(ref);
+          String sha = pull.path("head").path("sha").asText();
+          if (heads.advance(installationId, fullName, ref, sha)) {
+            try {
+              check(installation, repo, sha);
+            } catch (RuntimeException e) {
+              heads.forget(installationId, fullName, ref); // try again next time
+              throw e;
+            }
+          }
+        }
+        heads.keepPullRequests(installationId, fullName, open);
+      } catch (RuntimeException e) {
+        heads.forget(installationId, fullName, "pushed");
+        log.info("Polling {} failed: {}", fullName, e.getMessage());
+      }
+    }
+    heads.keepRepositories(installationId, covered);
   }
 
   // --- pull request checks ------------------------------------------------------------------
@@ -405,6 +507,14 @@ public class GitHubAppService {
       // falls through
     }
     throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_GITHUB_STATE", "This GitHub setup link isn't valid for you any more; start again from Settings.");
+  }
+
+  private static String sha256(String text) {
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   private static byte[] hmac(String secret, byte[] data) {

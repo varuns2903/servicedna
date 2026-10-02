@@ -49,7 +49,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-@SpringBootTest(properties = "test-runs.evaluate-ms=3600000")
+@SpringBootTest(properties = {"test-runs.evaluate-ms=3600000", "github.app.poll=true", "github.app.poll-interval-ms=3600000"})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class GitHubAppTest {
@@ -130,6 +130,7 @@ class GitHubAppTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private TestRunRepository runs;
   @Autowired private TestSuiteService suites;
+  @Autowired private GitHubAppService app;
   @MockBean private TraceQueryService traces;
 
   private String token;
@@ -245,6 +246,35 @@ class GitHubAppTest {
     String completed = awaitRequest("PATCH /repos/acme/orders/check-runs/8");
     assertThat(completed).contains("\"conclusion\":\"success\"").contains("1 passed, 0 failed")
         .contains("servicedna.yaml").contains("an order is placed").contains("/traces?trace=");
+  }
+
+  @Test
+  void pollingNoticesPullRequestsManifestChangesAndUninstallsWithoutWebhooks() throws Exception {
+    connect();
+    awaitService("order-service", s -> "team-checkout".equals(s.path("owner").asText(null)));
+    routes.put("POST /repos/acme/orders/check-runs", "{\"id\":9}");
+    routes.put("GET /repos/acme/orders/contents/servicedna.yaml?ref=abc123", content(MANIFEST));
+    routes.put("GET /repos/acme/tools/pulls?state=open&per_page=100", "[]");
+    routes.put("GET /repos/acme/orders/pulls?state=open&per_page=100", """
+        [{"number":5,"draft":false,"head":{"sha":"abc123"}},
+         {"number":6,"draft":true,"head":{"sha":"draft1"}}]""");
+
+    app.pollAll();
+    assertThat(awaitRequest("PATCH /repos/acme/orders/check-runs/9")).contains("\"conclusion\":\"success\"");
+    app.pollAll(); // nothing new: each head is checked once, drafts not at all
+    assertThat(received.stream().filter(r -> r.startsWith("POST /repos/acme/orders/check-runs"))).hasSize(1)
+        .allMatch(r -> r.contains("abc123"));
+
+    routes.put("GET /repos/acme/orders/contents/servicedna.yaml?ref=main", content(MANIFEST.replace("team-checkout", "team-orders")));
+    routes.put("GET /installation/repositories?per_page=100&page=1", """
+        {"repositories":[{"name":"orders","full_name":"acme/orders","html_url":"https://github.com/acme/orders",
+          "default_branch":"main","pushed_at":"2026-10-02T10:00:00Z"}]}""");
+    app.pollAll();
+    awaitService("order-service", s -> "team-orders".equals(s.path("owner").asText(null)));
+
+    routes.remove("GET /app/installations/" + installation);
+    app.pollAll();
+    assertThat(call(get("/api/v1/organizations/" + orgId + "/github/app")).get("installations")).isEmpty();
   }
 
   @Test

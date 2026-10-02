@@ -157,6 +157,7 @@ services:
       GITHUB_APP_WEBHOOK_SECRET: ${GITHUB_APP_WEBHOOK_SECRET:-}
       GITHUB_APP_CLIENT_ID: ${GITHUB_APP_CLIENT_ID:-}
       GITHUB_APP_CLIENT_SECRET: ${GITHUB_APP_CLIENT_SECRET:-}
+      GITHUB_APP_POLL: ${GITHUB_APP_POLL:-false}
       RUNNER_SHARED_TOKEN: ${RUNNER_SHARED_TOKEN:-}
 
   # Test Studio runner for single-host setups, serving every organization on this ServiceDNA

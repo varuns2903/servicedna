@@ -12,7 +12,9 @@ All notable changes to this project are documented in this file. The format is b
   a *ServiceDNA* check on pull requests — the manifest validated and `flows/*.yaml` run, each case
   linked to its trace. `sdna github create-app` creates the app through GitHub's manifest flow and
   writes its `GITHUB_APP_*` settings; Settings → Integrations installs and manages it. Connecting
-  is verified with the installer's GitHub sign-in, and webhooks by signature.
+  is verified with the installer's GitHub sign-in, and webhooks by signature. For a ServiceDNA
+  GitHub can't reach, `create-app --poll` makes an app without webhooks and ServiceDNA polls
+  GitHub every minute instead (`GITHUB_APP_POLL`), so nothing is exposed to the internet.
 - gRPC message capture in every SDK, not only Python: Node.js `@grpc/grpc-js` servers
   automatically; Go through the new `sdnagrpc` package (`ServerOptions()` traces the server and
   captures, `DialOptions()` traces clients); Spring Boot through `ServiceDnaGrpc.serverInterceptors`.
