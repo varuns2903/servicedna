@@ -10,6 +10,7 @@ const { resolveConfig } = require('./config');
 const { startHeartbeat } = require('./heartbeat');
 const { httpHooks, kafkaHooks, capture, tag } = require('./capture');
 const { bridgeConsole } = require('./console');
+const { GrpcCaptureInstrumentation } = require('./grpc');
 
 let running;
 
@@ -64,6 +65,8 @@ function start(options = {}) {
           responseHook: httpHooks.responseHook,
         },
       }),
+      // After the built-in gRPC instrumentation, so captured calls run inside its server spans.
+      new GrpcCaptureInstrumentation(),
       ...(options.instrumentations ?? []),
     ],
   });

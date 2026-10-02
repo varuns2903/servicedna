@@ -13,6 +13,10 @@ All notable changes to this project are documented in this file. The format is b
   linked to its trace. `sdna github create-app` creates the app through GitHub's manifest flow and
   writes its `GITHUB_APP_*` settings; Settings → Integrations installs and manages it. Connecting
   is verified with the installer's GitHub sign-in, and webhooks by signature.
+- gRPC message capture in every SDK, not only Python: Node.js `@grpc/grpc-js` servers
+  automatically; Go through the new `sdnagrpc` package (`ServerOptions()` traces the server and
+  captures, `DialOptions()` traces clients); Spring Boot through `ServiceDnaGrpc.serverInterceptors`.
+  Same rules as HTTP bodies — test runs always, failed calls with capture on error, masked.
 - Python SDK: gRPC servers' unary request and response messages are captured (as JSON, masked)
   for test runs and, with capture on error, for failed calls — no code change; the distro adds the
   interceptor to every `grpc.server` / `grpc.aio.server`.
