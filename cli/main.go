@@ -30,6 +30,7 @@ Usage:
   sdna keys list                           ingestion keys
   sdna keys create <name>                  create an ingestion key (shown once)
   sdna init [--env ENV] [--no-install]     connect the project in this directory
+  sdna github create-app --url URL         register the ServiceDNA GitHub App and write its settings
   sdna scan [--service NAME] [--env ENV]   send this repo's servicedna.yaml, API specs and configured dependencies
             [--dry-run]                    (OpenAPI, .proto, AsyncAPI, compose/.env/k8s URLs)
   sdna test run <flow.yaml|dir>...         run test flows (or --collection NAME); exits 1 on failure
@@ -69,6 +70,8 @@ func run(args []string) error {
 		return cmdKeys(client, args[1:])
 	case "init":
 		return cmdInit(client, args[1:])
+	case "github":
+		return cmdGitHub(args[1:])
 	case "scan":
 		return cmdScan(client, args[1:])
 	case "test":

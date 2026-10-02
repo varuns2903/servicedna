@@ -7,6 +7,12 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- The ServiceDNA GitHub App: installed once on a GitHub organization, it keeps services in step
+  with each repository's `servicedna.yaml` (on install and on pushes that change it) and reports
+  a *ServiceDNA* check on pull requests — the manifest validated and `flows/*.yaml` run, each case
+  linked to its trace. `sdna github create-app` creates the app through GitHub's manifest flow and
+  writes its `GITHUB_APP_*` settings; Settings → Integrations installs and manages it. Connecting
+  is verified with the installer's GitHub sign-in, and webhooks by signature.
 - Python SDK: gRPC servers' unary request and response messages are captured (as JSON, masked)
   for test runs and, with capture on error, for failed calls — no code change; the distro adds the
   interceptor to every `grpc.server` / `grpc.aio.server`.
@@ -197,6 +203,8 @@ All notable changes to this project are documented in this file. The format is b
   include a `serviceName` field.
 
 ### Fixed
+- A test run whose result had no duration crashed assertion checking for its whole suite
+  (a `Double`/`double` ternary unboxed `null`).
 - The dependency and flow graphs are now correct with several backend instances. The two halves
   of a call (client and server span) often reach different instances; they now wait for each
   other in Redis (paired by an atomic script, and unanswered calls claimed by exactly one

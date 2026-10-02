@@ -127,25 +127,52 @@ public class GitHubImportService {
           throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REPOSITORY", "Not a repository name.");
         }
         JsonNode repo = get(source, "/repos/" + fullName);
-        String text = manifestText(source, fullName);
-        Manifest m = text == null ? null : parse(text);
-        CatalogDto.ScanRequest scan = toScan(repo, m);
-        service = scan.service();
-        Set<ConstraintViolation<CatalogDto.ScanRequest>> problems = validator.validate(scan);
-        if (!problems.isEmpty()) {
-          throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MANIFEST",
-              problems.stream().map(p -> p.getPropertyPath() + " " + p.getMessage()).sorted().collect(Collectors.joining("; ")));
-        }
-        CatalogDto.ScanResult applied = catalog.applyScan(organizationId, scan, userId);
-        String message = m == null ? "registered (no servicedna.yaml)"
-            : "registered from servicedna.yaml" + (applied.alertRules() != null ? ", " + applied.alertRules() + (applied.alertRules() == 1 ? " alert rule" : " alert rules") : "")
-                + (applied.dependenciesUnknown().isEmpty() ? "" : "; not registered yet: " + String.join(", ", applied.dependenciesUnknown()));
-        results.add(new Imported(fullName, service, true, message));
+        Imported imported = apply(organizationId, repo, manifestText(source, fullName), userId);
+        results.add(imported);
       } catch (ApiException e) {
         results.add(new Imported(fullName, service, false, e.getMessage()));
       }
     }
     return results;
+  }
+
+  /** Registers (or updates) a repository's service from its servicedna.yaml text, if it has one. */
+  public Imported apply(UUID organizationId, JsonNode repo, String manifestText, UUID userId) {
+    Manifest m = manifestText == null ? null : parse(manifestText);
+    CatalogDto.ScanRequest scan = validated(toScan(repo, m));
+    CatalogDto.ScanResult applied = catalog.applyScan(organizationId, scan, userId);
+    String message = m == null ? "registered (no servicedna.yaml)"
+        : "registered from servicedna.yaml" + (applied.alertRules() != null ? ", " + applied.alertRules() + (applied.alertRules() == 1 ? " alert rule" : " alert rules") : "")
+            + (applied.dependenciesUnknown().isEmpty() ? "" : "; not registered yet: " + String.join(", ", applied.dependenciesUnknown()));
+    return new Imported(repo.path("full_name").asText(), scan.service(), true, message);
+  }
+
+  /** What a servicedna.yaml would set, or why it's invalid (for pull request checks). */
+  public record ManifestCheck(boolean valid, String service, String summary) {}
+
+  public ManifestCheck check(JsonNode repo, String manifestText) {
+    try {
+      Manifest m = parse(manifestText);
+      CatalogDto.ScanRequest scan = validated(toScan(repo, m));
+      List<String> parts = new ArrayList<>();
+      if (m.owner() != null) parts.add("owner " + m.owner());
+      if (m.tier() != null) parts.add("tier " + m.tier());
+      if (m.slo() != null) parts.add("SLO " + m.slo() + "%");
+      if (m.dependencies() != null && !m.dependencies().isEmpty()) parts.add("depends on " + String.join(", ", m.dependencies()));
+      if (scan.alerts() != null) parts.add(scan.alerts().size() + (scan.alerts().size() == 1 ? " alert rule" : " alert rules"));
+      return new ManifestCheck(true, scan.service(), parts.isEmpty() ? "no settings" : String.join(" · ", parts));
+    } catch (ApiException e) {
+      return new ManifestCheck(false, null, e.getMessage());
+    }
+  }
+
+  private CatalogDto.ScanRequest validated(CatalogDto.ScanRequest scan) {
+    Set<ConstraintViolation<CatalogDto.ScanRequest>> problems = validator.validate(scan);
+    if (!problems.isEmpty()) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MANIFEST",
+          problems.stream().map(p -> p.getPropertyPath() + " " + p.getMessage()).sorted().collect(Collectors.joining("; ")));
+    }
+    return scan;
   }
 
   static CatalogDto.ScanRequest toScan(JsonNode repo, Manifest m) {

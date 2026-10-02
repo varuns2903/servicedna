@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"html"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -393,5 +395,71 @@ func TestMarkdownReport(t *testing.T) {
 	}
 	if strings.Contains(markdownReport([]suite{s}, ""), "](") {
 		t.Fatal("no links without an app URL")
+	}
+}
+
+func TestCreateGitHubAppThroughTheManifestFlow(t *testing.T) {
+	var conversions []string
+	github := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conversions = append(conversions, r.Method+" "+r.URL.Path)
+		json.NewEncoder(w).Encode(map[string]any{
+			"id": 123456, "slug": "servicedna-acme", "name": "ServiceDNA", "client_id": "Iv1.abc", "client_secret": "cs",
+			"webhook_secret": "whsec", "pem": "-----BEGIN RSA PRIVATE KEY-----\nAAA\nBBB\n-----END RSA PRIVATE KEY-----\n",
+		})
+	}))
+	defer github.Close()
+	t.Setenv("GITHUB_API_URL", github.URL)
+	t.Setenv("GITHUB_WEB_URL", "https://github.example")
+	out := filepath.Join(t.TempDir(), ".env.github-app")
+
+	bases := make(chan string, 1)
+	errs := make(chan error, 1)
+	go func() {
+		errs <- createApp("https://sdna.example.com", "https://app.sdna.example.com", "acme", "ServiceDNA", false, out, func(base string) { bases <- base })
+	}()
+	base := <-bases
+
+	// The local page posts the manifest to GitHub's "new app" form for the organization.
+	res, err := http.Get(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, _ := io.ReadAll(res.Body)
+	body := html.UnescapeString(string(page))
+	if !strings.Contains(body, `action="https://github.example/organizations/acme/settings/apps/new?state=`) {
+		t.Fatalf("page: %s", body)
+	}
+	for _, want := range []string{`"url":"https://sdna.example.com/api/v1/github/webhook"`, `"setup_url":"https://app.sdna.example.com/github/setup"`,
+		`"checks":"write"`, `"request_oauth_on_install":true`, `"redirect_url":"` + base + `/callback"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("manifest lacks %s: %s", want, body)
+		}
+	}
+	state := body[strings.Index(body, "state=")+6:]
+	state = state[:strings.Index(state, `"`)]
+
+	// A wrong state is refused; GitHub's redirect with the right one completes it.
+	if r, _ := http.Get(base + "/callback?code=c0de&state=nope"); r.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad state: %d", r.StatusCode)
+	}
+	if r, _ := http.Get(base + "/callback?code=c0de&state=" + state); r.StatusCode != http.StatusOK {
+		t.Fatalf("callback: %d", r.StatusCode)
+	}
+	if err := <-errs; err != nil {
+		t.Fatal(err)
+	}
+	if len(conversions) != 1 || conversions[0] != "POST /app-manifests/c0de/conversions" {
+		t.Fatalf("conversions: %v", conversions)
+	}
+	info, _ := os.Stat(out)
+	env, _ := os.ReadFile(out)
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("mode %v", info.Mode())
+	}
+	for _, want := range []string{"GITHUB_APP_ID=123456\n", "GITHUB_APP_SLUG=servicedna-acme\n", "GITHUB_APP_WEBHOOK_SECRET=whsec\n",
+		`GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nAAA\nBBB\n-----END RSA PRIVATE KEY-----"`} {
+		if !strings.Contains(string(env), want) {
+			t.Fatalf("env lacks %q:\n%s", want, env)
+		}
 	}
 }

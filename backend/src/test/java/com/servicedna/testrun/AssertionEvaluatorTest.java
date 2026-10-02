@@ -57,4 +57,14 @@ class AssertionEvaluatorTest {
     assertThat(results.get(2).message()).isEqualTo("got missing");
     assertThat(results.get(3).message()).isEqualTo("no matching hop in the run");
   }
+
+  @Test
+  void anEntryResultWithoutTimingStillEvaluates() throws Exception {
+    // A runner result without durationMs (e.g. a failed send) must not crash the evaluation.
+    JsonNode entry = json.readTree("{\"sent\":true,\"status\":201}");
+    List<AssertionEvaluator.Result> results = evaluator.evaluate(
+        json.readTree("[{\"target\": {\"entry\": true}, \"status\": 201, \"latencyMs\": {\"lt\": 500}}]"), entry, hops);
+    assertThat(results).extracting(AssertionEvaluator.Result::passed).containsExactly(true, false);
+    assertThat(results.get(1).message()).contains("missing");
+  }
 }
