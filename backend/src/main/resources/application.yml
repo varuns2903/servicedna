@@ -116,6 +116,16 @@ jwt:
 github:
   # GitHub's REST API, for importing repositories (GitHub Enterprise: https://<host>/api/v3).
   api-url: ${GITHUB_API_URL:https://api.github.com}
+  web-url: ${GITHUB_WEB_URL:https://github.com}
+  # The ServiceDNA GitHub App (create it with `sdna github create-app`); unset disables it.
+  app:
+    id: ${GITHUB_APP_ID:}
+    slug: ${GITHUB_APP_SLUG:}
+    # PEM (PKCS#1 or PKCS#8), as GitHub downloads it; literal \n sequences are accepted.
+    private-key: ${GITHUB_APP_PRIVATE_KEY:}
+    webhook-secret: ${GITHUB_APP_WEBHOOK_SECRET:}
+    client-id: ${GITHUB_APP_CLIENT_ID:}
+    client-secret: ${GITHUB_APP_CLIENT_SECRET:}
 
 graph:
   # Where the two halves of a call (client and server span) wait to be paired: "redis" (shared, so

@@ -244,6 +244,31 @@ To rebuild after pulling changes: `docker-compose up -d --build`. To stop everyt
 
 ---
 
+## 🐙 GitHub App
+
+Install one app on a GitHub organization and every repository is covered — no workflow file or
+secret per repository (the [GitHub Action](integrations/github-action) is the per-repository
+alternative):
+
+- **Sync:** each repository's `servicedna.yaml` (owner, tier, SLO, dependencies, alert rules) is
+  applied on install and whenever a push to the default branch changes it.
+- **Pull request checks:** a *ServiceDNA* check validates `servicedna.yaml` and runs `flows/*.yaml`
+  through ServiceDNA, then reports each case (linked to its trace) and fails if any fails.
+
+Set it up once per ServiceDNA:
+
+```bash
+# GitHub must reach the API URL for webhooks; the app URL is where it returns after installs.
+sdna github create-app --url https://servicedna.example.com --org my-github-org
+set -a; . ./.env.github-app; set +a      # GITHUB_APP_* settings, secrets: keep them out of git
+docker compose up -d backend
+```
+
+Then, in ServiceDNA, an owner or admin opens **Settings → Integrations → GitHub App → Install on
+GitHub**. Installing asks GitHub to confirm who you are, so an installation can only be connected
+by someone who can administer it. Syncs and checks act with that person's ServiceDNA permissions.
+Pass `--public` to let other GitHub accounts install the app (a shared ServiceDNA).
+
 ## 📁 Project Structure
 
 ```
@@ -304,6 +329,7 @@ servicedna/
 | `TRACE_STORE_QUERY_URL` | Tempo's HTTP API, for reading traces back (flows, trace viewer) | — (`http://tempo:3200` in docker-compose) |
 | `TRACE_STORE_OTLP_URL` | OTLP/HTTP base URL of Grafana Tempo, where ingested traces are stored (one tenant per organization); empty disables trace storage | — (`http://tempo:4318` in docker-compose) |
 | `GRAPH_PAIRING_STORE` | Where the client and server halves of each call wait to be paired: `redis` (shared, so any number of backend instances build the graph correctly) or `memory` (one instance only) | `redis` |
+| `GITHUB_APP_ID` / `GITHUB_APP_SLUG` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_WEBHOOK_SECRET` / `GITHUB_APP_CLIENT_ID` / `GITHUB_APP_CLIENT_SECRET` | The ServiceDNA GitHub App ([below](#-github-app)); `sdna github create-app` writes them all. Unset disables the app | — |
 | `LOG_STORE_URL` | Base URL of Grafana Loki, where ingested logs are stored and searched (one tenant per organization); empty disables log storage | — (`http://loki:3100` in docker-compose) |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins | `http://localhost:5173,http://localhost:3000` |
 | `FRONTEND_URL` | Base URL used in email links and OAuth redirects | — |

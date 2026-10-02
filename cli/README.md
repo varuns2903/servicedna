@@ -9,6 +9,7 @@ sdna init --env dev                               # connect the project in this 
 | Command | |
 |---|---|
 | `sdna login [--url URL] [--email EMAIL]` | Sign in; picks your first organization |
+| `sdna github create-app --url URL [--org ORG] [--public]` | Create the ServiceDNA GitHub App on GitHub (opens your browser) and write its `GITHUB_APP_*` settings to `.env.github-app` |
 | `sdna login --token sdna_pat_…` | Sign in with an API token (Settings → Account) — for SSO accounts |
 | `sdna orgs` / `sdna use <org>` | List organizations / choose the one other commands use |
 | `sdna status` | Services with status, environment, language/version and last telemetry; open incidents |

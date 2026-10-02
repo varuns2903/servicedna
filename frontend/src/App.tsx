@@ -20,6 +20,7 @@ import { TestStudio } from '@/features/testing/TestStudio';
 import { TraceExplorer } from '@/features/traces/TraceExplorer';
 import { LogExplorer } from '@/features/logs/LogExplorer';
 import { FollowView } from '@/features/follow/FollowView';
+import { GitHubSetup } from '@/features/settings/GitHubSetup';
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { DependencyGraph } from '@/features/map/DependencyGraph';
 import { IncidentList } from '@/features/incidents/IncidentList';
@@ -128,6 +129,16 @@ function App() {
               <ProtectedRoute>
                 <AppShell>
                   <LogExplorer />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/github/setup"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <GitHubSetup />
                 </AppShell>
               </ProtectedRoute>
             }
