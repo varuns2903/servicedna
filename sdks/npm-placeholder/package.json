@@ -1,0 +1,19 @@
+{
+  "name": "servicedna",
+  "version": "0.0.1",
+  "description": "Placeholder: the ServiceDNA Node.js SDK is @servicedna/node.",
+  "license": "MIT",
+  "main": "index.js",
+  "files": [
+    "index.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/varuns2903/servicedna.git",
+    "directory": "sdks/npm-placeholder"
+  },
+  "homepage": "https://www.npmjs.com/package/@servicedna/node",
+  "keywords": [
+    "servicedna"
+  ]
+}

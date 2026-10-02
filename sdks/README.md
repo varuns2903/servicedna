@@ -103,3 +103,7 @@ Bump the version in the SDK's manifest, merge, then push a tag — the
 | Go | — (the tag is the version) | `sdks/go/v0.1.0` | the Go module proxy |
 
 The tag must match the version, or the release stops before publishing.
+
+The unscoped npm name `servicedna` is held by a placeholder ([`npm-placeholder/`](npm-placeholder))
+that points to `@servicedna/node`, so nobody else can publish under it. It isn't released by the
+workflow; it shouldn't need to change.
