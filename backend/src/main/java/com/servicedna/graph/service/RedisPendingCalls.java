@@ -77,8 +77,9 @@ class RedisPendingCalls implements PendingCalls {
   private final String deadlines;
 
   @Autowired
-  RedisPendingCalls(StringRedisTemplate redis, ObjectMapper json, @Value("${graph.pairing-window-ms:30000}") long windowMs) {
-    this(redis, json, Duration.ofMillis(windowMs), DEFAULT_PREFIX);
+  RedisPendingCalls(StringRedisTemplate redis, ObjectMapper json, @Value("${graph.pairing-window-ms:30000}") long windowMs,
+      @Value("${graph.pairing-key-prefix:}") String prefix) {
+    this(redis, json, Duration.ofMillis(windowMs), prefix.isBlank() ? DEFAULT_PREFIX : prefix);
   }
 
   /** {@code prefix} must contain a hash tag ({…}) so a script's keys share a cluster slot. */

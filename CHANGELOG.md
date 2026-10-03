@@ -11,6 +11,16 @@ All notable changes to this project are documented in this file. The format is b
   (`query ListProducts`, or `query products` for an anonymous query) instead of all showing as
   `POST /graphql`. The Node.js SDK (0.2.1) copies the operation from OpenTelemetry's GraphQL spans
   onto the request's server span; the backend names operations from `graphql.operation.*`.
+- Latency and error-rate alerts judge real traffic: when a service sends traces and handled
+  enough requests in the window (`ALERT_THRESHOLD_MIN_REQUESTS`, default 20), `LATENCY_ABOVE` is
+  their p95 latency and `ERROR_RATE_ABOVE` the share that failed — so an API that's failing its
+  users alerts even while its health check passes. Services without traces keep using health
+  checks; alert messages say which was judged. Each service's per-minute request counts, errors
+  and latency histogram are kept for a week (`service_request_stats`).
+- Invite-only sign-up for a ServiceDNA reachable from the internet: `AUTH_SIGNUP=invite-only`
+  lets only people with a pending invitation, emails in `AUTH_SIGNUP_DOMAINS`, and the first
+  account (which sets the install up) create an account — by password, GitHub or SSO alike, the
+  latter only with an email the provider verified. The sign-in page says so.
 - A Helm chart for running ServiceDNA on Kubernetes (`deploy/helm/servicedna`): backend, web
   app and optional Test Studio runner behind one Ingress host with TLS; Postgres, Redis, Kafka
   (KRaft), Tempo and Loki bundled or external; secrets generated once and kept across upgrades

@@ -44,6 +44,7 @@ public class AuthService {
   private final EmailChangeTokenRepository emailChangeTokenRepository;
   private final RefreshTokenRepository refreshTokenRepository;
   private final MailService mailService;
+  private final SignupPolicy signupPolicy;
   private final String frontendUrl;
   private final long refreshExpirationMs;
   private final SecureRandom secureRandom = new SecureRandom();
@@ -58,6 +59,7 @@ public class AuthService {
       EmailChangeTokenRepository emailChangeTokenRepository,
       RefreshTokenRepository refreshTokenRepository,
       MailService mailService,
+      SignupPolicy signupPolicy,
       @Value("${frontend.url}") String frontendUrl,
       @Value("${JWT_REFRESH_EXPIRATION_MS:2592000000}") long refreshExpirationMs) {
     this.userRepository = userRepository;
@@ -69,6 +71,7 @@ public class AuthService {
     this.emailChangeTokenRepository = emailChangeTokenRepository;
     this.refreshTokenRepository = refreshTokenRepository;
     this.mailService = mailService;
+    this.signupPolicy = signupPolicy;
     this.frontendUrl = frontendUrl;
     this.refreshExpirationMs = refreshExpirationMs;
   }
@@ -79,6 +82,7 @@ public class AuthService {
       throw new ApiException(
           HttpStatus.CONFLICT, "USER_EXISTS", "User already exists with this email.");
     }
+    signupPolicy.check(request.email());
 
     User user =
         new User(

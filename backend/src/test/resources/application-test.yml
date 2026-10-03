@@ -38,3 +38,7 @@ stripe:
 
 rate-limit:
   max-requests: 10000
+graph:
+  # Tests share Redis with a local docker-compose stack (port 6380); their own key namespace keeps
+  # that stack's pairing sweep from claiming the tests' calls, and the tests from claiming its.
+  pairing-key-prefix: "sdna:{pairing-test-${random.uuid}}:"

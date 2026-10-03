@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Activity, KeyRound } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -8,6 +8,9 @@ import { useLogin, useRegister, useResendVerification, useSsoConfig } from '@/ho
 
 export function Login() {
   const navigate = useNavigate();
+  // Set when GitHub/SSO sign-in was refused a new account (sign-up is by invitation).
+  const [searchParams] = useSearchParams();
+  const signupClosed = searchParams.get('error') === 'signup_closed';
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -88,6 +91,16 @@ export function Login() {
               required
             />
           </div>
+
+          {signupClosed && !mutation.isError && (
+            <div className="rounded-md border border-rose-500/20 bg-rose-500/10 p-2 text-xs text-rose-400">
+              Sign-up on this ServiceDNA is by invitation. Ask an organization admin to invite you, then sign in again.
+            </div>
+          )}
+
+          {mode === 'register' && ssoConfig?.signup === 'invite-only' && !mutation.isError && (
+            <p className="text-xs text-gray-500">Sign-up is by invitation: use the email address you were invited with.</p>
+          )}
 
           {mutation.isError && (
             <div className="rounded-md border border-rose-500/20 bg-rose-500/10 p-2 text-xs text-rose-400">
