@@ -1,5 +1,6 @@
 package com.servicedna.auth.security;
 
+import com.servicedna.auth.service.SignupPolicy;
 import com.servicedna.auth.domain.RefreshToken;
 import com.servicedna.auth.repository.RefreshTokenRepository;
 import com.servicedna.user.domain.Role;
@@ -31,6 +32,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
   private final JwtService jwtService;
   private final UserRepository userRepository;
   private final RefreshTokenRepository refreshTokenRepository;
+  private final SignupPolicy signupPolicy;
   private final String frontendUrl;
   private final long refreshExpirationMs;
   private final SecureRandom secureRandom = new SecureRandom();
@@ -39,11 +41,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
       JwtService jwtService,
       UserRepository userRepository,
       RefreshTokenRepository refreshTokenRepository,
+      SignupPolicy signupPolicy,
       @Value("${frontend.url}") String frontendUrl,
       @Value("${JWT_REFRESH_EXPIRATION_MS:2592000000}") long refreshExpirationMs) {
     this.jwtService = jwtService;
     this.userRepository = userRepository;
     this.refreshTokenRepository = refreshTokenRepository;
+    this.signupPolicy = signupPolicy;
     this.frontendUrl = frontendUrl;
     this.refreshExpirationMs = refreshExpirationMs;
   }
@@ -96,6 +100,14 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
       throw new ServletException(
           "Identity provider did not verify this email address; cannot sign in to an existing"
               + " account with an unverified email claim");
+    }
+
+    // A new account follows the sign-up policy. Invite-only also needs an email the provider
+    // verified, or anyone could claim an invited (or allowed-domain) address at their own IdP.
+    if (existingUser.isEmpty() && !signupPolicy.isOpen() && !(providerVerifiedEmail && signupPolicy.allowed(email))) {
+      getRedirectStrategy().sendRedirect(request, response,
+          UriComponentsBuilder.fromUriString(frontendUrl + "/login").queryParam("error", "signup_closed").build().toUriString());
+      return;
     }
 
     User user =

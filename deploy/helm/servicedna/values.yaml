@@ -59,6 +59,15 @@ ingress:
     # The certificate's Secret (cert-manager fills it in when annotated).
     secretName: servicedna-tls
 
+# Who may create an account. invite-only (the default here, since a cluster install is usually
+# reachable from the internet): people with a pending invitation, emails in `domains`, and the
+# first account, which sets the install up — so sign up as the admin right after installing.
+# open: anyone who can reach it.
+signup:
+  mode: invite-only
+  # Email domains that may sign up without an invitation, e.g. "acme.com,acme.io".
+  domains: ""
+
 secrets:
   # A Secret you manage (recommended for production, e.g. from External Secrets or Sealed
   # Secrets). It must hold jwt-secret (64+ characters), database-password and runner-token, plus

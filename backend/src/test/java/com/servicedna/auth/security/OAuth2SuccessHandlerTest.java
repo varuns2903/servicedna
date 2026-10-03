@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.servicedna.auth.repository.RefreshTokenRepository;
+import com.servicedna.auth.service.SignupPolicy;
 import com.servicedna.user.domain.Role;
 import com.servicedna.user.domain.User;
 import com.servicedna.user.repository.UserRepository;
@@ -29,6 +30,7 @@ class OAuth2SuccessHandlerTest {
   @Mock private JwtService jwtService;
   @Mock private UserRepository userRepository;
   @Mock private RefreshTokenRepository refreshTokenRepository;
+  @Mock private SignupPolicy signupPolicy;
   @Mock private Authentication authentication;
   @Mock private OidcUser oidcUser;
   @Mock private HttpServletRequest request;
@@ -40,7 +42,8 @@ class OAuth2SuccessHandlerTest {
   void setUp() {
     handler =
         new OAuth2SuccessHandler(
-            jwtService, userRepository, refreshTokenRepository, "http://localhost:5173", 2592000000L);
+            jwtService, userRepository, refreshTokenRepository, signupPolicy, "http://localhost:5173", 2592000000L);
+    org.mockito.Mockito.lenient().when(signupPolicy.isOpen()).thenReturn(true);
     when(authentication.getPrincipal()).thenReturn(oidcUser);
     // DefaultRedirectStrategy passes the target URL through response.encodeRedirectURL(...)
     // before calling sendRedirect(...); a plain mock returns null unless stubbed to echo it back.
@@ -89,5 +92,32 @@ class OAuth2SuccessHandlerTest {
 
     verify(userRepository).save(any(User.class));
     verify(response).sendRedirect(org.mockito.ArgumentMatchers.contains("token=jwt-token"));
+  }
+
+  @Test
+  void inviteOnlyTurnsAwayANewAccountItDoesNotAllow() throws Exception {
+    when(signupPolicy.isOpen()).thenReturn(false);
+    when(oidcUser.getEmail()).thenReturn("stranger@example.com");
+    when(oidcUser.getEmailVerified()).thenReturn(true);
+    when(userRepository.findByEmail("stranger@example.com")).thenReturn(Optional.empty());
+    when(signupPolicy.allowed("stranger@example.com")).thenReturn(false);
+
+    handler.onAuthenticationSuccess(request, response, authentication);
+
+    verify(response).sendRedirect("http://localhost:5173/login?error=signup_closed");
+    verify(userRepository, org.mockito.Mockito.never()).save(any());
+  }
+
+  @Test
+  void inviteOnlyNeedsAProviderVerifiedEmailEvenWhenInvited() throws Exception {
+    when(signupPolicy.isOpen()).thenReturn(false);
+    when(oidcUser.getEmail()).thenReturn("invited@example.com");
+    when(oidcUser.getEmailVerified()).thenReturn(false);
+    when(userRepository.findByEmail("invited@example.com")).thenReturn(Optional.empty());
+
+    handler.onAuthenticationSuccess(request, response, authentication);
+
+    verify(response).sendRedirect("http://localhost:5173/login?error=signup_closed");
+    verify(userRepository, org.mockito.Mockito.never()).save(any());
   }
 }

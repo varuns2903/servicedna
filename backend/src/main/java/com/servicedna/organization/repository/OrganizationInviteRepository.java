@@ -14,6 +14,8 @@ public interface OrganizationInviteRepository extends JpaRepository<Organization
 
   Optional<OrganizationInvite> findByToken(String token);
 
+  boolean existsByEmailIgnoreCaseAndStatusAndExpiresAtAfter(String email, InviteStatus status, java.time.OffsetDateTime now);
+
   boolean existsByOrganizationIdAndEmailAndStatus(
       UUID organizationId, String email, InviteStatus status);
 }

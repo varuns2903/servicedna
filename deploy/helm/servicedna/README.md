@@ -33,7 +33,9 @@ the [agent chart](../../../agent/helm/servicedna-agent) in each cluster you moni
      --set-string ingress.annotations."cert-manager\.io/cluster-issuer"=letsencrypt
    ```
 
-   The backend migrates the database on first start. Then open the URL and sign up.
+   The backend migrates the database on first start. Then open the URL and **sign up as the
+   admin straight away**: sign-up is invite-only by default (`signup.mode`), so after the first
+   account only people you invite, or emails in `signup.domains`, can create one.
 
 The Ingress sends `/api`, `/oauth2`, `/login/oauth2` and `/ws` to the backend and everything else
 to the web app. Spring's `/actuator` endpoints aren't exposed. TLS is on by default (`ingress.tls`),
@@ -79,6 +81,7 @@ once their first session ends. Set `smtp.*` before inviting people.
 | **Secrets** | `secrets.existingSecret`, managed outside the release |
 | **TLS** | Ingress TLS (above). ServiceDNA trusts `X-Forwarded-*` from the Ingress for its public https URL |
 | **Email** | `smtp.*` and `SMTP_PASSWORD` |
+| **Sign-up** | `signup.mode: invite-only` (default) — invitations and `signup.domains` only |
 | **Backups** | Your database service's backups, or `backup.enabled=true` (below) |
 | **Network** | `networkPolicy.enabled` (default) lets only the backend reach the bundled datastores — it needs a CNI that enforces NetworkPolicy (Calico, Cilium, …) |
 | **Resources** | The backend's JVM uses 75% of its memory limit (`backend.resources`) |
