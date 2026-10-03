@@ -13,6 +13,10 @@ All notable changes to this project are documented in this file. The format is b
   users alerts even while its health check passes. Services without traces keep using health
   checks; alert messages say which was judged. Each service's per-minute request counts, errors
   and latency histogram are kept for a week (`service_request_stats`).
+- Invite-only sign-up for a ServiceDNA reachable from the internet: `AUTH_SIGNUP=invite-only`
+  lets only people with a pending invitation, emails in `AUTH_SIGNUP_DOMAINS`, and the first
+  account (which sets the install up) create an account — by password, GitHub or SSO alike, the
+  latter only with an email the provider verified. The sign-in page says so.
 - A Helm chart for running ServiceDNA on Kubernetes (`deploy/helm/servicedna`): backend, web
   app and optional Test Studio runner behind one Ingress host with TLS; Postgres, Redis, Kafka
   (KRaft), Tempo and Loki bundled or external; secrets generated once and kept across upgrades

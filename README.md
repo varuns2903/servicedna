@@ -363,6 +363,8 @@ servicedna/
 | `OIDC_ISSUER_URI` | Generic OIDC provider issuer URL (enables SSO beyond GitHub) | — |
 | `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | Generic OIDC client credentials | — |
 | `JWT_SECRET` | Access token signing key (256-bit min) | — |
+| `AUTH_SIGNUP` | Who may create an account: `open` (anyone) or `invite-only` (people with a pending invitation, emails in `AUTH_SIGNUP_DOMAINS`, and the very first account, which sets the install up). Covers GitHub/SSO sign-in too, where invite-only also requires an email the provider verified. Use `invite-only` for a ServiceDNA reachable from the internet | `open` |
+| `AUTH_SIGNUP_DOMAINS` | With `invite-only`: email domains that may sign up without an invitation, comma-separated (e.g. `acme.com,acme.io`) | — |
 | `JWT_EXPIRATION_MS` | Access token TTL in ms | `86400000` |
 | `JWT_REFRESH_EXPIRATION_MS` | Refresh token TTL in ms | `2592000000` (30 days) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Outbound mail for verification/reset/notification emails. docker-compose defaults to the bundled Mailpit — read them at http://localhost:8025. Unsent emails are logged without their content | — (`mailpit:1025` in docker-compose) |
