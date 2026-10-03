@@ -2,6 +2,7 @@ package com.servicedna.github;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -196,11 +197,16 @@ public class GitHubImportService {
         throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MANIFEST", "servicedna.yaml is empty.");
       }
       return m;
+    } catch (UnrecognizedPropertyException e) {
+      String known = e.getKnownPropertyIds().stream().map(String::valueOf).sorted().collect(Collectors.joining(", "));
+      throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MANIFEST",
+          "servicedna.yaml: unknown field \"" + e.getPropertyName() + "\" (known: " + known + ")");
     } catch (IOException e) {
       String why = e.getMessage() == null ? "unreadable" : e.getMessage().lines().findFirst().orElse("unreadable");
-      throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MANIFEST", "servicedna.yaml: " + why);
+      throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MANIFEST", "servicedna.yaml: " + why.replaceAll(" \\(class [\\w.$]+\\)", ""));
     }
   }
+
 
   private static <E extends Enum<E>> E enumOf(Class<E> type, String value, String field) {
     try {

@@ -370,7 +370,7 @@ public class GitHubAppService {
       if (result.valid()) {
         summary.append("✅ `servicedna.yaml`: ").append(result.service()).append(" — ").append(result.summary()).append("\n\n");
       } else {
-        problems.add("`servicedna.yaml`: " + result.summary());
+        problems.add("`servicedna.yaml`: " + result.summary().replaceFirst("^servicedna\\.yaml: ", ""));
       }
     }
     List<TestRunDto.StartSuite> flows = new ArrayList<>();

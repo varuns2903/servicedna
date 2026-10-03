@@ -224,7 +224,8 @@ class GitHubAppTest {
 
     assertThat(webhook("pull_request", pullRequest(), null)).isEqualTo(202);
     String completed = awaitRequest("PATCH /repos/acme/orders/check-runs/7");
-    assertThat(completed).contains("\"conclusion\":\"failure\"").contains("teir");
+    assertThat(completed).contains("\"conclusion\":\"failure\"").contains("unknown field \\\"teir\\\" (known: alerts,")
+        .doesNotContain("class com.").doesNotContain("servicedna.yaml`: servicedna.yaml");
   }
 
   @Test
