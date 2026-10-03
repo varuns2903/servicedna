@@ -70,6 +70,8 @@ spec:
             {{- end }}
             - name: LOG_STORE_URL
               value: {{ if .Values.loki.enabled }}{{ printf "http://%s:3100" (include "servicedna.name" (dict "root" . "component" "loki")) | quote }}{{ else }}{{ .Values.loki.url | quote }}{{ end }}
+            - {name: AUTH_SIGNUP, value: {{ .Values.signup.mode | quote }}}
+            - {name: AUTH_SIGNUP_DOMAINS, value: {{ .Values.signup.domains | quote }}}
             - name: JWT_SECRET
               valueFrom: {secretKeyRef: {name: {{ $secret }}, key: jwt-secret}}
             - name: RUNNER_SHARED_TOKEN
