@@ -1,0 +1,49 @@
+{{- if .Values.redis.enabled }}
+{{- $c := dict "root" . "component" "redis" }}
+{{- $name := include "servicedna.name" $c }}
+# Holds call halves waiting to be paired and caches: nothing that needs to survive a restart.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "servicedna.selectorLabels" $c | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "servicedna.selectorLabels" $c | nindent 8 }}
+    spec:
+      {{- include "servicedna.podSpec" (dict "root" . "uid" 999) | nindent 6 }}
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image | quote }}
+          args: [--save, "", --appendonly, "no"]
+          {{- include "servicedna.containerSecurity" (dict "readOnly" true) | nindent 10 }}
+          ports:
+            - {name: redis, containerPort: 6379}
+          readinessProbe:
+            exec: {command: [redis-cli, ping]}
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+      volumes:
+        - {name: data, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  selector:
+    {{- include "servicedna.selectorLabels" $c | nindent 4 }}
+  ports:
+    - {name: redis, port: 6379, targetPort: redis}
+{{- end }}

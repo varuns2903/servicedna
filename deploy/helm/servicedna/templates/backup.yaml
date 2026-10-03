@@ -1,0 +1,67 @@
+{{- if .Values.backup.enabled }}
+{{- $c := dict "root" . "component" "backup" }}
+{{- $name := include "servicedna.name" $c }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.backup.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests: {storage: {{ .Values.backup.storage }}}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "servicedna.selectorLabels" $c | nindent 12 }}
+        spec:
+          {{- include "servicedna.podSpec" (dict "root" . "uid" 999) | nindent 10 }}
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-dump
+              image: {{ .Values.postgresql.image | quote }}
+              {{- include "servicedna.containerSecurity" (dict "readOnly" true) | nindent 14 }}
+              env:
+                - {name: PGHOST, value: {{ include "servicedna.postgresHost" . | quote }}}
+                - {name: PGPORT, value: {{ .Values.postgresql.port | quote }}}
+                - {name: PGDATABASE, value: {{ .Values.postgresql.database | quote }}}
+                - {name: PGUSER, value: {{ .Values.postgresql.username | quote }}}
+                - name: PGPASSWORD
+                  valueFrom: {secretKeyRef: {name: {{ include "servicedna.secretName" . }}, key: database-password}}
+                - {name: KEEP_DAYS, value: {{ .Values.backup.keepDays | quote }}}
+              command:
+                - sh
+                - -ec
+                - |
+                  file=/backups/servicedna-$(date -u +%Y%m%dT%H%M%SZ).dump
+                  pg_dump --format=custom --file="$file.partial"
+                  mv "$file.partial" "$file"
+                  find /backups -name 'servicedna-*.dump' -mtime +"$KEEP_DAYS" -delete
+                  ls -lh /backups
+              volumeMounts:
+                - {name: backups, mountPath: /backups}
+          volumes:
+            - name: backups
+              persistentVolumeClaim: {claimName: {{ $name }}}
+{{- end }}

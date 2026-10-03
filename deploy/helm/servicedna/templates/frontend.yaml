@@ -1,0 +1,49 @@
+{{- $c := dict "root" . "component" "frontend" }}
+{{- $name := include "servicedna.name" $c }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "servicedna.selectorLabels" $c | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "servicedna.selectorLabels" $c | nindent 8 }}
+    spec:
+      {{- include "servicedna.podSpec" (dict "root" . "uid" 101) | nindent 6 }}
+      containers:
+        - name: frontend
+          image: {{ include "servicedna.image" (dict "root" . "image" .Values.frontend.image) | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "servicedna.containerSecurity" (dict "readOnly" true) | nindent 10 }}
+          ports:
+            - {name: http, containerPort: 8080}
+          livenessProbe:
+            httpGet: {path: /, port: http}
+          readinessProbe:
+            httpGet: {path: /, port: http}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  selector:
+    {{- include "servicedna.selectorLabels" $c | nindent 4 }}
+  ports:
+    - {name: http, port: 8080, targetPort: http}

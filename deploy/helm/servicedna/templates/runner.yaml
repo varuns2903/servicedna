@@ -1,0 +1,34 @@
+{{- if .Values.runner.enabled }}
+{{- $c := dict "root" . "component" "runner" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "servicedna.name" $c }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "servicedna.selectorLabels" $c | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "servicedna.selectorLabels" $c | nindent 8 }}
+    spec:
+      {{- include "servicedna.podSpec" (dict "root" . "uid" 65532) | nindent 6 }}
+      containers:
+        - name: runner
+          image: {{ include "servicedna.image" (dict "root" . "image" .Values.runner.image) | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "servicedna.containerSecurity" (dict "readOnly" true) | nindent 10 }}
+          env:
+            - name: SERVICEDNA_URL
+              value: {{ printf "http://%s:8080" (include "servicedna.name" (dict "root" . "component" "backend")) | quote }}
+            - name: RUNNER_SHARED_TOKEN
+              valueFrom: {secretKeyRef: {name: {{ include "servicedna.secretName" . }}, key: runner-token}}
+            - {name: RUNNER_NAME, value: {{ printf "%s-cluster" .Release.Name | quote }}}
+            - {name: KAFKA_BROKERS, value: {{ .Values.runner.kafkaBrokers | quote }}}
+          resources:
+            {{- toYaml .Values.runner.resources | nindent 12 }}
+{{- end }}

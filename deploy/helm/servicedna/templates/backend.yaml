@@ -1,0 +1,123 @@
+{{- $c := dict "root" . "component" "backend" }}
+{{- $name := include "servicedna.name" $c }}
+{{- $secret := include "servicedna.secretName" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "servicedna.selectorLabels" $c | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "servicedna.selectorLabels" $c | nindent 8 }}
+      annotations:
+        checksum/env: {{ toJson .Values.backend | sha256sum }}
+    spec:
+      {{- include "servicedna.podSpec" (dict "root" . "uid" 10001) | nindent 6 }}
+      # Waits for the database, so a fresh install doesn't crash-loop while Postgres starts.
+      initContainers:
+        - name: wait-for-database
+          image: {{ .Values.postgresql.image | quote }}
+          {{- include "servicedna.containerSecurity" (dict "readOnly" true) | nindent 10 }}
+          command: [sh, -c, 'until pg_isready -q -h "$PGHOST" -p "$PGPORT"; do echo "waiting for $PGHOST:$PGPORT"; sleep 2; done']
+          env:
+            - {name: PGHOST, value: {{ include "servicedna.postgresHost" . | quote }}}
+            - {name: PGPORT, value: {{ .Values.postgresql.port | quote }}}
+            # pg_isready needs a user name, and this uid has none of its own.
+            - {name: PGUSER, value: {{ .Values.postgresql.username | quote }}}
+            - {name: PGDATABASE, value: {{ .Values.postgresql.database | quote }}}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}
+      containers:
+        - name: backend
+          image: {{ include "servicedna.image" (dict "root" . "image" .Values.backend.image) | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "servicedna.containerSecurity" (dict "readOnly" true) | nindent 10 }}
+          ports:
+            - {name: http, containerPort: 8080}
+          env:
+            - {name: JAVA_TOOL_OPTIONS, value: "-XX:MaxRAMPercentage=75 -Djava.io.tmpdir=/tmp"}
+            - {name: FRONTEND_URL, value: {{ include "servicedna.url" . | quote }}}
+            - {name: CORS_ALLOWED_ORIGINS, value: {{ include "servicedna.url" . | quote }}}
+            # Behind the Ingress: trust X-Forwarded-* so OAuth redirects use the public https URL.
+            - {name: SERVER_FORWARD_HEADERS_STRATEGY, value: framework}
+            # ServiceDNA's own tracing (to Zipkin) is off; turn it on with backend.env.
+            - {name: MANAGEMENT_TRACING_ENABLED, value: "false"}
+            - name: SPRING_DATASOURCE_URL
+              value: {{ printf "jdbc:postgresql://%s:%v/%s" (include "servicedna.postgresHost" .) .Values.postgresql.port .Values.postgresql.database | quote }}
+            - {name: SPRING_DATASOURCE_USERNAME, value: {{ .Values.postgresql.username | quote }}}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: {secretKeyRef: {name: {{ $secret }}, key: database-password}}
+            - name: SPRING_DATA_REDIS_HOST
+              value: {{ if .Values.redis.enabled }}{{ include "servicedna.name" (dict "root" . "component" "redis") }}{{ else }}{{ required "redis.host is required when redis.enabled is false" .Values.redis.host }}{{ end }}
+            - {name: SPRING_DATA_REDIS_PORT, value: {{ .Values.redis.port | quote }}}
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: {{ if .Values.kafka.enabled }}{{ printf "%s:9092" (include "servicedna.name" (dict "root" . "component" "kafka")) }}{{ else }}{{ required "kafka.bootstrapServers is required when kafka.enabled is false" .Values.kafka.bootstrapServers }}{{ end }}
+            {{- if .Values.tempo.enabled }}
+            {{- $tempo := include "servicedna.name" (dict "root" . "component" "tempo") }}
+            - {name: TRACE_STORE_QUERY_URL, value: {{ printf "http://%s:3200" $tempo | quote }}}
+            - {name: TRACE_STORE_OTLP_URL, value: {{ printf "http://%s:4318" $tempo | quote }}}
+            {{- else }}
+            - {name: TRACE_STORE_QUERY_URL, value: {{ .Values.tempo.queryUrl | quote }}}
+            - {name: TRACE_STORE_OTLP_URL, value: {{ .Values.tempo.otlpUrl | quote }}}
+            {{- end }}
+            - name: LOG_STORE_URL
+              value: {{ if .Values.loki.enabled }}{{ printf "http://%s:3100" (include "servicedna.name" (dict "root" . "component" "loki")) | quote }}{{ else }}{{ .Values.loki.url | quote }}{{ end }}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: {{ $secret }}, key: jwt-secret}}
+            - name: RUNNER_SHARED_TOKEN
+              valueFrom: {secretKeyRef: {name: {{ $secret }}, key: runner-token}}
+            {{- with .Values.smtp }}
+            {{- if .host }}
+            - {name: SMTP_HOST, value: {{ .host | quote }}}
+            - {name: SMTP_PORT, value: {{ .port | quote }}}
+            - {name: SMTP_USERNAME, value: {{ .username | quote }}}
+            {{- with .from }}
+            - {name: MAIL_FROM, value: {{ . | quote }}}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- range $key, $value := .Values.backend.env }}
+            - {name: {{ $key }}, value: {{ $value | quote }}}
+            {{- end }}
+            {{- range $key, $secretKey := .Values.backend.secretEnv }}
+            - name: {{ $key }}
+              valueFrom: {secretKeyRef: {name: {{ $secret }}, key: {{ $secretKey }}}}
+            {{- end }}
+          # Flyway migrates the database on start; give it time before liveness counts.
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  selector:
+    {{- include "servicedna.selectorLabels" $c | nindent 4 }}
+  ports:
+    - {name: http, port: 8080, targetPort: http}
