@@ -11,6 +11,13 @@ All notable changes to this project are documented in this file. The format is b
   (`query ListProducts`, or `query products` for an anonymous query) instead of all showing as
   `POST /graphql`. The Node.js SDK (0.2.1) copies the operation from OpenTelemetry's GraphQL spans
   onto the request's server span; the backend names operations from `graphql.operation.*`.
+- A Helm chart for running ServiceDNA on Kubernetes (`deploy/helm/servicedna`): backend, web
+  app and optional Test Studio runner behind one Ingress host with TLS; Postgres, Redis, Kafka
+  (KRaft), Tempo and Loki bundled or external; secrets generated once and kept across upgrades
+  and uninstalls, or taken from your own Secret; non-root, read-only pods with network policies;
+  and an optional nightly `pg_dump` backup. Installed, upgraded and reinstalled on a real cluster.
+- The web app's image works at any address: the API and sign-in paths default to same-origin, so
+  one build serves behind any reverse proxy or Ingress. Both images run as non-root users.
 - The ServiceDNA GitHub App: installed once on a GitHub organization, it keeps services in step
   with each repository's `servicedna.yaml` (on install and on pushes that change it) and reports
   a *ServiceDNA* check on pull requests — the manifest validated and `flows/*.yaml` run, each case
