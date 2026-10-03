@@ -1,0 +1,25 @@
+# Grafana Tempo: ServiceDNA's trace store. Each organization is a Tempo tenant — the backend
+# forwards spans with X-Scope-OrgID set to the organization id — so orgs' traces never mix.
+multitenancy_enabled: true
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+
+compactor:
+  compaction:
+    block_retention: 720h # 30 days

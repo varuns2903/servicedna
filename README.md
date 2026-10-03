@@ -244,6 +244,22 @@ To rebuild after pulling changes: `docker-compose up -d --build`. To stop everyt
 
 ---
 
+## ☸️ Deploy on Kubernetes
+
+The Helm chart in [`deploy/helm/servicedna`](deploy/helm/servicedna) runs the backend, the web
+app and the Test Studio runner behind one Ingress host with TLS. Postgres, Redis, Kafka, Tempo and
+Loki come bundled for evaluation, or point it at managed services. Secrets are generated once and
+kept (or come from your own Secret), pods run unprivileged, and an optional job backs up the
+database nightly.
+
+```bash
+helm install servicedna deploy/helm/servicedna -n servicedna --create-namespace \
+  --set url=https://servicedna.example.com --set image.registry=registry.example.com/servicedna
+```
+
+See the [chart's README](deploy/helm/servicedna/README.md) for images, secrets, the production
+checklist, backups and upgrades.
+
 ## 🐙 GitHub App
 
 Install one app on a GitHub organization and every repository is covered — no workflow file or

@@ -1,0 +1,39 @@
+{{- if .Values.ingress.enabled }}
+{{- $host := (urlParse (include "servicedna.url" .)).host | splitList ":" | first }}
+{{- $backend := include "servicedna.name" (dict "root" . "component" "backend") }}
+{{- $frontend := include "servicedna.name" (dict "root" . "component" "frontend") }}
+# One host: the API, sign-in and live updates go to the backend, everything else to the web app.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "servicedna.fullname" . }}
+  labels:
+    {{- include "servicedna.labels" (dict "root" . "component" "ingress") | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts: [{{ $host | quote }}]
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          {{- range list "/api" "/oauth2" "/login/oauth2" "/ws" }}
+          - path: {{ . }}
+            pathType: Prefix
+            backend:
+              service: {name: {{ $backend }}, port: {name: http}}
+          {{- end }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: {{ $frontend }}, port: {name: http}}
+{{- end }}

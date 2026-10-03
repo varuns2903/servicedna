@@ -11,7 +11,8 @@ import { useCreateIngestionKey } from '@/hooks/useIngestionKeys';
 import { snippetFor, SNIPPET_TARGETS, type SnippetTarget } from './snippets';
 
 /** ServiceDNA's base URL (the API URL without /api/v1), as services will reach it. */
-const serviceDnaUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1').replace(/\/api\/v1\/?$/, '');
+// Where services send telemetry: the API's origin (this page's, when the API is same-origin).
+const serviceDnaUrl = new URL(import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1', window.location.origin).href.replace(/\/api\/v1\/?$/, '');
 
 /**
  * Onboarding: create a key, copy two lines for your stack, and watch the service appear. Modelled

@@ -1,0 +1,59 @@
+name: Helm chart
+
+# Lints the ServiceDNA chart and validates what it renders against the Kubernetes API schemas,
+# with the bundled datastores, with everything turned on, and with external services.
+on:
+  push:
+    branches: ["main"]
+    paths: ["deploy/helm/**", "infra/**", ".github/workflows/chart.yml"]
+  pull_request:
+    branches: ["main"]
+    paths: ["deploy/helm/**", "infra/**", ".github/workflows/chart.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    env:
+      CHART: deploy/helm/servicedna
+      URL: https://servicedna.example.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSLO https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.7.0/CHECKSUMS | grep "kubeconform-linux-amd64.tar.gz$" | sha256sum -c -
+          tar xzf kubeconform-linux-amd64.tar.gz kubeconform
+
+      # The chart carries its own copies of docker-compose's Tempo and Loki configs.
+      - name: Tempo and Loki configs match docker-compose's
+        run: |
+          diff infra/tempo/tempo.yaml "$CHART/files/tempo.yaml"
+          diff infra/loki/loki.yaml "$CHART/files/loki.yaml"
+
+      - name: Lint
+        run: helm lint "$CHART" --set url=$URL
+
+      - name: Validate rendered manifests
+        run: |
+          k() { ./kubeconform -strict -summary -kubernetes-version 1.30.0 -; }
+          helm template sdna "$CHART" --set url=$URL | k
+          helm template sdna "$CHART" --set url=$URL --set runner.enabled=true --set backup.enabled=true \
+            --set smtp.host=smtp.example.com --set backend.secretEnv.SMTP_PASSWORD=smtp-password | k
+          helm template sdna "$CHART" --set url=$URL --set secrets.existingSecret=servicedna \
+            --set postgresql.enabled=false,postgresql.host=db.example.com \
+            --set redis.enabled=false,redis.host=redis.example.com \
+            --set kafka.enabled=false,kafka.bootstrapServers=kafka.example.com:9092 \
+            --set tempo.enabled=false,tempo.queryUrl=http://tempo:3200,tempo.otlpUrl=http://tempo:4318 \
+            --set loki.enabled=false,loki.url=http://loki:3100 | k
+
+      - name: Missing settings fail clearly
+        run: |
+          ! helm template sdna "$CHART" 2>&1 >/dev/null
+          helm template sdna "$CHART" 2>&1 | grep -q "url is required"
+          helm template sdna "$CHART" --set url=$URL --set postgresql.enabled=false 2>&1 | grep -q "postgresql.host is required"
