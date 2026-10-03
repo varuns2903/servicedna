@@ -1,0 +1,79 @@
+{{- if .Values.tempo.enabled }}
+{{- $c := dict "root" . "component" "tempo" }}
+{{- $name := include "servicedna.name" $c }}
+# Grafana Tempo, the trace store: one tenant per organization.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+data:
+  tempo.yaml: |
+    {{- .Files.Get "files/tempo.yaml" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "servicedna.selectorLabels" $c | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "servicedna.selectorLabels" $c | nindent 8 }}
+      annotations:
+        checksum/config: {{ .Files.Get "files/tempo.yaml" | sha256sum }}
+    spec:
+      {{- include "servicedna.podSpec" (dict "root" . "uid" 10001) | nindent 6 }}
+      containers:
+        - name: tempo
+          image: {{ .Values.tempo.image | quote }}
+          args: [-config.file=/etc/tempo/tempo.yaml]
+          {{- include "servicedna.containerSecurity" (dict "readOnly" true) | nindent 10 }}
+          ports:
+            - {name: http, containerPort: 3200}
+            - {name: otlp-http, containerPort: 4318}
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+            initialDelaySeconds: 10
+          resources:
+            {{- toYaml .Values.tempo.resources | nindent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/tempo}
+            - {name: data, mountPath: /var/tempo}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: config
+          configMap: {name: {{ $name }}}
+        - {name: tmp, emptyDir: {}}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.tempo.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests: {storage: {{ .Values.tempo.storage }}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "servicedna.labels" $c | nindent 4 }}
+spec:
+  selector:
+    {{- include "servicedna.selectorLabels" $c | nindent 4 }}
+  ports:
+    - {name: http, port: 3200, targetPort: http}
+    - {name: otlp-http, port: 4318, targetPort: otlp-http}
+{{- end }}
