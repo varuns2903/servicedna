@@ -7,6 +7,10 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- GraphQL requests are named after their operation in the dependency and flow graphs
+  (`query ListProducts`, or `query products` for an anonymous query) instead of all showing as
+  `POST /graphql`. The Node.js SDK (0.2.1) copies the operation from OpenTelemetry's GraphQL spans
+  onto the request's server span; the backend names operations from `graphql.operation.*`.
 - The ServiceDNA GitHub App: installed once on a GitHub organization, it keeps services in step
   with each repository's `servicedna.yaml` (on install and on pushes that change it) and reports
   a *ServiceDNA* check on pull requests — the manifest validated and `flows/*.yaml` run, each case

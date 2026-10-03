@@ -264,6 +264,12 @@ public class ObservedCallCollector {
   /** "METHOD /route" for HTTP, "service/method" for RPC, the span name otherwise. */
   static String operationName(Span span) {
     List<KeyValue> a = span.getAttributesList();
+    // A GraphQL request is its operation ("query ListProducts"), not "POST /graphql".
+    String graphqlType = SpanAttributes.string(a, "graphql.operation.type");
+    if (graphqlType != null) {
+      String graphqlName = SpanAttributes.string(a, "graphql.operation.name");
+      return truncate(graphqlName != null ? graphqlType + " " + graphqlName : graphqlType);
+    }
     String route = SpanAttributes.string(a, "http.route");
     if (route != null) {
       String method = SpanAttributes.string(a, "http.request.method", "http.method");
