@@ -19,7 +19,7 @@ from . import config as _config
 from .bodies import capture, tag
 
 __all__ = ["start", "capture", "tag"]
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 log = logging.getLogger("servicedna")
 
