@@ -264,6 +264,15 @@ set -a; . ./.env.github-app; set +a      # GITHUB_APP_* settings, secrets: keep 
 docker compose up -d backend
 ```
 
+GitHub can't reach a ServiceDNA behind a firewall or on a laptop. There, create the app with
+`--poll` instead: its webhooks stay off and ServiceDNA asks GitHub for changes every minute (new
+pull requests and pushes to them, pushes that change `servicedna.yaml`, repositories added or
+removed, uninstalls). Nothing is exposed to the internet and no relay sees your code.
+
+```bash
+sdna github create-app --poll --app-url http://localhost:5173 --org my-github-org
+```
+
 Then, in ServiceDNA, an owner or admin opens **Settings → Integrations → GitHub App → Install on
 GitHub**. Installing asks GitHub to confirm who you are, so an installation can only be connected
 by someone who can administer it. Syncs and checks act with that person's ServiceDNA permissions.
@@ -330,6 +339,7 @@ servicedna/
 | `TRACE_STORE_OTLP_URL` | OTLP/HTTP base URL of Grafana Tempo, where ingested traces are stored (one tenant per organization); empty disables trace storage | — (`http://tempo:4318` in docker-compose) |
 | `GRAPH_PAIRING_STORE` | Where the client and server halves of each call wait to be paired: `redis` (shared, so any number of backend instances build the graph correctly) or `memory` (one instance only) | `redis` |
 | `GITHUB_APP_ID` / `GITHUB_APP_SLUG` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_WEBHOOK_SECRET` / `GITHUB_APP_CLIENT_ID` / `GITHUB_APP_CLIENT_SECRET` | The ServiceDNA GitHub App ([below](#-github-app)); `sdna github create-app` writes them all. Unset disables the app | — |
+| `GITHUB_APP_POLL` / `GITHUB_APP_POLL_INTERVAL_MS` | Ask GitHub for changes instead of receiving webhooks (for a ServiceDNA GitHub can't reach), and how often | `false` / `60000` |
 | `LOG_STORE_URL` | Base URL of Grafana Loki, where ingested logs are stored and searched (one tenant per organization); empty disables log storage | — (`http://loki:3100` in docker-compose) |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins | `http://localhost:5173,http://localhost:3000` |
 | `FRONTEND_URL` | Base URL used in email links and OAuth redirects | — |
