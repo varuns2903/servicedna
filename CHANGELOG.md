@@ -7,6 +7,12 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Latency and error-rate alerts judge real traffic: when a service sends traces and handled
+  enough requests in the window (`ALERT_THRESHOLD_MIN_REQUESTS`, default 20), `LATENCY_ABOVE` is
+  their p95 latency and `ERROR_RATE_ABOVE` the share that failed — so an API that's failing its
+  users alerts even while its health check passes. Services without traces keep using health
+  checks; alert messages say which was judged. Each service's per-minute request counts, errors
+  and latency histogram are kept for a week (`service_request_stats`).
 - The ServiceDNA GitHub App: installed once on a GitHub organization, it keeps services in step
   with each repository's `servicedna.yaml` (on install and on pushes that change it) and reports
   a *ServiceDNA* check on pull requests — the manifest validated and `flows/*.yaml` run, each case

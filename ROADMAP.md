@@ -77,7 +77,7 @@ down too and gets its own incident — two incidents for one root cause.
 The UI originally promised these; implement them for real:
 - `LATENCY_ABOVE` (ms, over N minutes), `ERROR_RATE_ABOVE` (%, over N minutes),
   `CONSECUTIVE_FAILURES` (count)
-- Evaluated by a scheduled evaluator (every 30 s) against recent pings, not the Kafka consumer — thresholds can be crossed without any status change (later: against trace metrics)
+- Evaluated by a scheduled evaluator (every 30 s) against recent pings, not the Kafka consumer — thresholds can be crossed without any status change; latency and error rate are judged on real requests (p95, failed share, from traces) when a service sends them
 
 ### 1.3 Plan limits enforced — ✅ Done
 Billing shows "Free: 3 services max", but nothing enforces it.
