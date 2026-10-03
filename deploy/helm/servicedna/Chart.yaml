@@ -1,0 +1,10 @@
+apiVersion: v2
+name: servicedna
+description: ServiceDNA — service catalog, dependency graph, traces, logs and data-flow testing for microservices. Backend, web app and (optionally) the Test Studio runner, with Postgres, Redis, Kafka, Tempo and Loki bundled or external.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/varuns2903/servicedna
+sources:
+  - https://github.com/varuns2903/servicedna
+keywords: [observability, service-catalog, opentelemetry, testing]

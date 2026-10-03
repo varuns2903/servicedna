@@ -1,0 +1,31 @@
+ServiceDNA is starting at {{ include "servicedna.url" . }}
+
+The backend migrates the database on first start (a minute or two):
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "servicedna.name" (dict "root" . "component" "backend") }}
+
+{{- if not .Values.ingress.enabled }}
+
+No Ingress: route /api, /oauth2, /login/oauth2 and /ws to service
+{{ include "servicedna.name" (dict "root" . "component" "backend") }}:8080 and everything else to
+{{ include "servicedna.name" (dict "root" . "component" "frontend") }}:8080, on one host.
+{{- end }}
+{{- if not .Values.secrets.existingSecret }}
+
+Secrets were generated into {{ include "servicedna.secretName" . }} and are kept when the release
+is uninstalled. Back it up with the database: without its database-password the data can't be
+opened, and a new jwt-secret signs everyone out.
+{{- end }}
+{{- if or .Values.postgresql.enabled .Values.kafka.enabled .Values.tempo.enabled .Values.loki.enabled }}
+
+Bundled datastores are single replicas — fine for evaluation and small teams. For production,
+use managed Postgres/Redis/Kafka and your own Tempo/Loki (see the chart README).
+{{- end }}
+{{- if not .Values.smtp.host }}
+
+No SMTP server (smtp.host): ServiceDNA can't send verification emails, so new accounts can't
+sign in again once their first session ends. Set smtp.* before inviting people.
+{{- end }}
+{{- if not .Values.backup.enabled }}
+
+Database backups are off: set backup.enabled=true, or use your database service's backups.
+{{- end }}

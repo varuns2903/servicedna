@@ -1,0 +1,151 @@
+# ServiceDNA's address as people's browsers reach it, e.g. https://servicedna.example.com.
+# Required: it's used in emails, OAuth redirects, CORS and the links in GitHub checks.
+url: ""
+
+# Images. Build them from this repository (backend/, frontend/, runner/) and push them to a
+# registry your cluster can pull from; set `registry` to it (e.g. ghcr.io/acme). Tags default to
+# the chart's appVersion.
+image:
+  registry: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+backend:
+  image:
+    repository: servicedna-backend
+    tag: ""
+  # More than one replica is supported (the call graph pairs through Redis; GitHub polling
+  # claims work in Postgres), but each replica runs its own health prober.
+  replicas: 1
+  resources:
+    requests: {cpu: 250m, memory: 768Mi}
+    limits: {memory: 1536Mi}
+  # Plain (non-secret) settings, as environment variables — see the README's configuration
+  # table, e.g. {BILLING_ENFORCE_PLAN_LIMITS: "false", GITHUB_APP_POLL: "true"}.
+  env: {}
+  # Optional secret settings: the keys of `secrets.existingSecret` to expose, as
+  # {ENV_VAR: secret-key}, e.g. {SMTP_PASSWORD: smtp-password, GITHUB_APP_PRIVATE_KEY: github-app-private-key}.
+  secretEnv: {}
+
+frontend:
+  image:
+    repository: servicedna-frontend
+    tag: ""
+  replicas: 1
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {memory: 128Mi}
+
+# The Test Studio runner for this cluster, serving every organization on this ServiceDNA (it
+# authenticates with the generated runner token). Runners in other clusters use the agent chart.
+runner:
+  enabled: false
+  image:
+    repository: servicedna-runner
+    tag: ""
+  # Kafka brokers it may produce test messages to, e.g. "kafka.shop:9092".
+  kafkaBrokers: ""
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {memory: 256Mi}
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  # e.g. cert-manager: {cert-manager.io/cluster-issuer: letsencrypt}
+  tls:
+    enabled: true
+    # The certificate's Secret (cert-manager fills it in when annotated).
+    secretName: servicedna-tls
+
+secrets:
+  # A Secret you manage (recommended for production, e.g. from External Secrets or Sealed
+  # Secrets). It must hold jwt-secret (64+ characters), database-password and runner-token, plus
+  # any keys named in backend.secretEnv. Left empty, the chart generates the three once and keeps
+  # them across upgrades (and when the release is uninstalled).
+  existingSecret: ""
+
+# Outgoing email (verification, password reset, notifications). Its password goes in the Secret
+# (backend.secretEnv: {SMTP_PASSWORD: smtp-password}).
+smtp:
+  host: ""
+  port: 587
+  username: ""
+  from: ""
+
+# Bundled datastores are for evaluation and small installs: single replicas with persistent
+# volumes. For production, turn them off and point ServiceDNA at managed services.
+postgresql:
+  enabled: true
+  image: postgres:15
+  storage: 10Gi
+  storageClass: ""
+  # External database (enabled: false). The password is the Secret's database-password.
+  host: ""
+  port: 5432
+  database: servicedna
+  username: servicedna
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 1Gi}
+
+redis:
+  enabled: true
+  image: redis:7
+  host: ""
+  port: 6379
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 256Mi}
+
+kafka:
+  enabled: true
+  image: apache/kafka:3.8.0
+  storage: 5Gi
+  storageClass: ""
+  # External brokers (enabled: false), e.g. "b-1.msk.example:9092,b-2.msk.example:9092".
+  bootstrapServers: ""
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 1Gi}
+
+tempo:
+  enabled: true
+  image: grafana/tempo:2.6.1
+  storage: 10Gi
+  storageClass: ""
+  # External Tempo (enabled: false), with multi-tenancy on — each organization is a tenant.
+  queryUrl: ""
+  otlpUrl: ""
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 1Gi}
+
+loki:
+  enabled: true
+  image: grafana/loki:3.3.2
+  storage: 10Gi
+  storageClass: ""
+  # External Loki (enabled: false), with auth_enabled — each organization is a tenant.
+  url: ""
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 1Gi}
+
+# Nightly pg_dump of the database (bundled or external) to a persistent volume, keeping the last
+# `keepDays` days. Copy them off the cluster too — a volume isn't a backup on its own.
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  keepDays: 7
+  storage: 20Gi
+  storageClass: ""
+
+# Only the backend may reach the bundled datastores. Needs a CNI that enforces NetworkPolicy.
+networkPolicy:
+  enabled: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
