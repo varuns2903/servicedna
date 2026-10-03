@@ -7,6 +7,10 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- Invite-only sign-up for a ServiceDNA reachable from the internet: `AUTH_SIGNUP=invite-only`
+  lets only people with a pending invitation, emails in `AUTH_SIGNUP_DOMAINS`, and the first
+  account (which sets the install up) create an account — by password, GitHub or SSO alike, the
+  latter only with an email the provider verified. The sign-in page says so.
 - The ServiceDNA GitHub App: installed once on a GitHub organization, it keeps services in step
   with each repository's `servicedna.yaml` (on install and on pushes that change it) and reports
   a *ServiceDNA* check on pull requests — the manifest validated and `flows/*.yaml` run, each case

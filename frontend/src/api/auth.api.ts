@@ -15,6 +15,8 @@ export interface AuthResponse {
 
 export interface SsoConfigDto {
   oidcEnabled: boolean;
+  /** "open": anyone may sign up; "invite-only": invitees and allowed email domains. */
+  signup?: 'open' | 'invite-only';
 }
 
 export interface NotificationPreferencesDto {

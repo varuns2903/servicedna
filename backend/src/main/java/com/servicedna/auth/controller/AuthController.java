@@ -7,6 +7,7 @@ import com.servicedna.auth.dto.RefreshTokenRequest;
 import com.servicedna.auth.dto.RegisterRequest;
 import com.servicedna.auth.dto.ResetPasswordRequest;
 import com.servicedna.auth.dto.SsoConfigDto;
+import com.servicedna.auth.service.SignupPolicy;
 import com.servicedna.auth.dto.UserDto;
 import com.servicedna.auth.security.CustomUserDetails;
 import com.servicedna.auth.service.AuthService;
@@ -29,16 +30,18 @@ public class AuthController {
 
   private final AuthService authService;
   private final boolean oidcEnabled;
+  private final SignupPolicy signupPolicy;
 
   public AuthController(
-      AuthService authService, @Value("${OIDC_ISSUER_URI:}") String oidcIssuerUri) {
+      AuthService authService, @Value("${OIDC_ISSUER_URI:}") String oidcIssuerUri, SignupPolicy signupPolicy) {
     this.authService = authService;
     this.oidcEnabled = !oidcIssuerUri.isBlank();
+    this.signupPolicy = signupPolicy;
   }
 
   @GetMapping("/sso-config")
   public ResponseEntity<SsoConfigDto> getSsoConfig() {
-    return ResponseEntity.ok(new SsoConfigDto(oidcEnabled));
+    return ResponseEntity.ok(new SsoConfigDto(oidcEnabled, signupPolicy.mode()));
   }
 
   @PostMapping("/register")
