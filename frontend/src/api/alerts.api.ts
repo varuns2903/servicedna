@@ -67,12 +67,14 @@ export interface CreateAlertRuleRequest {
   windowMinutes?: number;
 }
 
-/** e.g. "Latency above 1000 ms (avg over 5 min)" or "Status Down". */
+/** e.g. "Latency Above 1000 ms (p95 over 5 min)" or "Status Down". */
 export function describeAlertRuleCondition(rule: AlertRuleDto): string {
   const label = ALERT_CONDITION_LABELS[rule.condition] ?? rule.condition;
   if (rule.threshold == null) return label;
   if (rule.condition === 'CONSECUTIVE_FAILURES') return `${rule.threshold} consecutive failed checks`;
-  const window = rule.windowMinutes ? ` (avg over ${rule.windowMinutes} min)` : '';
+  // Judged on real requests (p95 latency, failed share) when the service sends traces, else on health checks.
+  const measure = rule.condition === 'LATENCY_ABOVE' ? 'p95' : 'rate';
+  const window = rule.windowMinutes ? ` (${measure} over ${rule.windowMinutes} min)` : '';
   return `${label} ${rule.threshold} ${THRESHOLD_UNITS[rule.condition]}${window}`;
 }
 

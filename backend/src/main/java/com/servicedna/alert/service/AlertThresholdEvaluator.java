@@ -8,6 +8,7 @@ import com.servicedna.service.repository.MaintenanceWindowRepository;
 import com.servicedna.service.repository.ServiceRepository;
 import com.servicedna.telemetry.domain.ServicePing;
 import com.servicedna.telemetry.repository.ServicePingRepository;
+import com.servicedna.telemetry.requests.RequestStats;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -20,9 +21,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Evaluates threshold alert rules (LATENCY_ABOVE, ERROR_RATE_ABOVE, CONSECUTIVE_FAILURES) against
- * recent pings from both the active prober and push agents. Each rule fires once when its
- * threshold is crossed and once when it clears, tracked by {@link AlertRule#isBreached()}.
+ * Evaluates threshold alert rules (LATENCY_ABOVE, ERROR_RATE_ABOVE, CONSECUTIVE_FAILURES). Latency
+ * and error rate are judged on real traffic when the service sends traces — p95 request latency
+ * and the share of failed requests, once it handled enough requests in the window — and otherwise
+ * on recent health-check pings from the active prober and push agents. CONSECUTIVE_FAILURES is
+ * always about health checks. Each rule fires once when its threshold is crossed and once when it
+ * clears, tracked by {@link AlertRule#isBreached()}.
  */
 @Component
 public class AlertThresholdEvaluator {
@@ -36,7 +40,12 @@ public class AlertThresholdEvaluator {
   private final ServiceRepository serviceRepository;
   private final MaintenanceWindowRepository maintenanceWindowRepository;
   private final AlertActionService actions;
+  private final RequestStats requestStats;
   private final int minSamples;
+  private final int minRequests;
+
+  /** A rule's metric, and whether it came from traces (requests) or health-check pings. */
+  record Measurement(double value, boolean fromRequests, long requests) {}
 
   public AlertThresholdEvaluator(
       AlertRuleRepository alertRuleRepository,
@@ -44,13 +53,17 @@ public class AlertThresholdEvaluator {
       ServiceRepository serviceRepository,
       MaintenanceWindowRepository maintenanceWindowRepository,
       AlertActionService actions,
-      @Value("${alert.threshold-min-samples:3}") int minSamples) {
+      RequestStats requestStats,
+      @Value("${alert.threshold-min-samples:3}") int minSamples,
+      @Value("${alert.threshold-min-requests:20}") int minRequests) {
     this.alertRuleRepository = alertRuleRepository;
     this.servicePingRepository = servicePingRepository;
     this.serviceRepository = serviceRepository;
     this.maintenanceWindowRepository = maintenanceWindowRepository;
     this.actions = actions;
+    this.requestStats = requestStats;
     this.minSamples = Math.max(1, minSamples);
+    this.minRequests = Math.max(1, minRequests);
   }
 
   @Scheduled(fixedRateString = "${alert.threshold-evaluation-interval-ms:30000}")
@@ -66,10 +79,11 @@ public class AlertThresholdEvaluator {
 
   void evaluate(AlertRule rule, OffsetDateTime now) {
     UUID serviceId = rule.getService().getId();
-    Double value = measure(rule, serviceId, now);
-    if (value == null) {
+    Measurement measured = measure(rule, serviceId, now);
+    if (measured == null) {
       return; // not enough data to judge either way; keep the current state
     }
+    double value = measured.value();
 
     boolean breached =
         rule.getCondition() == AlertCondition.CONSECUTIVE_FAILURES
@@ -94,11 +108,11 @@ public class AlertThresholdEvaluator {
     List<AlertRule> rules = List.of(rule);
 
     if (breached) {
-      String message = breachMessage(rule, serviceName, value);
+      String message = breachMessage(rule, serviceName, measured);
       actions.sendWebhooks(rules, message, context);
       actions.openIncident(rules, organizationId, serviceId, serviceName, headline(rule), message);
     } else {
-      actions.sendWebhooks(rules, clearedMessage(rule, serviceName, value), context);
+      actions.sendWebhooks(rules, clearedMessage(rule, serviceName, measured), context);
       boolean healthy =
           serviceRepository
               .findById(serviceId)
@@ -110,8 +124,21 @@ public class AlertThresholdEvaluator {
     }
   }
 
-  /** The rule's metric, or null when there are too few pings to judge. */
-  private Double measure(AlertRule rule, UUID serviceId, OffsetDateTime now) {
+  /** The rule's metric — from traffic when there's enough, else from pings — or null when there's too little to judge. */
+  private Measurement measure(AlertRule rule, UUID serviceId, OffsetDateTime now) {
+    if (rule.getCondition() != AlertCondition.CONSECUTIVE_FAILURES) {
+      RequestStats.Window traffic = requestStats.window(serviceId, now.minusMinutes(rule.getWindowMinutes()));
+      if (traffic.requests() >= minRequests) {
+        double value = rule.getCondition() == AlertCondition.ERROR_RATE_ABOVE ? traffic.errorRatePercent() : traffic.percentileMs(95);
+        return new Measurement(value, true, traffic.requests());
+      }
+    }
+    Double fromPings = measurePings(rule, serviceId, now);
+    return fromPings == null ? null : new Measurement(fromPings, false, 0);
+  }
+
+  /** The rule's metric from health-check pings, or null when there are too few to judge. */
+  private Double measurePings(AlertRule rule, UUID serviceId, OffsetDateTime now) {
     if (rule.getCondition() == AlertCondition.CONSECUTIVE_FAILURES) {
       int count = rule.getThreshold().intValue();
       List<ServicePing> latest =
@@ -156,16 +183,17 @@ public class AlertThresholdEvaluator {
     };
   }
 
-  private static String breachMessage(AlertRule rule, String serviceName, double value) {
+  private static String breachMessage(AlertRule rule, String serviceName, Measurement m) {
+    double value = m.value();
     return switch (rule.getCondition()) {
       case LATENCY_ABOVE ->
           String.format(
-              "Service '%s' average latency %.0f ms over the last %d min is above %.0f ms",
-              serviceName, value, rule.getWindowMinutes(), rule.getThreshold());
+              "Service '%s' %s %.0f ms over the last %d min is above %.0f ms",
+              serviceName, latencyName(m), value, rule.getWindowMinutes(), rule.getThreshold());
       case ERROR_RATE_ABOVE ->
           String.format(
-              "Service '%s' error rate %.0f%% over the last %d min is above %.0f%%",
-              serviceName, value, rule.getWindowMinutes(), rule.getThreshold());
+              "Service '%s' %s %.0f%% over the last %d min is above %.0f%%",
+              serviceName, errorRateName(m), value, rule.getWindowMinutes(), rule.getThreshold());
       case CONSECUTIVE_FAILURES ->
           String.format(
               "Service '%s' failed its last %.0f health checks", serviceName, rule.getThreshold());
@@ -173,19 +201,28 @@ public class AlertThresholdEvaluator {
     };
   }
 
-  private static String clearedMessage(AlertRule rule, String serviceName, double value) {
+  private static String clearedMessage(AlertRule rule, String serviceName, Measurement m) {
+    double value = m.value();
     return switch (rule.getCondition()) {
       case LATENCY_ABOVE ->
           String.format(
-              "Service '%s' average latency is back to %.0f ms (threshold %.0f ms)",
-              serviceName, value, rule.getThreshold());
+              "Service '%s' %s is back to %.0f ms (threshold %.0f ms)",
+              serviceName, latencyName(m), value, rule.getThreshold());
       case ERROR_RATE_ABOVE ->
           String.format(
-              "Service '%s' error rate is back to %.0f%% (threshold %.0f%%)",
-              serviceName, value, rule.getThreshold());
+              "Service '%s' %s is back to %.0f%% (threshold %.0f%%)",
+              serviceName, errorRateName(m), value, rule.getThreshold());
       case CONSECUTIVE_FAILURES ->
           String.format("Service '%s' is passing health checks again", serviceName);
       default -> throw new IllegalArgumentException("Not a threshold condition: " + rule.getCondition());
     };
+  }
+
+  private static String latencyName(Measurement m) {
+    return m.fromRequests() ? "p95 request latency (" + m.requests() + " requests)" : "average health-check latency";
+  }
+
+  private static String errorRateName(Measurement m) {
+    return m.fromRequests() ? "request error rate (" + m.requests() + " requests)" : "health-check failure rate";
   }
 }

@@ -303,10 +303,14 @@ any CRITICAL/MAJOR incident that's gone unacknowledged past the configured windo
 | GET | `/` | List alert rules for a service |
 | DELETE | `/{ruleId}` | Delete a rule |
 
-Threshold rules are evaluated every 30 seconds (`ALERT_THRESHOLD_EVALUATION_INTERVAL_MS`) against
-recent checks from both the active prober and push agents: `LATENCY_ABOVE` averages successful
-checks, `ERROR_RATE_ABOVE` is the share of DOWN checks, and `CONSECUTIVE_FAILURES` looks at the
-latest N. Windowed rules need at least `ALERT_THRESHOLD_MIN_SAMPLES` (default 3) checks to judge.
+Threshold rules are evaluated every 30 seconds (`ALERT_THRESHOLD_EVALUATION_INTERVAL_MS`). When
+the service sends traces and handled at least `ALERT_THRESHOLD_MIN_REQUESTS` (default 20) requests
+in the window, `LATENCY_ABOVE` is the p95 latency of those requests (its server and consumer spans)
+and `ERROR_RATE_ABOVE` the share that failed (span status ERROR — a 5xx, not a 4xx). Otherwise
+they fall back to recent checks from the active prober and push agents: `LATENCY_ABOVE` averages
+successful checks and `ERROR_RATE_ABOVE` is the share of DOWN checks, given at least
+`ALERT_THRESHOLD_MIN_SAMPLES` (default 3). `CONSECUTIVE_FAILURES` always looks at the latest N
+checks. Alert messages say which they judged.
 Each rule fires once when crossed and once when cleared (`breached` on the rule shows its state).
 
 Status-change evaluation runs asynchronously off a Kafka consumer: when a service's status changes, every

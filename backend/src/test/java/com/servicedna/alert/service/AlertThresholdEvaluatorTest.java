@@ -22,6 +22,18 @@ import com.servicedna.service.dto.CreateServiceRequest;
 import com.servicedna.service.repository.ServiceRepository;
 import com.servicedna.telemetry.domain.ServicePing;
 import com.servicedna.telemetry.repository.ServicePingRepository;
+import com.servicedna.telemetry.requests.RequestStats;
+import com.servicedna.ingestion.event.TraceBatchReceivedEvent;
+import com.google.protobuf.ByteString;
+import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
+import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.resource.v1.Resource;
+import io.opentelemetry.proto.trace.v1.ResourceSpans;
+import io.opentelemetry.proto.trace.v1.ScopeSpans;
+import io.opentelemetry.proto.trace.v1.Span;
+import io.opentelemetry.proto.trace.v1.Status;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +64,8 @@ class AlertThresholdEvaluatorTest {
   @Autowired private ServiceRepository serviceRepository;
 
   @Autowired private MockMvc mockMvc;
+
+  @Autowired private RequestStats requestStats;
 
   @Autowired private ObjectMapper objectMapper;
 
@@ -92,7 +106,7 @@ class AlertThresholdEvaluatorTest {
     assertThat(incidents.get(0).get("title").asText()).isEqualTo("payment-service has high latency");
     assertThat(incidents.get(0).get("severity").asText()).isEqualTo("MAJOR");
     assertThat(incidents.get(0).get("description").asText())
-        .contains("average latency 1500 ms over the last 5 min is above 1000 ms");
+        .contains("average health-check latency 1500 ms over the last 5 min is above 1000 ms");
 
     pings(ServiceStatus.HEALTHY, 100, 6); // average now 566 ms
     evaluate(ruleId);
@@ -204,6 +218,65 @@ class AlertThresholdEvaluatorTest {
                                 condition, null, null, IncidentSeverity.MAJOR, threshold, windowMinutes))))
             .get("id")
             .asText());
+  }
+
+  @Test
+  void realTrafficErrorRateWinsOverHealthyChecks() throws Exception {
+    UUID ruleId = addRule(AlertCondition.ERROR_RATE_ABOVE, 10.0, 5);
+    pings(ServiceStatus.HEALTHY, 20, 5); // the health checks pass…
+    requests(21, 20, false);
+    requests(9, 20, true); // …but 9 of 30 real requests failed
+
+    evaluate(ruleId);
+
+    assertThat(rule(ruleId).isBreached()).isTrue();
+    assertThat(incidents().get(0).get("description").asText())
+        .contains("request error rate (30 requests) 30% over the last 5 min is above 10%");
+  }
+
+  @Test
+  void latencyIsTheP95OfRealRequests() throws Exception {
+    UUID ruleId = addRule(AlertCondition.LATENCY_ABOVE, 1000.0, 5);
+    requests(36, 20, false);
+    requests(4, 3000, false); // the slowest 10%: p95 lands among them
+
+    evaluate(ruleId);
+
+    assertThat(rule(ruleId).isBreached()).isTrue();
+    assertThat(incidents().get(0).get("description").asText()).contains("p95 request latency (40 requests)");
+  }
+
+  @Test
+  void tooLittleTrafficFallsBackToHealthChecks() throws Exception {
+    UUID ruleId = addRule(AlertCondition.LATENCY_ABOVE, 1000.0, 5);
+    requests(5, 20, false); // fast, but too few to judge on
+    pings(ServiceStatus.HEALTHY, 1500, 3);
+
+    evaluate(ruleId);
+
+    assertThat(rule(ruleId).isBreached()).isTrue();
+    assertThat(incidents().get(0).get("description").asText()).contains("average health-check latency 1500 ms");
+  }
+
+  /** Server spans for payment-service, as if it exported them, counted and written out. */
+  private void requests(int count, long durationMs, boolean error) {
+    ScopeSpans.Builder scope = ScopeSpans.newBuilder();
+    long start = Instant.now().toEpochMilli() * 1_000_000;
+    for (int i = 0; i < count; i++) {
+      scope.addSpans(Span.newBuilder()
+          .setTraceId(ByteString.copyFrom(UUID.randomUUID().toString().substring(0, 16).getBytes()))
+          .setSpanId(ByteString.copyFrom(UUID.randomUUID().toString().substring(0, 8).getBytes()))
+          .setKind(Span.SpanKind.SPAN_KIND_SERVER)
+          .setName("POST /charge")
+          .setStartTimeUnixNano(start)
+          .setEndTimeUnixNano(start + durationMs * 1_000_000)
+          .setStatus(Status.newBuilder().setCode(error ? Status.StatusCode.STATUS_CODE_ERROR : Status.StatusCode.STATUS_CODE_UNSET)));
+    }
+    KeyValue name = KeyValue.newBuilder().setKey("service.name").setValue(AnyValue.newBuilder().setStringValue("payment-service")).build();
+    requestStats.onTraceBatch(new TraceBatchReceivedEvent(UUID.fromString(orgId), ExportTraceServiceRequest.newBuilder()
+        .addResourceSpans(ResourceSpans.newBuilder().setResource(Resource.newBuilder().addAttributes(name)).addScopeSpans(scope))
+        .build()));
+    requestStats.flush();
   }
 
   private void evaluate(UUID ruleId) {
