@@ -11,6 +11,8 @@ const { startHeartbeat } = require('./heartbeat');
 const { httpHooks, kafkaHooks, capture, tag } = require('./capture');
 const { bridgeConsole } = require('./console');
 const { GrpcCaptureInstrumentation } = require('./grpc');
+const { GraphqlOperationProcessor } = require('./graphql');
+const { BatchSpanProcessor } = require('@opentelemetry/sdk-trace-base');
 
 let running;
 
@@ -42,7 +44,11 @@ function start(options = {}) {
   const headers = { 'x-servicedna-key': config.key };
   const sdk = new NodeSDK({
     resource: resourceFromAttributes(attributes),
-    traceExporter: new OTLPTraceExporter({ url: `${config.url}/api/v1/otlp/v1/traces`, headers }),
+    // GraphQL requests are named after their operation (see graphql.js) before spans are exported.
+    spanProcessors: [
+      new GraphqlOperationProcessor(),
+      new BatchSpanProcessor(new OTLPTraceExporter({ url: `${config.url}/api/v1/otlp/v1/traces`, headers })),
+    ],
     // pino and bunyan records are sent by their instrumentations; console.* by bridgeConsole.
     logRecordProcessors: config.logs
       ? [new BatchLogRecordProcessor({ exporter: new OTLPLogExporter({ url: `${config.url}/api/v1/otlp/v1/logs`, headers }) })]

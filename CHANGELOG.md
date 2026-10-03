@@ -7,6 +7,10 @@ All notable changes to this project are documented in this file. The format is b
 ## [Unreleased]
 
 ### Added
+- GraphQL requests are named after their operation in the dependency and flow graphs
+  (`query ListProducts`, or `query products` for an anonymous query) instead of all showing as
+  `POST /graphql`. The Node.js SDK (0.2.1) copies the operation from OpenTelemetry's GraphQL spans
+  onto the request's server span; the backend names operations from `graphql.operation.*`.
 - Latency and error-rate alerts judge real traffic: when a service sends traces and handled
   enough requests in the window (`ALERT_THRESHOLD_MIN_REQUESTS`, default 20), `LATENCY_ABOVE` is
   their p95 latency and `ERROR_RATE_ABOVE` the share that failed — so an API that's failing its
